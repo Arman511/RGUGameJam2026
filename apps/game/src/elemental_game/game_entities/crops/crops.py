@@ -33,10 +33,9 @@ class Crop:
         CropType.WIND: "path to wind plant folder",
     }
 
-    def __init__(self, id, crop_type, pos):
+    def __init__(self, crop_type, pos):
         if not isinstance(crop_type, CropType):
             raise TypeError(f"crop_type must be a CropType, got {crop_type!r}")
-        self.crop_id = id
         self.crop_type = crop_type
         self.image = self.CROP_APPEARANCE[crop_type]
         self.pos = pos  # position in farm grid
@@ -46,7 +45,7 @@ class Crop:
     def is_ready(self):
         return self.growth_timer >= self.GROWTH_TIME
 
-    def harvest(self, player):
+    def harvest(self):
         # harvest the crop and give user plant
         # return crop_type
         pass
