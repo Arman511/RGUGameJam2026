@@ -44,7 +44,7 @@ def _create_game(screen, player_type):
     farm = Farm(
         *config.FARM_DIMENSIONS,
         origin=(
-            (screen.get_width() - config.FARM_DIMENSIONS[1] * Farm.TILE_SIZE) // 2,
+            (screen.get_width() - config.FARM_DIMENSIONS[1] * config.TILE_SIZE) // 2,
             config.FARM_HEIGHT,
         ),
     )

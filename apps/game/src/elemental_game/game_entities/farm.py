@@ -12,12 +12,11 @@ import random
 from elemental_game.game_entities.crops.crops import Crop, CropType
 from elemental_game.types.player import PlayerType
 from elemental_game.types.seed import SeedType
-from elemental_game.config import IMAGES_DIR
+from elemental_game.config import IMAGES_DIR, TILE_SIZE
 import os
 
 
 class Farm:
-    TILE_SIZE = 50
     OPPOSING_ELEMENTS = {
         PlayerType.FIRE: CropType.WATER,
         PlayerType.WATER: CropType.FIRE,
@@ -42,16 +41,16 @@ class Farm:
             os.path.join(IMAGES_DIR, "settings-and-gameplay", "soil_plant.png")
         ).convert_alpha()
         self.soil_img = pygame.transform.scale(
-            soil_img, (self.TILE_SIZE, self.TILE_SIZE)
+            soil_img, (TILE_SIZE, TILE_SIZE)
         )
         self.seedling_img = pygame.transform.scale(
-            seedling_img, (self.TILE_SIZE, self.TILE_SIZE)
+            seedling_img, (TILE_SIZE, TILE_SIZE)
         )
 
         self.flower_imgs = {
             crop_type: pygame.transform.scale(
                 pygame.image.load(image).convert_alpha(),
-                (self.TILE_SIZE, self.TILE_SIZE),
+                (TILE_SIZE, TILE_SIZE),
             )
             for crop_type, image in Crop.CROP_APPEARANCE.items()
         }
@@ -86,10 +85,10 @@ class Farm:
     def tile_rect(self, row, col):
         # return the screen area of the tile as x, y, width, height
         return pygame.Rect(
-            self.origin[0] + col * self.TILE_SIZE,
-            self.origin[1] + row * self.TILE_SIZE,
-            self.TILE_SIZE,
-            self.TILE_SIZE,
+            self.origin[0] + col * TILE_SIZE,
+            self.origin[1] + row * TILE_SIZE,
+            TILE_SIZE,
+            TILE_SIZE,
         )
 
     def draw(self, surface, font, player_pos):
@@ -119,8 +118,8 @@ class Farm:
 
     def tile_at_pixel(self, x, y):
         """Convert a mouse position to (row, col), or None if outside the grid."""
-        col = int((x - self.origin[0]) // self.TILE_SIZE)
-        row = int((y - self.origin[1]) // self.TILE_SIZE)
+        col = int((x - self.origin[0]) // TILE_SIZE)
+        row = int((y - self.origin[1]) // TILE_SIZE)
         return (row, col) if self.in_bounds(row, col) else None
 
     def expand(self, add_rows=0, add_cols=0):
