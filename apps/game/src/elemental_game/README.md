@@ -24,3 +24,9 @@ already been applied; add a new revision instead.
 Music and SFX volume preferences are stored in the local database and restored
 when the game starts. The game leaderboard is local-only and can be filtered by
 username; it is ordered by waves reached.
+
+On launch, the game validates an existing API login and otherwise shows a
+login screen with a guest skip option. The main menu provides Play game,
+Leaderboard, and Settings, plus a Sign in or Sign out action depending on the
+current account state. Settings changes are applied while adjusting the sliders
+and saved to the local database when Save is selected or settings are closed.
