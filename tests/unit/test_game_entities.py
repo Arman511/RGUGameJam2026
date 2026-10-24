@@ -1,6 +1,18 @@
 from elemental_game.game_entities.enemies.enemies import ENEMY_DEFS, EnemyState
 from elemental_game.game_entities.enemies.waves import build_wave_sequence
+from elemental_game.game_entities.player.player import PlayerType
 from elemental_game.game_entities.turrets.turrets import TURRET_DEFS
+
+
+def test_player_types_map_numbers_to_expected_sprite_paths() -> None:
+    assert [player_type.image_path for player_type in PlayerType] == [
+        "water-player.png",
+        "earth-player.png",
+        "lightning-player.png",
+        "ice-player.png",
+        "fire-player.png",
+        "air-player.png",
+    ]
 
 
 def test_flame_turret_has_configured_resource_cost() -> None:
