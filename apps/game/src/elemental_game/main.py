@@ -69,7 +69,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     farm, player = _create_game(screen, menus.store.player_image_number())
     shop = ShopMenu()
-    house = House()
+    house = House(screen)
     turrets = TurretSystem(farm)
     enemy_images = load_enemy_images()
     shop_open = False
@@ -115,7 +115,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                             screen, menus.store.player_image_number()
                         )
                         shop = ShopMenu()
-                        house = House()
+                        house = House(screen)
                         turrets = TurretSystem(farm)
                         enemies = []
                         planting_phase = True
@@ -144,7 +144,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                             screen, menus.store.player_image_number()
                         )
                         shop = ShopMenu()
-                        house = House()
+                        house = House(screen)
                         turrets = TurretSystem(farm)
                         enemies = []
                         planting_phase = True

@@ -1,6 +1,3 @@
-from __future__ import annotations
-
-
 def build_wave_sequence(wave_number: int) -> list[str]:
     if wave_number < 1:
         raise ValueError("wave_number must be positive")
@@ -30,3 +27,8 @@ def build_wave_sequence(wave_number: int) -> list[str]:
             [elite_types[(wave_number - 3) % len(elite_types)]] * (1 + wave_number // 4)
         )
     return wave
+
+
+class Waves:
+    def __init__(self):
+        self.weather = self.get_weather()
