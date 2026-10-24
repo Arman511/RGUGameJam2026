@@ -7,6 +7,9 @@ WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 600
 FULLSCREEN = os.environ.get("ELEMENTAL_FULL_SCREEN", "0") == "1"
 
+FARM_DIMENSIONS = (6, 6)
+FARM_HEIGHT = WINDOW_HEIGHT - 450
+
 import os
 
 ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets')  # .../src/elemental_game

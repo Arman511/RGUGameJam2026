@@ -45,10 +45,9 @@ PLANTING = True
 # login / main menu / leaderboard / settings (menus.py)
 # returns True when they press Play, False if they close the window
 def _create_game(screen, player_type):
-    dimensions = (6, 6)
     farm = Farm(
-        *dimensions,
-        origin=((screen.get_width() - dimensions[1] * Farm.TILE_SIZE) // 2, 250),
+        *config.FARM_DIMENSIONS,
+        origin=((screen.get_width() - config.FARM_DIMENSIONS[1] * Farm.TILE_SIZE) // 2, config.FARM_HEIGHT),
     )
     player = Player(player_type=PlayerType(player_type))
     return farm, player
