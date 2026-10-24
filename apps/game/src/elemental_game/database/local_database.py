@@ -119,7 +119,7 @@ class LocalLeaderboardStore:
                 WHERE setting_key IN ('music_volume', 'sfx_volume')
                 """
             ).fetchall()
-        preferences = {"music_volume": 1.0, "sfx_volume": 1.0}
+        preferences = {"music_volume": 0.5, "sfx_volume": 0.5}
         preferences.update({row["setting_key"]: row["setting_value"] for row in rows})
         return preferences
 

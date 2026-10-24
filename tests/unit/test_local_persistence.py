@@ -51,7 +51,7 @@ def test_leaderboard_sorts_by_wave_and_can_return_all_rows(tmp_path: Path) -> No
 def test_sound_preferences_persist_and_validate(tmp_path: Path) -> None:
     db = LocalLeaderboardStore(path=tmp_path / "leaderboard.db")
 
-    assert db.sound_preferences() == {"music_volume": 1.0, "sfx_volume": 1.0}
+    assert db.sound_preferences() == {"music_volume": 0.5, "sfx_volume": 0.5}
     db.save_sound_preferences(music_volume=0.4, sfx_volume=0.7)
     assert db.sound_preferences() == {"music_volume": 0.4, "sfx_volume": 0.7}
 
