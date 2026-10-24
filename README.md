@@ -22,6 +22,12 @@ uv sync --all-packages --all-groups
 uv run --project apps/game python -m elemental_game.main
 ```
 
+Start directly in the game, using a saved login when available or playing as a
+guest otherwise:
+```bash
+uv run --project apps/game python -m elemental_game.main --skip-menu
+```
+
 ## Build a standalone game
 ```bash
 make compile-game

@@ -123,9 +123,7 @@ class LocalLeaderboardStore:
         preferences.update({row["setting_key"]: row["setting_value"] for row in rows})
         return preferences
 
-    def save_sound_preferences(
-        self, *, music_volume: float, sfx_volume: float
-    ) -> None:
+    def save_sound_preferences(self, *, music_volume: float, sfx_volume: float) -> None:
         if not 0.0 <= music_volume <= 1.0 or not 0.0 <= sfx_volume <= 1.0:
             raise ValueError("sound volumes must be between 0.0 and 1.0")
         with self._connect() as connection:

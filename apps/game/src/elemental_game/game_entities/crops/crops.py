@@ -8,15 +8,8 @@ new_emberbloom = Crop(<name or id>, CropType.FIRE, (0, 0))
 from enum import Enum
 import os
 from elemental_game.config import IMAGES_DIR
+from elemental_game.types.crop import CropType
 import pygame
-
-class CropType(Enum):
-    FIRE = 0
-    WATER = 1
-    LIGHTNING = 2
-    EARTH = 3
-    ICE = 4
-    AIR = 5
 
 
 class Crop:
@@ -27,22 +20,24 @@ class Crop:
     CROP_YIELD = 1
 
     CROP_APPEARANCE = {
-        CropType.AIR: os.path.join(IMAGES_DIR, "flower","air-flower.png"),
-        CropType.EARTH: os.path.join(IMAGES_DIR, "flower","earth-flower.png"),
-        CropType.FIRE: os.path.join(IMAGES_DIR, "flower","fire-flower.png"),
-        CropType.ICE: os.path.join(IMAGES_DIR, "flower","ice-flower.png"),
-        CropType.LIGHTNING: os.path.join(IMAGES_DIR, "flower","lightning-flower.png"),
-        CropType.WATER: os.path.join(IMAGES_DIR, "flower","water-flower.png"),
+        CropType.AIR: os.path.join(IMAGES_DIR, "flower", "air-flower.png"),
+        CropType.EARTH: os.path.join(IMAGES_DIR, "flower", "earth-flower.png"),
+        CropType.FIRE: os.path.join(IMAGES_DIR, "flower", "fire-flower.png"),
+        CropType.ICE: os.path.join(IMAGES_DIR, "flower", "ice-flower.png"),
+        CropType.LIGHTNING: os.path.join(IMAGES_DIR, "flower", "lightning-flower.png"),
+        CropType.WATER: os.path.join(IMAGES_DIR, "flower", "water-flower.png"),
     }
 
-    def __init__(self, crop_type, pos):
+    def __init__(self, crop_type, pos, tier=1):
         if not isinstance(crop_type, CropType):
             raise TypeError(f"crop_type must be a CropType, got {crop_type!r}")
+        if tier not in (1, 2, 3):
+            raise ValueError(f"tier must be 1, 2, or 3, got {tier!r}")
         self.crop_type = crop_type
+        self.tier = tier
         self.image = self.CROP_APPEARANCE[crop_type]
         self.pos = pos  # position in farm grid
         self.growth_timer = 0
-        self.stage = 0  # how much plant has grown
 
     def is_ready(self):
         return self.growth_timer >= self.GROWTH_TIME
@@ -54,11 +49,6 @@ class Crop:
 
     def get_value(self):
         return self.VALUE
-
-    def get_crop_stage(self):
-        # based on time passed since planting, update the stage of the crop
-        # return the corresponding appearence png
-        pass
 
     def set_crop_yield(self, y):
         # may want to change this as game progresses

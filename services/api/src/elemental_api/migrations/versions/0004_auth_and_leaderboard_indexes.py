@@ -36,6 +36,8 @@ def downgrade() -> None:
         ("ix_auth_tokens_expires_at", "auth_tokens"),
         ("ix_auth_tokens_user_id", "auth_tokens"),
     ):
-        indexes = {index["name"] for index in sa.inspect(op.get_bind()).get_indexes(table)}
+        indexes = {
+            index["name"] for index in sa.inspect(op.get_bind()).get_indexes(table)
+        }
         if name in indexes:
             op.drop_index(name, table_name=table)

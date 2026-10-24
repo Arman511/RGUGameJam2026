@@ -6,20 +6,21 @@ Attributes and behaviour specific to the enemy
 
 from abc import ABC, abstractmethod
 
+
 class Enemy(ABC):
     def __init__(self, id, max_hp, speed, damage, image, width, height, resistance):
         # attributes for enemy creation:
         self.enemy_id = id
         self.max_hp = max_hp
         self.speed = speed
-        self.damage = damage # damage the enemy does
-        self.image = image # path to assets folder, list
+        self.damage = damage  # damage the enemy does
+        self.image = image  # path to assets folder, list
         self.resistance = resistance
         self.width = width
         self.height = height
 
         # dynamic attributes
-        self.pos = (0, 0) # starting pos for now
+        self.pos = (0, 0)  # starting pos for now
         self.current_hp = self.max_hp
 
     def approach_farm(self, destination_coord):
@@ -47,9 +48,19 @@ class Enemy(ABC):
 Create new enemy objects with the below classes
 """
 
-class Swarmer(Enemy): # the slime dude
-    def __init__(self, id): # other stats are fixed
-        super().__init__(id, 10, 70, 5, image="path to slime image", width=50, height=70, resistance=None)
+
+class Swarmer(Enemy):  # the slime dude
+    def __init__(self, id):  # other stats are fixed
+        super().__init__(
+            id,
+            10,
+            70,
+            5,
+            image="path to slime image",
+            width=50,
+            height=70,
+            resistance=None,
+        )
 
     def attack(self):
         pass

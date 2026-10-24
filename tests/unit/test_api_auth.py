@@ -74,9 +74,7 @@ def test_login_with_wrong_password_returns_unauthorized(client) -> None:
     assert response.json()["detail"] == "Invalid credentials"
 
 
-def test_login_unexpected_error_is_logged_without_exposing_details(
-    client
-) -> None:
+def test_login_unexpected_error_is_logged_without_exposing_details(client) -> None:
     from elemental_api.auth.routes import get_db
 
     log_output = StringIO()
@@ -91,9 +89,7 @@ def test_login_unexpected_error_is_logged_without_exposing_details(
     client.app.dependency_overrides[get_db] = fail_database
 
     try:
-        response = TestClient(
-            client.app, raise_server_exceptions=False
-        ).post(
+        response = TestClient(client.app, raise_server_exceptions=False).post(
             "/api/v1/auth/login",
             json={"username": "alice", "password": "secretpass"},
         )
