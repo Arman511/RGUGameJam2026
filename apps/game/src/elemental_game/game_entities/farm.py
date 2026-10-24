@@ -25,17 +25,23 @@ class Farm:
         self.menu = CropMenu()  # one menu, created once
         self.planting = False  # True = menu is drawn and taking input
 
-        soil_img = pygame.image.load(os.path.join(IMAGES_DIR, "settings-and-gameplay", "soil.png")).convert_alpha()
-        seedling_img = pygame.image.load(os.path.join(IMAGES_DIR, "settings-and-gameplay", "soil_plant.png")).convert_alpha()
-        self.soil_img = pygame.transform.scale(soil_img, (self.TILE_SIZE, self.TILE_SIZE))
-        self.seedling_img = pygame.transform.scale(seedling_img, (self.TILE_SIZE, self.TILE_SIZE))
+        soil_img = pygame.image.load(
+            os.path.join(IMAGES_DIR, "settings-and-gameplay", "soil.png")
+        ).convert_alpha()
+        seedling_img = pygame.image.load(
+            os.path.join(IMAGES_DIR, "settings-and-gameplay", "soil_plant.png")
+        ).convert_alpha()
+        self.soil_img = pygame.transform.scale(
+            soil_img, (self.TILE_SIZE, self.TILE_SIZE)
+        )
+        self.seedling_img = pygame.transform.scale(
+            seedling_img, (self.TILE_SIZE, self.TILE_SIZE)
+        )
 
         self.flower_imgs = {
             crop_type: pygame.transform.scale(
-                pygame.image.load(
-                    image
-                ).convert_alpha(),
-                (self.TILE_SIZE, self.TILE_SIZE)
+                pygame.image.load(image).convert_alpha(),
+                (self.TILE_SIZE, self.TILE_SIZE),
             )
             for crop_type, image in Crop.CROP_APPEARANCE.items()
         }
@@ -85,8 +91,8 @@ class Farm:
                 if crop is None:
                     surface.blit(self.soil_img, rect)
                 elif crop.is_ready():
-                    surface.blit(self.soil_img, rect)                      # ground underneath
-                    surface.blit(self.flower_imgs[crop.crop_type], rect)   # its flower
+                    surface.blit(self.soil_img, rect)  # ground underneath
+                    surface.blit(self.flower_imgs[crop.crop_type], rect)  # its flower
                 else:
                     surface.blit(self.seedling_img, rect)
 
@@ -100,7 +106,6 @@ class Farm:
             for crop in row:
                 if crop is not None:
                     crop.growth_timer += dt
-                    crop.get_crop_stage()  # updates crop.stage
 
     def tile_at_pixel(self, x, y):
         """Convert a mouse position to (row, col), or None if outside the grid."""
@@ -141,7 +146,7 @@ class Farm:
                 self.menu.move_selection(-1)
             elif event.key == pygame.K_DOWN:
                 self.menu.move_selection(1)
-            elif event.key == pygame.K_RETURN:
+            elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
                 selection = self.menu.selected_crop()
                 if selection is not None:
                     crop_type, tier = selection
@@ -176,8 +181,10 @@ class CropMenu:
                 count = player.seeds[seed_type][f"tier{tier}"]
                 if count > 0:
                     rect = pygame.Rect(
-                        pos[0], pos[1] + len(self.options) * self.ITEM_H,
-                        self.ITEM_W, self.ITEM_H
+                        pos[0],
+                        pos[1] + len(self.options) * self.ITEM_H,
+                        self.ITEM_W,
+                        self.ITEM_H,
                     )
                     self.options.append((crop_type, tier, count, rect))
 
