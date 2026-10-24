@@ -27,13 +27,16 @@ FROM python:3.12-alpine AS runtime
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH="/app/src" \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    ELEMENTAL_API_DISABLE_DOCS=1
 
 WORKDIR /app
 
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/src /app/src
 COPY --from=builder /app/alembic.ini /app/alembic.ini
+
+ENV ELEMENTAL_API_DISABLE_DOCS = 1
 
 EXPOSE 8000
 

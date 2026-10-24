@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -66,7 +67,11 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
     yield
 
 
-app = FastAPI(title="Elemental Keep API", lifespan=lifespan)
+app = FastAPI(
+    title="Elemental Keep API",
+    lifespan=lifespan,
+    docs_url=None if os.environ.get("ELEMENTAL_API_DISABLE_DOCS") == "1" else "/docs",
+)
 
 
 @app.middleware("http")
