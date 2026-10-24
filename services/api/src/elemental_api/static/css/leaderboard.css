@@ -61,6 +61,15 @@ body {
   background: #35bd76;
   box-shadow: 0 0 12px #35bd76;
 }
+.table-updated { min-width: 88px; }
+.table-updated-value {
+  display: block;
+  color: var(--accent);
+  font-size: .8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .theme-toggle { min-height: 38px; }
 .hero { max-width: 740px; }
 .hero .lead { max-width: 600px; color: var(--text-muted); line-height: 1.7; }
@@ -93,7 +102,6 @@ body {
   font-weight: 750;
   font-variant-numeric: tabular-nums;
 }
-.summary-time { font-size: 1.2rem; }
 .podium-card {
   min-height: 138px;
   padding: 18px;

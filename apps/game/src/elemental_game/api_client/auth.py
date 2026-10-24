@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from ..database.local_database import get_default_data_dir
+
 try:
     import keyring
 except ImportError:
@@ -23,11 +25,10 @@ class CredentialStore:
         self, app_name: str = "elemental-keep", cache_path: str | None = None
     ) -> None:
         self.app_name = app_name
-        self.cache_path = Path(
-            cache_path
-            or (
-                Path.home() / ".local" / "share" / "elemental_keep" / "credentials.json"
-            )
+        self.cache_path = (
+            Path(cache_path)
+            if cache_path is not None
+            else get_default_data_dir() / "credentials.json"
         )
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -107,6 +108,10 @@ class AuthClient:
         return auth_response
 
     def logout(self) -> MessageResponse:
+        if not self.credentials.load_token():
+            print("Not logged in")
+            return MessageResponse(message="Not logged in")
+
         response = self.client.post("/api/v1/auth/logout")
         self.credentials.clear_token()
         return MessageResponse.model_validate(response)
@@ -121,28 +126,3 @@ class AuthClient:
         if guest_username is None or not guest_username.strip():
             raise ValueError("enter a username to save this run")
         return guest_username.strip()
-
-
-def keyring_available() -> bool:
-    return keyring is not None
-
-
-def register(client: APIClient, username: str, password: str) -> RegisterResponse:
-    request = RegisterRequest(username=username, password=password)
-    response = client.post("/api/v1/auth/register", json_body=request)
-    return RegisterResponse.model_validate(response)
-
-
-def login(client: APIClient, username: str, password: str) -> AuthResponse:
-    request = LoginRequest(username=username, password=password)
-    response = client.post("/api/v1/auth/login", json_body=request)
-    return AuthResponse.model_validate(response)
-
-
-def logout(client: APIClient) -> MessageResponse:
-    response = client.post("/api/v1/auth/logout")
-    return MessageResponse.model_validate(response)
-
-
-def auth_headers(token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token}"}

@@ -24,5 +24,4 @@ members = [
 testpaths = ["tests"]
 pythonpath = [
     "apps/game/src",
-    "apps/game/src/elemental_game/api_client/src",
 ]

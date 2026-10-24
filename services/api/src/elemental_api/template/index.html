@@ -17,23 +17,23 @@
 
 <body>
   <main class="container-xl page-shell py-4 py-lg-5">
-    <header class="d-flex align-items-center justify-content-between gap-3 mb-5">
+    <header class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-5">
       <div class="brand d-flex align-items-center gap-2">
         <img class="brand-mark d-inline-grid place-items-center" aria-hidden="true"
           src="{{ url_for('static', path='icon.png') }}" alt="Brand mark">
         <span class="fw-bold small letter-spaced">ELEMENTAL KEEP</span>
       </div>
-      <div class="d-flex align-items-center gap-2">
+      <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
         <a class="btn btn-outline-secondary" href="/register">Create account</a>
-        <span class="live-pill d-none d-sm-inline-flex align-items-center gap-2" role="status">
-          <span class="live-dot" aria-hidden="true"></span>
-          <span id="refresh-status">Connecting to live scores</span>
-        </span>
         <button class="btn btn-outline-secondary theme-toggle d-inline-flex align-items-center gap-2" id="theme-toggle"
           type="button" aria-label="Switch to light mode" aria-pressed="false">
           <span id="theme-icon" aria-hidden="true">☀</span>
           <span id="theme-label" class="d-none d-sm-inline">Light mode</span>
         </button>
+        <span class="live-pill d-none d-sm-inline-flex align-items-center gap-2" role="status">
+          <span class="live-dot" aria-hidden="true"></span>
+          <span id="refresh-status">Connecting to live scores</span>
+        </span>
       </div>
     </header>
 
@@ -48,22 +48,16 @@
     </section>
 
     <section class="row g-3 summary-grid my-4 my-lg-5" aria-label="Leaderboard summary">
-      <div class="col-6 col-lg-4">
+      <div class="col-6">
         <div class="summary-card h-100 text-center">
           <span class="summary-label">Runs shown</span>
           <span class="summary-value" id="stat-runs">—</span>
         </div>
       </div>
-      <div class="col-6 col-lg-4">
+      <div class="col-6">
         <div class="summary-card h-100 text-center">
           <span class="summary-label">Highest wave</span>
           <span class="summary-value" id="stat-wave">—</span>
-        </div>
-      </div>
-      <div class="col-12 col-lg-4">
-        <div class="summary-card h-100 text-center">
-          <span class="summary-label">Last updated</span>
-          <span class="summary-value summary-time" id="stat-updated">—</span>
         </div>
       </div>
     </section>
@@ -72,7 +66,13 @@
 
     <section aria-labelledby="scores-heading">
       <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
-        <h2 class="h4 fw-bold mb-0" id="scores-heading">All scores</h2>
+        <div class="d-flex align-items-center justify-content-between gap-3">
+          <h2 class="h4 fw-bold mb-0" id="scores-heading">All scores</h2>
+          <div class="table-updated text-end">
+            <span class="summary-label">Last updated</span>
+            <span class="table-updated-value" id="stat-updated">—</span>
+          </div>
+        </div>
         <div class="d-flex flex-column flex-sm-row gap-2 leaderboard-controls">
           <label class="visually-hidden" for="search">Search players or run IDs</label>
           <input class="form-control" id="search" type="search" placeholder="Search players or runs" autocomplete="off">
