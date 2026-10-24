@@ -37,6 +37,19 @@ class Farm:
             seedling_img, (self.TILE_SIZE, self.TILE_SIZE)
         )
 
+        air_flower_img = pygame.image.load(os.path.join(IMAGES_DIR, "flower","air-flower.png")).convert_alpha()
+        earth_flower_img= pygame.image.load(os.path.join(IMAGES_DIR, "flower","earth-flower.png")).convert_alpha()
+        fire_flower_img = pygame.image.load(os.path.join(IMAGES_DIR, "flower","fire-flower.png")).convert_alpha()
+        ice_flower_img = pygame.image.load(os.path.join(IMAGES_DIR, "flower","air-flower.png")).convert_alpha()
+        lightning_flower_img = pygame.image.load(os.path.join(IMAGES_DIR, "settings-and-gameplay","soil.png")).convert_alpha()
+        water_flower_img = pygame.image.load(os.path.join(IMAGES_DIR, "settings-and-gameplay","soil_plant.png")).convert_alpha()
+        self.soil_img = pygame.transform.scale(soil_img, (self.TILE_SIZE, self.TILE_SIZE))
+        self.seedling_img = pygame.transform.scale(seedling_img, (self.TILE_SIZE, self.TILE_SIZE))
+        self.soil_img = pygame.transform.scale(soil_img, (self.TILE_SIZE, self.TILE_SIZE))
+        self.seedling_img = pygame.transform.scale(seedling_img, (self.TILE_SIZE, self.TILE_SIZE))
+        self.soil_img = pygame.transform.scale(soil_img, (self.TILE_SIZE, self.TILE_SIZE))
+        self.seedling_img = pygame.transform.scale(seedling_img, (self.TILE_SIZE, self.TILE_SIZE))
+
     def in_bounds(self, row, col):
         return 0 <= row < self.rows and 0 <= col < self.cols
 
@@ -54,7 +67,6 @@ class Farm:
             return None
         crop = Crop(crop_type, (row, col))
         self.grid[row][col] = crop
-        return crop
 
     def harvest(self, row, col):
         """Harvests the crop if it's ready and clears the tile. Returns the crop type or None."""
@@ -62,7 +74,6 @@ class Farm:
         if crop is None or not crop.is_ready():
             return None
         self.grid[row][col] = None
-        return crop.harvest()
 
     def tile_rect(self, row, col):
         # return the screen area of the tile as x, y, width, height
@@ -73,17 +84,22 @@ class Farm:
             self.TILE_SIZE,
         )
 
-    def draw(self, surface, font, hovered=None):
+    def draw(self, surface, font, player_pos):
         for row in range(self.rows):
             for col in range(self.cols):
-                rect = self.tile_rect(row, col)
-                surface.blit(self.soil_img, rect)
 
-                crop = self.grid[row][col]
-                if crop:
-                    colour = (0, 255, 0) if crop.is_ready() else (255, 255, 255)
-                    letter = font.render(crop.crop_type.name[0], True, colour)
-                    surface.blit(letter, letter.get_rect(center=rect.center))
+                if self.grid[row][col]:
+                    self.tile_state = self.seedling_img
+                else:
+                    self.tile_state = self.soil_img
+
+                rect = self.tile_rect(row, col)
+                surface.blit(self.tile_state, rect)
+
+                if (row, col) == player_pos:
+                    overlay = pygame.Surface(rect.size, pygame.SRCALPHA)
+                    pygame.draw.rect(overlay, (87, 0, 72, 95), overlay.get_rect())
+                    surface.blit(overlay, rect)
 
     def update(self, dt):
         for row in self.grid:
