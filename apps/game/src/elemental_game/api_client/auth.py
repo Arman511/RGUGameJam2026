@@ -8,6 +8,7 @@ from ..database.local_database import get_default_data_dir
 
 try:
     import keyring
+    import keyring.errors
 except ImportError:
     keyring = None
 
