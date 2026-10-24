@@ -7,3 +7,13 @@ services:
       ELEMENTAL_API_DB_PATH: /data/elemental_api.db
     volumes:
       - ./.local/elemental_api_data:/data
+    networks:
+      default:
+        aliases:
+          - elemental-keep
+
+
+networks:
+  default:
+    name: zoraxy_proxy
+    external: true
