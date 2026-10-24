@@ -131,10 +131,7 @@ async function refresh() {
       hour: "2-digit",
       minute: "2-digit",
     });
-    refreshStatus.textContent = `Updated ${updated.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    })}`;
+    refreshStatus.textContent = "Live";
     footerStatus.textContent = "Live refresh · every 7 seconds";
     footerStatus.classList.remove("error");
     render();
