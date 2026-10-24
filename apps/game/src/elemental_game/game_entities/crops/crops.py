@@ -7,24 +7,30 @@ new_emberbloom = Crop(<name or id>, CropType.FIRE, (0, 0))
 
 from enum import Enum
 
+
 class CropType(Enum):
     FIRE = 0
     WATER = 1
     LIGHTNING = 2
     EARTH = 3
+    ICE = 4
+    WIND = 5
+
 
 class Crop:
-    GROWTH_TIME = 2 # PER STAGE
+    GROWTH_TIME = 2  # PER STAGE
     VALUE = 3
     WIDTH = 32
     HEIGHT = 32
-    CROP_YIELD = 2
+    CROP_YIELD = 1
 
     CROP_APPEARANCE = {
         CropType.FIRE: "path to fire plant folder",
         CropType.WATER: "path to water plant folder",
         CropType.LIGHTNING: "path to lightning plant folder",
         CropType.EARTH: "path to earth plant folder",
+        CropType.ICE: "path to ice plant folder",
+        CropType.WIND: "path to wind plant folder",
     }
 
     def __init__(self, id, crop_type, pos):
@@ -33,9 +39,9 @@ class Crop:
         self.crop_id = id
         self.crop_type = crop_type
         self.image = self.CROP_APPEARANCE[crop_type]
-        self.pos = pos # position in farm grid
+        self.pos = pos  # position in farm grid
         self.growth_timer = 0
-        self.stage # how much plant has grown
+        self.stage = 0  # how much plant has grown
 
     def is_ready(self):
         return self.growth_timer >= self.GROWTH_TIME
