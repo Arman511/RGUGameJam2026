@@ -9,6 +9,8 @@ Usage (from main.py):
 
 from __future__ import annotations
 
+from typing import Any
+
 import pygame
 
 from elemental_game.api_client import APIClient, AuthClient, CredentialStore
@@ -18,6 +20,7 @@ from elemental_game.audio import (
     play_background_music,
 )
 from elemental_game.database import LocalLeaderboardStore
+from elemental_game.game_entities.player.player import PlayerType
 
 BACKGROUND = (30, 30, 30)
 BUTTON = (65, 85, 65)
@@ -83,7 +86,7 @@ class MenuSystem:
         self.start_game = False  # set when the player presses Play
         self.error_message = ""
         self.notice_message = ""
-        self.leaderboard_rows: list[dict[str, object]] = []
+        self.leaderboard_rows: list[dict[str, Any]] = []
         self.leaderboard_scroll = 0
         self.leaderboard_filter = InputField(
             pygame.Rect(265, 105, 330, 42),
@@ -102,6 +105,7 @@ class MenuSystem:
             secret=True,
         )
         self.preferences = self.store.sound_preferences()
+        self.player_type = PlayerType(self.store.player_image_number())
         self._apply_sound_preferences()
         play_background_music(volume=self.preferences["music_volume"])
         self.dragging_slider: str | None = None
@@ -142,6 +146,7 @@ class MenuSystem:
             music_volume=self.preferences["music_volume"],
             sfx_volume=self.preferences["sfx_volume"],
         )
+        self.store.save_player_image_number(int(self.player_type))
         self._apply_sound_preferences()
 
     def run(self) -> bool:
@@ -270,8 +275,14 @@ class MenuSystem:
             self._close_settings()
             return
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if pygame.Rect(250, 385, 300, 48).collidepoint(event.pos):
+            if pygame.Rect(250, 410, 300, 48).collidepoint(event.pos):
                 self.state = "confirm_clear"
+                return
+            if pygame.Rect(280, 345, 50, 40).collidepoint(event.pos):
+                self._change_player_type(-1)
+                return
+            if pygame.Rect(470, 345, 50, 40).collidepoint(event.pos):
+                self._change_player_type(1)
                 return
             if pygame.Rect(330, 220, 260, 18).inflate(0, 18).collidepoint(event.pos):
                 self.dragging_slider = "music_volume"
@@ -279,7 +290,7 @@ class MenuSystem:
             elif pygame.Rect(330, 295, 260, 18).inflate(0, 18).collidepoint(event.pos):
                 self.dragging_slider = "sfx_volume"
                 self._update_slider(event.pos[0])
-            elif pygame.Rect(330, 475, 140, 44).collidepoint(event.pos):
+            elif pygame.Rect(330, 520, 140, 44).collidepoint(event.pos):
                 self._close_settings()
         elif event.type == pygame.MOUSEMOTION and self.dragging_slider:
             self._update_slider(event.pos[0])
@@ -290,6 +301,10 @@ class MenuSystem:
     def _close_settings(self) -> None:
         self._save_sound_preferences()
         self.state = "menu"
+
+    def _change_player_type(self, step: int) -> None:
+        number = (int(self.player_type) - 1 + step) % len(PlayerType) + 1
+        self.player_type = PlayerType(number)
 
     def _update_slider(self, mouse_x: int) -> None:
         key = self.dragging_slider
@@ -380,7 +395,7 @@ class MenuSystem:
             self._draw_text("Scroll to see more runs", 400, 500, color=MUTED_TEXT)
         self._draw_button("Back", pygame.Rect(330, 520, 140, 44))
 
-    def _filtered_leaderboard(self) -> list[dict[str, object]]:
+    def _filtered_leaderboard(self) -> list[dict[str, Any]]:
         query = self.leaderboard_filter.value.casefold().strip()
         return [
             row
@@ -394,10 +409,18 @@ class MenuSystem:
         self._draw_slider(MUSIC_SLIDER, self.preferences["music_volume"])
         self._draw_text("SFX volume", 400, 265)
         self._draw_slider(SFX_SLIDER, self.preferences["sfx_volume"])
-        self._draw_button("Clear local leaderboard", pygame.Rect(250, 385, 300, 48))
-        self._draw_button("Save", pygame.Rect(330, 475, 140, 44))
+        self._draw_text("Player image", 400, 325)
+        self._draw_button("<", pygame.Rect(280, 345, 50, 40))
+        self._draw_text(
+            f"{int(self.player_type)} - {self.player_type.name.title()}",
+            400,
+            365,
+        )
+        self._draw_button(">", pygame.Rect(470, 345, 50, 40))
+        self._draw_button("Clear local leaderboard", pygame.Rect(250, 410, 300, 48))
         if self.notice_message:
-            self._draw_text(self.notice_message, 400, 445, color=MUTED_TEXT)
+            self._draw_text(self.notice_message, 400, 475, color=MUTED_TEXT)
+        self._draw_button("Save", pygame.Rect(330, 520, 140, 44))
 
     def _draw_clear_confirmation(self) -> None:
         self._draw_title("Clear leaderboard?", 210)

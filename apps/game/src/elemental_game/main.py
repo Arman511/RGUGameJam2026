@@ -1,7 +1,7 @@
 import pygame
 from elemental_game.game_entities.farm import Farm, CropMenu
 from elemental_game.game_entities.crops.crops import CropType
-from elemental_game.game_entities.player.player import Player
+from elemental_game.game_entities.player.player import Player, PlayerType
 from elemental_game.menus import MenuSystem
 
 pygame.init()
@@ -19,7 +19,7 @@ farm = Farm(rows=4, cols=6, origin=(300, 300))
 # Holly is currently editing below:
 
 menu = None
-player = Player()
+player = Player(player_type=PlayerType(menus.store.player_image_number()))
 while running:
     dt = clock.tick(60) / 1000
     tile = farm.tile_at_pixel(*player.pos)   # tile the player is standing on

@@ -63,6 +63,21 @@ def test_sound_preferences_persist_and_validate(tmp_path: Path) -> None:
         raise AssertionError("out-of-range sound settings must not be saved")
 
 
+def test_player_image_number_persists_and_validates(tmp_path: Path) -> None:
+    db = LocalLeaderboardStore(path=tmp_path / "leaderboard.db")
+
+    assert db.player_image_number() == 1
+    db.save_player_image_number(6)
+    assert db.player_image_number() == 6
+
+    try:
+        db.save_player_image_number(7)
+    except ValueError as error:
+        assert str(error) == "player image number must be between 1 and 6"
+    else:
+        raise AssertionError("out-of-range player image numbers must not be saved")
+
+
 def test_run_requires_a_nonempty_username(tmp_path: Path) -> None:
     db = LocalLeaderboardStore(path=tmp_path / "leaderboard.db")
 
@@ -111,7 +126,7 @@ def test_legacy_local_leaderboard_migrates_without_score(tmp_path: Path) -> None
         columns = {
             row[1] for row in connection.execute("PRAGMA table_info(leaderboard)")
         }
-    assert revision == "0005_game_settings"
+    assert revision == "0006_player_selection"
     assert "score" not in columns
 
 
