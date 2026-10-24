@@ -1,0 +1,10 @@
+[project]
+name = "game-core"
+version = "0.1.0"
+description = "Pure Python simulation logic for Elemental Keep"
+requires-python = ">=3.12,<3.14"
+dependencies = []
+
+[build-system]
+requires = ["hatchling>=1.18.0"]
+build-backend = "hatchling.build"

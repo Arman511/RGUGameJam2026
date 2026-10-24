@@ -1,0 +1,47 @@
+# Elemental Keep
+
+Elemental Keep is a 2D top-down farming and tower-defence survival game built as a Python monorepo.
+
+## Project overview
+- Offline solo gameplay works without any API.
+- Local leaderboard results save to the OS app-data directory.
+- Optional online leaderboards and account features run through the FastAPI service.
+- Game rules live in the pure-Python `game-core` package so rendering and networking stay decoupled.
+
+## Requirements
+- Python 3.12+
+- uv
+
+## Setup
+```bash
+uv sync --all-packages --all-groups
+```
+
+## Run the solo game
+```bash
+uv run --package elemental-game python -m elemental_game.main
+```
+
+## Run the API locally
+```bash
+uv run --package elemental-api uvicorn elemental_api.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+## Controls
+- Left click: interact with farm plots and UI
+- 1-6: select crop or turret types
+- Space: start next wave / continue
+- Escape: pause
+
+## Local database and credentials
+Local leaderboard data is stored in the OS app-data directory, not in the repository. The API database defaults to `./.local/elemental_api.db` when `ELEMENTAL_API_DB_PATH` is not set. Credential storage uses `keyring` when available; otherwise the client falls back to a private per-user file.
+
+## Tests
+```bash
+uv run pytest
+uv run ruff check .
+```
+
+## Current status
+Implemented: core simulation, local persistence, Pygame menu and loop, API/auth routes, and tests.
+Future work: expanded enemy variety, richer graphics, multiplayer protocol implementation and online PvP.

@@ -1,0 +1,24 @@
+[project]
+name = "elemental-keep"
+version = "0.1.0"
+description = "Elemental Keep monorepo"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "ruff>=0.8.0",
+]
+
+[tool.uv.workspace]
+members = [
+    "apps/game",
+    "packages/game_core",
+    "packages/api_client",
+    "services/api",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
