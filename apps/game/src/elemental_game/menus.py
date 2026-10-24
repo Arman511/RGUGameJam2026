@@ -45,6 +45,7 @@ PLAY_BUTTON = pygame.Rect(250, 190, 300, 54)
 LEADERBOARD_BUTTON = pygame.Rect(250, 270, 300, 54)
 SETTINGS_BUTTON = pygame.Rect(250, 350, 300, 54)
 SIGN_IN_BUTTON = pygame.Rect(250, 430, 300, 54)
+EXIT_BUTTON = pygame.Rect(250, 510, 300, 54)
 LEADERBOARD_BACK_BUTTON = pygame.Rect(330, 520, 140, 44)
 CLEAR_CONFIRM_BUTTON = pygame.Rect(250, 340, 140, 48)
 CANCEL_CONFIRM_BUTTON = pygame.Rect(410, 340, 140, 48)
@@ -346,6 +347,9 @@ class MenuSystem:
                 return
             self.username = None
             self.error_message = ""
+        elif self.layout.rect(EXIT_BUTTON).collidepoint(event.pos):
+            self.start_game = False
+            self.running = False
 
     def _handle_leaderboard_event(self, event: pygame.event.Event) -> None:
         self.leaderboard_filter.handle_event(event)
@@ -463,8 +467,9 @@ class MenuSystem:
             "Sign out" if self.username else "Sign in",
             SIGN_IN_BUTTON,
         )
+        self._draw_button("Exit", EXIT_BUTTON)
         if self.error_message:
-            self._draw_text(self.error_message, 400, 510, color=ERROR_TEXT)
+            self._draw_text(self.error_message, 400, 580, color=ERROR_TEXT)
 
     def _draw_leaderboard(self) -> None:
         self._draw_panel(pygame.Rect(125, 30, 550, 480))

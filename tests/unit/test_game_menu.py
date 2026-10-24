@@ -144,3 +144,17 @@ def test_menu_click_target_uses_scaled_window_layout() -> None:
 
     assert app.start_game
     assert not app.running
+
+
+def test_exit_button_closes_menu_without_starting_game() -> None:
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.layout = menus.MenuLayout(1000, 800)
+    app.state = "menu"
+    app.start_game = False
+    app.running = True
+    app.username = None
+
+    menu_click(app, app.layout.rect(menus.EXIT_BUTTON).center)
+
+    assert not app.start_game
+    assert not app.running
