@@ -4,6 +4,11 @@ import pygame
 
 from elemental_game.api_client import APIClient, AuthClient, CredentialStore
 from elemental_game.api_client.http import APIError, AuthError
+from elemental_game.audio import (
+    initialise_audio,
+    play_background_music,
+    play_sfx,
+)
 from elemental_game.database import LocalLeaderboardStore
 from elemental_game.game_entities.farm import Farm
 from elemental_game.game_entities.player.player import Player
@@ -91,6 +96,7 @@ class GameApplication:
         )
         self.preferences = self.store.sound_preferences()
         self._apply_sound_preferences()
+        play_background_music(volume=self.preferences["music_volume"])
         self.farm = Farm(rows=4, cols=6, origin=(300, 300))
         self.player = Player(pos=self.farm.tile_rect(1, 2).center)
         self.dragging_slider: str | None = None
@@ -309,7 +315,9 @@ class GameApplication:
             return
 
         tile = self.farm.tile_at_pixel(*self.player.pos)
-        self.farm.handle_event(event, tile)
+        sound_effect = self.farm.handle_event(event, tile)
+        if sound_effect is not None:
+            play_sfx(sound_effect, volume=self.preferences["sfx_volume"])
 
     def _draw(self) -> None:
         self.screen.fill(BACKGROUND)
@@ -460,7 +468,9 @@ class GameApplication:
 
 
 def main() -> None:
-    pygame.init()
+    pygame.display.init()
+    pygame.font.init()
+    initialise_audio()
     try:
         GameApplication().run()
     finally:

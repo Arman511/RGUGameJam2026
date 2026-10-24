@@ -94,7 +94,7 @@ class Farm:
         self.rows += add_rows
         self.cols += add_cols
 
-    def handle_event(self, event, tile):
+    def handle_event(self, event, tile) -> str | None:
         """tile is the (row, col) the player is standing on, or None."""
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
@@ -104,13 +104,20 @@ class Farm:
                 if event.key == pygame.K_f and self.is_empty(row, col):
                     self.menu = CropMenu(tile, self.tile_rect(row, col).bottomleft)
                 elif event.key == pygame.K_h:
-                    self.harvest(row, col)
+                    crop = self.get_crop(row, col)
+                    if crop is not None and crop.is_ready():
+                        self.harvest(row, col)
+                        return "harvesting"
 
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.menu:
             crop_type = self.menu.click(event.pos)
-            if crop_type:
-                self.plant(*self.menu.tile, crop_type)
+            planted = crop_type is not None and self.plant(
+                *self.menu.tile, crop_type
+            ) is not None
             self.menu = None  # any click closes the menu
+            if planted:
+                return "planting"
+        return None
 
     def draw_menu(self, surface, font):
         if self.menu:
