@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 import httpx
-
-from elemental_game.api_client import APIClient, http as http_module
+from elemental_game.api_client import APIClient, AuthClient, CredentialStore
+from elemental_game.api_client import http as http_module
 from elemental_game.api_client.models import LocalRunRecord, RunSubmittedResponse
 
 
@@ -41,3 +41,29 @@ def test_submit_local_run_maps_local_database_fields(monkeypatch) -> None:
         "wave_number": 5,
         "enemies_defeated": 14,
     }
+
+
+def test_auth_client_uses_active_username_and_guest_name(tmp_path, monkeypatch) -> None:
+    from elemental_game.api_client import auth as auth_module
+
+    monkeypatch.setattr(auth_module, "keyring", None)
+    credentials = CredentialStore(cache_path=str(tmp_path / "credentials.json"))
+    client = APIClient()
+    auth = AuthClient(client, credentials)
+    current_user = {"id": 1, "username": "alice"}
+
+    def fake_post(path: str, **kwargs: Any) -> dict[str, Any]:
+        if path.endswith("/login"):
+            return {"token": f"token-{current_user['username']}", "user": current_user}
+        return {"message": "logged out"}
+
+    monkeypatch.setattr(client, "post", fake_post)
+    auth.login("alice", "password")
+    assert auth.username_for_run("guest") == "alice"
+
+    current_user = {"id": 2, "username": "bob"}
+    auth.login("bob", "password")
+    assert auth.username_for_run("guest") == "bob"
+
+    auth.logout()
+    assert auth.username_for_run(" guest ") == "guest"

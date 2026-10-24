@@ -44,35 +44,65 @@ class LocalLeaderboardStore:
         survival_time: float,
         final_wave: int,
         enemies_defeated: int,
+        *,
+        username: str,
     ) -> None:
+        username = username.strip()
+        if not username:
+            raise ValueError("username must not be empty")
+
         with self._connect() as connection:
             connection.execute(
                 """
-                INSERT INTO leaderboard(run_id, timestamp, survival_time, final_wave, enemies_defeated)
-                VALUES (?, datetime('now'), ?, ?, ?)
+                INSERT INTO leaderboard(
+                    run_id, timestamp, survival_time, final_wave, enemies_defeated, username
+                )
+                VALUES (?, datetime('now'), ?, ?, ?, ?)
                 ON CONFLICT(run_id) DO UPDATE SET
                     timestamp = excluded.timestamp,
                     survival_time = excluded.survival_time,
                     final_wave = excluded.final_wave,
-                    enemies_defeated = excluded.enemies_defeated
+                    enemies_defeated = excluded.enemies_defeated,
+                    username = excluded.username
                 """,
-                (run_id, survival_time, final_wave, enemies_defeated),
+                (run_id, survival_time, final_wave, enemies_defeated, username),
             )
             connection.commit()
 
-    def top_scores(self, limit: int = 10) -> list[dict[str, Any]]:
+    def top_scores(
+        self, limit: int = 10, *, username: str | None = None
+    ) -> list[dict[str, Any]]:
         with self._connect() as connection:
-            rows = connection.execute(
-                """
-                SELECT run_id, timestamp, survival_time, final_wave, enemies_defeated
-                FROM leaderboard
-                ORDER BY survival_time DESC, enemies_defeated DESC, final_wave DESC
-                LIMIT ?
-                """,
-                (limit,),
-            ).fetchall()
+            if username is None:
+                rows = connection.execute(
+                    """
+                    SELECT run_id, timestamp, survival_time, final_wave,
+                        enemies_defeated, username
+                    FROM leaderboard
+                    ORDER BY survival_time DESC, enemies_defeated DESC, final_wave DESC
+                    LIMIT ?
+                    """,
+                    (limit,),
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """
+                    SELECT run_id, timestamp, survival_time, final_wave,
+                        enemies_defeated, username
+                    FROM leaderboard
+                    WHERE username = ?
+                    ORDER BY survival_time DESC, enemies_defeated DESC, final_wave DESC
+                    LIMIT ?
+                    """,
+                    (username, limit),
+                ).fetchall()
         return [dict(row) for row in rows]
 
-    def personal_best(self) -> dict[str, Any] | None:
-        rows = self.top_scores(limit=1)
+    def personal_best(self, *, username: str | None = None) -> dict[str, Any] | None:
+        rows = self.top_scores(limit=1, username=username)
         return rows[0] if rows else None
+
+    def clear_leaderboard(self) -> None:
+        with self._connect() as connection:
+            connection.execute("DELETE FROM leaderboard")
+            connection.commit()
