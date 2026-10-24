@@ -19,7 +19,8 @@ class Farm:
         self.cols = cols
         self.origin = origin  # top-left pixel of the grid
         self.grid = [[None] * cols for _ in range(rows)]
-        self.menu = None
+        self.menu = CropMenu()   # one menu, created once
+        self.planting = False    # True = menu is drawn and taking input
 
     def in_bounds(self, row, col):
         return 0 <= row < self.rows and 0 <= col < self.cols
