@@ -75,7 +75,9 @@ class ShopMenu:
 
         options = self._options(player)
         if not options:
-            message = "No crops to sell" if self.mode == "sell" else "No seeds available"
+            message = (
+                "No crops to sell" if self.mode == "sell" else "No seeds available"
+            )
             surface.blit(
                 font.render(message, True, (255, 255, 255)),
                 (panel.x + 20, panel.y + 125),
@@ -112,9 +114,7 @@ class ShopMenu:
         if self.mode == "buy":
             return list(CropType)
         return [
-            crop_type
-            for crop_type in CropType
-            if player.crops.get(crop_type, 0) > 0
+            crop_type for crop_type in CropType if player.crops.get(crop_type, 0) > 0
         ]
 
     def _move_selection(self, step, player):

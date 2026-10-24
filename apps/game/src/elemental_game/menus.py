@@ -564,9 +564,7 @@ class MenuSystem:
             (center_x if center else x if x is not None else center_x, y)
         )
         position = (
-            text.get_rect(center=anchor)
-            if center
-            else text.get_rect(topleft=anchor)
+            text.get_rect(center=anchor) if center else text.get_rect(topleft=anchor)
         )
         self.screen.blit(text, position)
 
@@ -589,7 +587,9 @@ class MenuSystem:
         rect = self.layout.rect(rect)
         panel = pygame.Surface(rect.size, pygame.SRCALPHA)
         radius = max(1, round(10 * self.layout.scale))
-        pygame.draw.rect(panel, (20, 30, 25, 220), panel.get_rect(), border_radius=radius)
+        pygame.draw.rect(
+            panel, (20, 30, 25, 220), panel.get_rect(), border_radius=radius
+        )
         pygame.draw.rect(
             panel,
             (125, 150, 125, 230),

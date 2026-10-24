@@ -42,10 +42,7 @@ def play_background_music(track: str = "background", *, volume: float = 1.0) -> 
         raise ValueError(f"Unknown background track: {track}")
 
     try:
-        if (
-            track == _current_background_track
-            and pygame.mixer.music.get_busy()
-        ):
+        if track == _current_background_track and pygame.mixer.music.get_busy():
             pygame.mixer.music.set_volume(_clamp_volume(volume))
             return True
 

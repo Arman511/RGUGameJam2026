@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 def build_wave_sequence(wave_number: int) -> list[str]:
     if wave_number <= 1:
         return ["swarmer", "swarmer", "swarmer"]

@@ -8,7 +8,7 @@ import os
 
 def draw_inventory_hud(surface, player):
     hud_font = pygame.font.Font(
-        os.path.join(config.ASSETS_DIR ,"font", "pixelfont.ttf"), 16
+        os.path.join(config.ASSETS_DIR, "font", "pixelfont.ttf"), 16
     )
     panel = pygame.Surface((460, 220), pygame.SRCALPHA)
     panel.fill((25, 28, 35, 225))

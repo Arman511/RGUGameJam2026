@@ -11,8 +11,7 @@ def make_player():
     player = Player.__new__(Player)
     player.player_type = PlayerType.WATER
     player.seeds = {
-        seed_type: {"tier1": 0, "tier2": 0, "tier3": 0}
-        for seed_type in SeedType
+        seed_type: {"tier1": 0, "tier2": 0, "tier3": 0} for seed_type in SeedType
     }
     player.coins = 5
     player.crops = {}

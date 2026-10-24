@@ -41,9 +41,7 @@ def test_register_button_opens_registration_page(monkeypatch) -> None:
     )
 
     app._handle_login_event(
-        pygame.event.Event(
-            pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": (400, 364)}
-        )
+        pygame.event.Event(pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": (400, 364)})
     )
 
     assert opened_urls == ["https://elemental-keep.armandev.co.uk/register"]
@@ -62,9 +60,7 @@ def test_register_button_reports_browser_failure(monkeypatch) -> None:
     monkeypatch.setattr(menus, "_open_registration_page", lambda: False)
 
     app._handle_login_event(
-        pygame.event.Event(
-            pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": (400, 364)}
-        )
+        pygame.event.Event(pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": (400, 364)})
     )
 
     assert app.error_message == "Could not open the registration page."
@@ -72,9 +68,7 @@ def test_register_button_reports_browser_failure(monkeypatch) -> None:
 
 def menu_click(app: menus.MenuSystem, pos: tuple[int, int]) -> None:
     app._handle_menu_event(
-        pygame.event.Event(
-            pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": pos}
-        )
+        pygame.event.Event(pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": pos})
     )
 
 

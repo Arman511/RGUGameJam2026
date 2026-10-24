@@ -100,9 +100,7 @@ def test_farm_events_report_successful_planting_and_harvesting() -> None:
             return None
 
     farm.grid[0][0] = ReadyCrop()
-    harvesting_event = pygame.event.Event(
-        pygame.KEYDOWN, {"key": pygame.K_h}
-    )
+    harvesting_event = pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_h})
 
     assert farm.handle_event(harvesting_event, (0, 0)) == "harvesting"
     assert farm.grid[0][0] is None

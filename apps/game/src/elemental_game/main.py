@@ -14,14 +14,10 @@ from enum import Enum
 
 # initialise pygame attributes
 pygame.init()
-pygame.display.set_icon(
-    pygame.image.load(os.path.join(config.ASSETS_DIR, "icon.ico"))
-)
+pygame.display.set_icon(pygame.image.load(os.path.join(config.ASSETS_DIR, "icon.ico")))
 screen = pygame.display.set_mode((config.WINDOW_WIDTH, config.WINDOW_HEIGHT))
 clock = pygame.time.Clock()
-font = pygame.font.Font(
-    os.path.join(config.ASSETS_DIR ,"font", "pixelfont.ttf"), 22
-)
+font = pygame.font.Font(os.path.join(config.ASSETS_DIR, "font", "pixelfont.ttf"), 22)
 game_background = pygame.transform.smoothscale(
     pygame.image.load(
         os.path.join(config.IMAGES_DIR, "backgrounds", "background.png")
@@ -47,7 +43,10 @@ PLANTING = True
 def _create_game(screen, player_type):
     farm = Farm(
         *config.FARM_DIMENSIONS,
-        origin=((screen.get_width() - config.FARM_DIMENSIONS[1] * Farm.TILE_SIZE) // 2, config.FARM_HEIGHT),
+        origin=(
+            (screen.get_width() - config.FARM_DIMENSIONS[1] * Farm.TILE_SIZE) // 2,
+            config.FARM_HEIGHT,
+        ),
     )
     player = Player(player_type=PlayerType(player_type))
     return farm, player

@@ -152,8 +152,7 @@ class Farm:
                     if random.random() < 0.25:
                         yield_amount *= 2
                 elif (
-                    harvested.crop_type
-                    is self.OPPOSING_ELEMENTS[player.player_type]
+                    harvested.crop_type is self.OPPOSING_ELEMENTS[player.player_type]
                     and random.random() < 0.10
                 ):
                     yield_amount //= 2
