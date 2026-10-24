@@ -153,6 +153,9 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
       - name: Download game artifacts
         uses: actions/download-artifact@v4
         with:
