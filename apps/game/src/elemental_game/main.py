@@ -10,7 +10,7 @@ from elemental_game.game_entities.farm import Farm
 from elemental_game.game_entities.player.player import Player
 from elemental_game.game_entities.shop import ShopMenu
 from elemental_game.menus import MenuSystem
-from elemental_game.screen_rendering.edit_confirmation import draw_exit_confirmation
+from elemental_game.screen_rendering.exit_confirmation import draw_exit_confirmation
 from elemental_game.screen_rendering.hud import draw_inventory_hud
 from elemental_game.types.player import PlayerType
 from elemental_game.game_entities.house import House

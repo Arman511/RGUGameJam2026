@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10131e">
+  <meta name="description" content="Download Elemental Keep and defend your garden from the elements.">
+  <link rel="icon" href="{{ url_for('static', path='icon.png') }}">
+  <title>{{ page_title }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link href="{{ url_for('static', path='css/leaderboard.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', path='css/download.css') }}" rel="stylesheet">
+  <script src="{{ url_for('static', path='js/theme.js') }}" defer></script>
+</head>
+
+<body>
+  <main class="container-xl page-shell py-4 py-lg-5">
+    <header class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-5">
+      <a class="brand d-flex align-items-center gap-2 text-decoration-none" href="/">
+        <img class="brand-mark" src="{{ url_for('static', path='icon.png') }}" alt="">
+        <span class="fw-bold small letter-spaced">ELEMENTAL KEEP</span>
+      </a>
+      <div class="d-flex align-items-center gap-2">
+        <a class="btn btn-outline-secondary" href="/register">Register</a>
+        <a class="btn btn-outline-secondary" href="/">Leaderboard</a>
+        <button class="btn btn-outline-secondary theme-toggle d-inline-flex align-items-center gap-2" id="theme-toggle"
+          type="button" aria-label="Switch to light mode" aria-pressed="false">
+          <span id="theme-icon" aria-hidden="true">☀</span>
+          <span id="theme-label" class="d-none d-sm-inline">Light mode</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="download-hero mx-auto text-center" aria-labelledby="page-heading">
+      <div class="download-art mx-auto mb-4">
+        <span class="art-spark art-spark-one" aria-hidden="true">✦</span>
+        <img src="{{ url_for('static', path='icon.png') }}" alt="Elemental Keep game icon">
+        <span class="art-spark art-spark-two" aria-hidden="true">✧</span>
+      </div>
+      <p class="eyebrow mb-3">Your next adventure awaits</p>
+      <h1 class="display-2 fw-bold mb-3" id="page-heading">Defend your keep.</h1>
+      <p class="lead mx-auto mb-4">
+        Grow your garden, build your defenses, and stand against the elements
+        in <strong>Elemental Keep</strong>.
+      </p>
+      <a class="btn btn-primary btn-lg download-button" href="https://github.com/Arman511/RGUGameJam2026/releases"
+        target="_blank" rel="noopener noreferrer">
+        <span aria-hidden="true">↓</span>
+        Download the game
+        <span class="download-arrow" aria-hidden="true">↗</span>
+      </a>
+      <p class="download-note mt-3 mb-0">Free to play · Pick your build from the latest release</p>
+    </section>
+
+    <section class="download-steps mx-auto mt-5" aria-labelledby="steps-heading">
+      <h2 class="h5 fw-bold text-center mb-4" id="steps-heading">Ready when you are</h2>
+      <ol class="steps-list">
+        <li>
+          <span class="step-number" aria-hidden="true">01</span>
+          <span><strong>Open the latest release</strong><span class="step-detail">The newest version is at the top of the releases page.</span></span>
+        </li>
+        <li>
+          <span class="step-number" aria-hidden="true">02</span>
+          <span><strong>Choose your download</strong><span class="step-detail">Pick the build that matches your operating system from the release assets.</span></span>
+        </li>
+        <li>
+          <span class="step-number" aria-hidden="true">03</span>
+          <span><strong>Start your adventure</strong><span class="step-detail">Follow any platform-specific instructions included with the release.</span></span>
+        </li>
+      </ol>
+    </section>
+
+    <footer class="download-footer d-flex flex-column flex-sm-row justify-content-between gap-2 mt-5">
+      <span>Made for the keepers of the realm.</span>
+      <a href="https://github.com/Arman511/RGUGameJam2026" target="_blank" rel="noopener noreferrer">
+        View the project on GitHub <span aria-hidden="true">↗</span>
+      </a>
+    </footer>
+  </main>
+</body>
+
+</html>

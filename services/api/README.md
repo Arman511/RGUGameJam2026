@@ -4,6 +4,7 @@ The API uses SQLAlchemy ORM models and Alembic migrations. On server startup,
 the API applies all pending migrations to the configured database.
 
 The root URL serves the live Jinja2 leaderboard, styled with Bootstrap. The
+`/download` page directs players to the latest game release on GitHub, and the
 `/register` page lets players create an account using the registration API.
 CSS and JavaScript are served from `/static/`; the leaderboard refreshes scores
 every seven seconds and supports searching by player/run ID, sorting by score

@@ -50,6 +50,18 @@ def test_player_starts_with_five_coins_and_can_buy_tiered_seeds(monkeypatch) -> 
     assert not player.buy_seed(SeedType.FIRE, 3)
 
 
+def test_market_space_key_buys_selected_seed() -> None:
+    player = make_player()
+    shop = ShopMenu()
+
+    shop.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_SPACE}), player, make_farm()
+    )
+
+    assert player.coins == 4
+    assert player.seeds[SeedType.FIRE]["tier1"] == 1
+
+
 def test_farm_quadrants_unlock_in_order_and_reset_to_top_right() -> None:
     player = make_player()
     player.unlocked_quadrants = {"top_right"}

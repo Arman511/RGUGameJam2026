@@ -58,6 +58,14 @@ uv run pytest
 uv run ruff check .
 ```
 
+## Licenses
+The project is licensed under the [MIT License](LICENSE). Audio tracks are
+covered by separate license certificates:
+
+- `background.ogg` — [background license](licenses/background-license.txt)
+- `boss.ogg` — [boss license](licenses/boss-license.txt)
+- `enemies.ogg` — [enemies license](licenses/enemies-license.txt)
+
 ## Current status
 Implemented: core simulation, local persistence, Pygame menu and loop, API/auth routes, and tests.
 Future work: expanded enemy variety, richer graphics, multiplayer protocol implementation and online PvP.

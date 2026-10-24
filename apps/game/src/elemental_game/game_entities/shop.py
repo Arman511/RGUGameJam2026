@@ -24,6 +24,7 @@ UpgradeOption = LandUpgrade | FertilizerUpgrade
 class ShopMenu:
     ITEM_H = 34
     FERTILIZER_COST = 10
+    CONFIRM_KEYS = (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE)
     MODES = ("buy", "upgrade", "sell")
     FERTILIZER_TYPES = (
         CropType.FIRE,
@@ -67,7 +68,7 @@ class ShopMenu:
             self.tier = (self.tier - 2) % 3 + 1
         elif self.mode == "buy" and event.key == pygame.K_RIGHT:
             self.tier = self.tier % 3 + 1
-        elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE):
+        elif event.key in self.CONFIRM_KEYS:
             if self.mode == "buy":
                 crop_type = self.CROP_TYPES[self.selected]
                 player.buy_seed(SeedType[crop_type.name], self.tier)
@@ -106,7 +107,7 @@ class ShopMenu:
             self.selected = (self.selected - 1) % len(quadrants)
         elif event.key == pygame.K_DOWN and quadrants:
             self.selected = (self.selected + 1) % len(quadrants)
-        elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER) and quadrants:
+        elif event.key in self.CONFIRM_KEYS and quadrants:
             self._purchase_fertilizer(quadrants[self.selected], player, farm)
 
     def _purchase_fertilizer(self, quadrant, player, farm):
@@ -197,9 +198,7 @@ class ShopMenu:
         list_y = panel.y + (
             130
             if self.mode == "buy" and not self.selecting_quadrant
-            else 105
-            if self.selecting_quadrant or self.mode == "upgrade"
-            else 88
+            else 105 if self.selecting_quadrant or self.mode == "upgrade" else 88
         )
         for index, option in enumerate(options):
             if isinstance(option, str):
