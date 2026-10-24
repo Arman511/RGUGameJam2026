@@ -14,6 +14,7 @@ from elemental_game.screen_rendering.exit_confirmation import draw_exit_confirma
 from elemental_game.screen_rendering.hud import draw_inventory_hud
 from elemental_game.types.player import PlayerType
 from elemental_game.game_entities.house import House
+from elemental_game.game_entities.enemies.waves import Waves
 
 # initialise pygame attributes
 pygame.init()
@@ -75,6 +76,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     farm, player = _create_game(screen, menus.store.player_image_number())
     shop = ShopMenu()
     house = House(screen)
+    waves = Waves(house)
     shop_open = False
     hud_visible = False
     confirm_exit = False
@@ -97,6 +99,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                         )
                         shop = ShopMenu()
                         house = House(screen)
+                        waves = Waves(house)
                         shop_open = False
                         hud_visible = False
                     clock.tick()
@@ -131,6 +134,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         # render screen:
         screen.blit(game_background, (0, 0))
         house.draw(screen)
+        waves.draw_weather(screen)
         farm.draw(screen, font, tile, player)
         player.draw(screen)
         farm.draw_menu(screen, font)  # after the player so the menu sits on top

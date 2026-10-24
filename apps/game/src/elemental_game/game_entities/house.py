@@ -83,3 +83,6 @@ class House:
     def repair(self):
         self.hp = min(self.max_hp, round(self.max_hp * 0.25))
         self.update()
+
+    def get_hp(self):
+        return self.max_hp
