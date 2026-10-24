@@ -1,4 +1,4 @@
-.PHONY: install game api test lint format
+.PHONY: install game api test lint format serve local-serve
 
 install:
 	uv sync --all-packages --all-groups
@@ -20,3 +20,6 @@ format:
 
 serve:
 	docker compose up -d --build
+
+local-serve:
+	docker compose -f docker-compose.local.yml up --build

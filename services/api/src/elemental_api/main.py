@@ -23,6 +23,7 @@ from elemental_api.leaderboard.routes import router as leaderboard_router
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 PACKAGE_DIR = Path(__file__).parent
+API_DOCS_ENABLED = os.environ.get("ELEMENTAL_API_DISABLE_DOCS") != "1"
 templates = Jinja2Templates(directory=str(PACKAGE_DIR / "template"))
 ALLOWED_ORIGINS = [
     "https://elemental-keep.armandev.co.uk",
@@ -70,7 +71,9 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
 app = FastAPI(
     title="Elemental Keep API",
     lifespan=lifespan,
-    docs_url=None if os.environ.get("ELEMENTAL_API_DISABLE_DOCS") == "1" else "/docs",
+    docs_url="/docs" if API_DOCS_ENABLED else None,
+    redoc_url="/redoc" if API_DOCS_ENABLED else None,
+    openapi_url="/openapi.json" if API_DOCS_ENABLED else None,
 )
 
 

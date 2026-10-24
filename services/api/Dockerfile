@@ -36,8 +36,6 @@ COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/src /app/src
 COPY --from=builder /app/alembic.ini /app/alembic.ini
 
-ENV ELEMENTAL_API_DISABLE_DOCS = 1
-
 EXPOSE 8000
 
 CMD ["uvicorn", "elemental_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
