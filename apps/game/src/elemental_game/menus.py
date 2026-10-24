@@ -10,6 +10,9 @@ Usage (from main.py):
 from __future__ import annotations
 
 import os
+import platform
+import subprocess
+import webbrowser
 from typing import Any
 
 import pygame
@@ -35,6 +38,30 @@ PLAYER_PREVIOUS_BUTTON = pygame.Rect(285, 355, 48, 42)
 PLAYER_NEXT_BUTTON = pygame.Rect(445, 355, 48, 42)
 CLEAR_LEADERBOARD_BUTTON = pygame.Rect(250, 465, 300, 44)
 SAVE_SETTINGS_BUTTON = pygame.Rect(330, 540, 140, 44)
+LOGIN_BUTTON = pygame.Rect(205, 340, 120, 48)
+REGISTER_BUTTON = pygame.Rect(340, 340, 120, 48)
+GUEST_BUTTON = pygame.Rect(475, 340, 120, 48)
+REGISTER_URL = "https://elemental-keep.armandev.co.uk/register"
+
+
+def _open_registration_page() -> bool:
+    is_wsl = (
+        bool(os.environ.get("WSL_DISTRO_NAME") or os.environ.get("WSL_INTEROP"))
+        or "microsoft" in platform.release().casefold()
+    )
+    if not is_wsl:
+        return webbrowser.open(REGISTER_URL)
+
+    try:
+        subprocess.run(
+            ["cmd.exe", "/c", "start", "", REGISTER_URL],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    return True
 
 
 class InputField:
@@ -210,9 +237,12 @@ class MenuSystem:
             elif event.key == pygame.K_RETURN:
                 self._login()
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if pygame.Rect(250, 340, 140, 48).collidepoint(event.pos):
+            if LOGIN_BUTTON.collidepoint(event.pos):
                 self._login()
-            elif pygame.Rect(410, 340, 140, 48).collidepoint(event.pos):
+            elif REGISTER_BUTTON.collidepoint(event.pos):
+                if not _open_registration_page():
+                    self.error_message = "Could not open the registration page."
+            elif GUEST_BUTTON.collidepoint(event.pos):
                 self._continue_as_guest()
 
     def _login(self) -> None:
@@ -363,8 +393,9 @@ class MenuSystem:
         self._draw_text("Log in to your account, or skip to play as a guest.", 400, 170)
         self.login_username.draw(self.screen, self.font)
         self.login_password.draw(self.screen, self.font)
-        self._draw_button("Log in", pygame.Rect(250, 340, 140, 48))
-        self._draw_button("Skip", pygame.Rect(410, 340, 140, 48))
+        self._draw_button("Log in", LOGIN_BUTTON)
+        self._draw_button("Register", REGISTER_BUTTON)
+        self._draw_button("Skip", GUEST_BUTTON)
         if self.error_message:
             self._draw_text(
                 self.error_message, 400, 425, color=ERROR_TEXT, center=False, x=120

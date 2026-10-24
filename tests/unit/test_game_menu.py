@@ -1,8 +1,74 @@
 from __future__ import annotations
 
 import pygame
+from elemental_game import menus
 from elemental_game.api_client.http import APIError
 from elemental_game.main import GameApplication
+
+
+def test_register_page_uses_windows_browser_from_wsl(monkeypatch) -> None:
+    monkeypatch.setenv("WSL_DISTRO_NAME", "Ubuntu")
+    commands: list[tuple[list[str], dict[str, object]]] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> None:
+        commands.append((command, kwargs))
+
+    monkeypatch.setattr(menus.subprocess, "run", fake_run)
+
+    assert menus._open_registration_page()
+    assert commands[0][0] == [
+        "cmd.exe",
+        "/c",
+        "start",
+        "",
+        "https://elemental-keep.armandev.co.uk/register",
+    ]
+
+
+def test_register_button_opens_registration_page(monkeypatch) -> None:
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.login_username = menus.InputField(
+        pygame.Rect(250, 205, 300, 44), placeholder="Username", max_length=32
+    )
+    app.login_password = menus.InputField(
+        pygame.Rect(250, 265, 300, 44), placeholder="Password", max_length=128
+    )
+    app.error_message = ""
+    opened_urls: list[str] = []
+    monkeypatch.setattr(
+        menus,
+        "_open_registration_page",
+        lambda: (opened_urls.append(menus.REGISTER_URL), True)[1],
+    )
+
+    app._handle_login_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": (400, 364)}
+        )
+    )
+
+    assert opened_urls == ["https://elemental-keep.armandev.co.uk/register"]
+    assert app.error_message == ""
+
+
+def test_register_button_reports_browser_failure(monkeypatch) -> None:
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.login_username = menus.InputField(
+        pygame.Rect(250, 205, 300, 44), placeholder="Username", max_length=32
+    )
+    app.login_password = menus.InputField(
+        pygame.Rect(250, 265, 300, 44), placeholder="Password", max_length=128
+    )
+    app.error_message = ""
+    monkeypatch.setattr(menus, "_open_registration_page", lambda: False)
+
+    app._handle_login_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": (400, 364)}
+        )
+    )
+
+    assert app.error_message == "Could not open the registration page."
 
 
 def menu_click(app: GameApplication, pos: tuple[int, int]) -> None:
