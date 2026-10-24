@@ -24,31 +24,20 @@ class Farm:
         self.menu = CropMenu()  # one menu, created once
         self.planting = False  # True = menu is drawn and taking input
 
-        soil_img = pygame.image.load(
-            os.path.join(IMAGES_DIR, "settings-and-gameplay", "soil.png")
-        ).convert_alpha()
-        seedling_img = pygame.image.load(
-            os.path.join(IMAGES_DIR, "settings-and-gameplay", "soil_plant.png")
-        ).convert_alpha()
-        self.soil_img = pygame.transform.scale(
-            soil_img, (self.TILE_SIZE, self.TILE_SIZE)
-        )
-        self.seedling_img = pygame.transform.scale(
-            seedling_img, (self.TILE_SIZE, self.TILE_SIZE)
-        )
+        soil_img = pygame.image.load(os.path.join(IMAGES_DIR, "settings-and-gameplay", "soil.png")).convert_alpha()
+        seedling_img = pygame.image.load(os.path.join(IMAGES_DIR, "settings-and-gameplay", "soil_plant.png")).convert_alpha()
+        self.soil_img = pygame.transform.scale(soil_img, (self.TILE_SIZE, self.TILE_SIZE))
+        self.seedling_img = pygame.transform.scale(seedling_img, (self.TILE_SIZE, self.TILE_SIZE))
 
-        air_flower_img = pygame.image.load(os.path.join(IMAGES_DIR, "flower","air-flower.png")).convert_alpha()
-        earth_flower_img= pygame.image.load(os.path.join(IMAGES_DIR, "flower","earth-flower.png")).convert_alpha()
-        fire_flower_img = pygame.image.load(os.path.join(IMAGES_DIR, "flower","fire-flower.png")).convert_alpha()
-        ice_flower_img = pygame.image.load(os.path.join(IMAGES_DIR, "flower","air-flower.png")).convert_alpha()
-        lightning_flower_img = pygame.image.load(os.path.join(IMAGES_DIR, "settings-and-gameplay","soil.png")).convert_alpha()
-        water_flower_img = pygame.image.load(os.path.join(IMAGES_DIR, "settings-and-gameplay","soil_plant.png")).convert_alpha()
-        self.soil_img = pygame.transform.scale(soil_img, (self.TILE_SIZE, self.TILE_SIZE))
-        self.seedling_img = pygame.transform.scale(seedling_img, (self.TILE_SIZE, self.TILE_SIZE))
-        self.soil_img = pygame.transform.scale(soil_img, (self.TILE_SIZE, self.TILE_SIZE))
-        self.seedling_img = pygame.transform.scale(seedling_img, (self.TILE_SIZE, self.TILE_SIZE))
-        self.soil_img = pygame.transform.scale(soil_img, (self.TILE_SIZE, self.TILE_SIZE))
-        self.seedling_img = pygame.transform.scale(seedling_img, (self.TILE_SIZE, self.TILE_SIZE))
+        self.flower_imgs = {
+            crop_type: pygame.transform.scale(
+                pygame.image.load(
+                    image
+                ).convert_alpha(),
+                (self.TILE_SIZE, self.TILE_SIZE)
+            )
+            for crop_type, image in Crop.CROP_APPEARANCE.items()
+        }
 
     def in_bounds(self, row, col):
         return 0 <= row < self.rows and 0 <= col < self.cols
@@ -87,14 +76,16 @@ class Farm:
     def draw(self, surface, font, player_pos):
         for row in range(self.rows):
             for col in range(self.cols):
-
-                if self.grid[row][col]:
-                    self.tile_state = self.seedling_img
-                else:
-                    self.tile_state = self.soil_img
-
                 rect = self.tile_rect(row, col)
-                surface.blit(self.tile_state, rect)
+                crop = self.grid[row][col]
+
+                if crop is None:
+                    surface.blit(self.soil_img, rect)
+                elif crop.is_ready():
+                    surface.blit(self.soil_img, rect)                      # ground underneath
+                    surface.blit(self.flower_imgs[crop.crop_type], rect)   # its flower
+                else:
+                    surface.blit(self.seedling_img, rect)
 
                 if (row, col) == player_pos:
                     overlay = pygame.Surface(rect.size, pygame.SRCALPHA)

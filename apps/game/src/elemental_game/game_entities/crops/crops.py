@@ -6,7 +6,9 @@ new_emberbloom = Crop(<name or id>, CropType.FIRE, (0, 0))
 """
 
 from enum import Enum
-
+import os
+from elemental_game.config import IMAGES_DIR
+import pygame
 
 class CropType(Enum):
     FIRE = 0
@@ -14,23 +16,23 @@ class CropType(Enum):
     LIGHTNING = 2
     EARTH = 3
     ICE = 4
-    WIND = 5
+    AIR = 5
 
 
 class Crop:
-    GROWTH_TIME = 2  # PER STAGE
+    GROWTH_TIME = 5
     VALUE = 3
     WIDTH = 32
     HEIGHT = 32
     CROP_YIELD = 1
 
     CROP_APPEARANCE = {
-        CropType.FIRE: "path to fire plant folder",
-        CropType.WATER: "path to water plant folder",
-        CropType.LIGHTNING: "path to lightning plant folder",
-        CropType.EARTH: "path to earth plant folder",
-        CropType.ICE: "path to ice plant folder",
-        CropType.WIND: "path to wind plant folder",
+        CropType.AIR: os.path.join(IMAGES_DIR, "flower","air-flower.png"),
+        CropType.EARTH: os.path.join(IMAGES_DIR, "flower","earth-flower.png"),
+        CropType.FIRE: os.path.join(IMAGES_DIR, "flower","fire-flower.png"),
+        CropType.ICE: os.path.join(IMAGES_DIR, "flower","ice-flower.png"),
+        CropType.LIGHTNING: os.path.join(IMAGES_DIR, "flower","lightning-flower.png"),
+        CropType.WATER: os.path.join(IMAGES_DIR, "flower","water-flower.png"),
     }
 
     def __init__(self, crop_type, pos):
