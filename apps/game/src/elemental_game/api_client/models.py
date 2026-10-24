@@ -23,6 +23,7 @@ class UserResponse(BaseModel):
 class AuthResponse(BaseModel):
     token: str
     user: UserResponse
+    expires_at: datetime
 
 
 class MessageResponse(BaseModel):

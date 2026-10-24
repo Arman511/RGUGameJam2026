@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 from ..database.local_database import get_default_data_dir
@@ -17,6 +18,7 @@ from .models import (
     MessageResponse,
     RegisterRequest,
     RegisterResponse,
+    UserResponse,
 )
 
 
@@ -32,45 +34,60 @@ class CredentialStore:
         )
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
 
-    def save_token(self, token: str) -> None:
+    def save_token(self, token: str, expires_at: datetime) -> None:
         if keyring is not None:
             keyring.set_password(self.app_name, "api_token", token)
-            return
-        self.cache_path.write_text(json.dumps({"api_token": token}), encoding="utf-8")
+        payload = self._read_cache()
+        if keyring is None:
+            payload["api_token"] = token
+        payload["expires_at"] = expires_at.isoformat()
+        self._write_cache(payload)
 
     def load_token(self) -> str | None:
+        if self.token_expired():
+            self.clear_token()
+            return None
         if keyring is not None:
             token = keyring.get_password(self.app_name, "api_token")
             if token:
                 return token
-        if self.cache_path.exists():
-            try:
-                payload = json.loads(self.cache_path.read_text(encoding="utf-8"))
-            except (TypeError, ValueError):
-                return None
-            return payload.get("api_token")
-        return None
+        token = self._read_cache().get("api_token")
+        return token if isinstance(token, str) else None
+
+    def token_expired(self) -> bool:
+        expires_at = self._read_cache().get("expires_at")
+        if expires_at is None:
+            return True
+        if not isinstance(expires_at, str):
+            return True
+        try:
+            expiry = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+        except ValueError:
+            return True
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=UTC)
+        return expiry <= datetime.now(UTC)
 
     def save_username(self, username: str) -> None:
-        if self.cache_path.exists():
-            try:
-                payload = json.loads(self.cache_path.read_text(encoding="utf-8"))
-            except (TypeError, ValueError):
-                payload = {}
-        else:
-            payload = {}
+        payload = self._read_cache()
         payload["username"] = username
-        self.cache_path.write_text(json.dumps(payload), encoding="utf-8")
+        self._write_cache(payload)
 
     def load_username(self) -> str | None:
+        username = self._read_cache().get("username")
+        return username if isinstance(username, str) else None
+
+    def _read_cache(self) -> dict[str, object]:
         if not self.cache_path.exists():
-            return None
+            return {}
         try:
             payload = json.loads(self.cache_path.read_text(encoding="utf-8"))
         except (TypeError, ValueError):
-            return None
-        username = payload.get("username")
-        return username if isinstance(username, str) else None
+            return {}
+        return payload if isinstance(payload, dict) else {}
+
+    def _write_cache(self, payload: dict[str, object]) -> None:
+        self.cache_path.write_text(json.dumps(payload), encoding="utf-8")
 
     def clear_token(self) -> None:
         if keyring is not None:
@@ -85,7 +102,8 @@ class CredentialStore:
                 payload = {}
             payload.pop("api_token", None)
             payload.pop("username", None)
-            self.cache_path.write_text(json.dumps(payload), encoding="utf-8")
+            payload.pop("expires_at", None)
+            self._write_cache(payload)
 
 
 class AuthClient:
@@ -93,6 +111,10 @@ class AuthClient:
         self.client = client
         self.credentials = credentials
         self.client.token_provider = credentials.load_token
+
+    def current_user(self) -> UserResponse:
+        response = self.client.get("/api/v1/auth/me")
+        return UserResponse.model_validate(response)
 
     def register(self, username: str, password: str) -> RegisterResponse:
         request = RegisterRequest(username=username, password=password)
@@ -103,7 +125,7 @@ class AuthClient:
         request = LoginRequest(username=username, password=password)
         response = self.client.post("/api/v1/auth/login", json_body=request)
         auth_response = AuthResponse.model_validate(response)
-        self.credentials.save_token(auth_response.token)
+        self.credentials.save_token(auth_response.token, auth_response.expires_at)
         self.credentials.save_username(auth_response.user.username)
         return auth_response
 

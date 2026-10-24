@@ -137,8 +137,7 @@ def login(
     )
     db.commit()
     return AuthResponse(
-        token=bearer_key,
-        user=UserResponse.model_validate(user),
+        token=bearer_key, user=UserResponse.model_validate(user), expires_at=expires_at
     )
 
 

@@ -13,10 +13,14 @@ To inspect or apply migrations manually from the repository root:
 ```sh
 uv run alembic -c packages/game_core/alembic.ini history
 uv run alembic -c packages/game_core/alembic.ini current
-uv run alembic -c packages/game_core/alembic.ini upgrade head
+uv run alembic -c apps/game/src/elemental_game/alembic.ini upgrade head
 ```
 
 Create a new revision with
-`uv run alembic -c packages/game_core/alembic.ini revision -m "describe change"`.
+`uv run alembic -c apps/game/src/elemental_game/alembic.ini revision -m "describe change"`.
 Edit the generated revision before use. Do not modify a migration that has
 already been applied; add a new revision instead.
+
+Music and SFX volume preferences are stored in the local database and restored
+when the game starts. The game leaderboard is local-only and can be filtered by
+username; it is ordered by waves reached.
