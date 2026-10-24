@@ -137,7 +137,7 @@ class Farm:
                 self.menu.move_selection(-1)
             elif event.key == pygame.K_DOWN:
                 self.menu.move_selection(1)
-            elif event.key == pygame.K_RETURN:
+            elif event.key == pygame.K_RETURN or event.key==pygame.K_SPACE:
                 self.plant(*self.menu.tile, self.menu.selected_type())
                 self.planting = False
 

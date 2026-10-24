@@ -25,7 +25,7 @@ class PlayerType(IntEnum):
 class Player:
     SPEED = 165
 
-    def __init__(self, pos=(0, 0), player_type: PlayerType = PlayerType.WATER):
+    def __init__(self, pos=(150, 150), player_type: PlayerType = PlayerType.WATER):
         self.width = 60
         self.height = 60
         self.player_type = player_type
