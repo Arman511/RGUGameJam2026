@@ -22,6 +22,16 @@ uv sync --all-packages --all-groups
 uv run --project apps/game python -m elemental_game.main
 ```
 
+## Build a standalone game
+```bash
+make compile-game
+```
+
+The executable is written to `dist/ElementalKeep` (with a `.exe` extension on
+Windows). Run this command on the platform you want to build for: PyInstaller
+does not cross-compile, so build Windows releases on Windows, macOS releases on
+macOS, and Linux releases on Linux.
+
 ## Run the API locally
 ```bash
 uv run --project services/api uvicorn elemental_api.main:app --reload --host 127.0.0.1 --port 8000
