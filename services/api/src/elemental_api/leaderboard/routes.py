@@ -39,14 +39,13 @@ def leaderboard(
     if normalized_search:
         query = query.where(
             func.lower(User.username).contains(normalized_search, autoescape=True)
-            | func.lower(RunRecord.run_id).contains(
-                normalized_search, autoescape=True
-            )
+            | func.lower(RunRecord.run_id).contains(normalized_search, autoescape=True)
         )
 
-    total = db.scalar(
-        select(func.count()).select_from(query.order_by(None).subquery())
-    ) or 0
+    total = (
+        db.scalar(select(func.count()).select_from(query.order_by(None).subquery()))
+        or 0
+    )
     sort_column = {
         "time_survived": RunRecord.time_survived,
         "wave_number": RunRecord.wave_number,

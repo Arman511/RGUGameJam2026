@@ -150,8 +150,7 @@ def test_migration_preserves_legacy_run_data_without_score(
     database_path = tmp_path / "legacy.db"
     monkeypatch.setenv("ELEMENTAL_API_DB_PATH", str(database_path))
     with sqlite3.connect(database_path) as connection:
-        connection.executescript(
-            """
+        connection.executescript("""
             CREATE TABLE users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL UNIQUE,
@@ -185,8 +184,7 @@ def test_migration_preserves_legacy_run_data_without_score(
             INSERT INTO scores
                 (user_id, run_id, survival_time, final_wave, score, enemies_defeated, submitted_at)
             VALUES (1, 'old-run', 64.2, 5, 1500, 14, '2026-10-24T10:01:00Z');
-            """
-        )
+            """)
 
     import elemental_api.database.connection as connection_module
     from elemental_api.database.models import RunRecord

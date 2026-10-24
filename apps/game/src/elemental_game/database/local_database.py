@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +15,9 @@ def get_default_data_dir() -> Path:
         return Path(base) / "ElementalKeep"
     if sys_platform := os.environ.get("XDG_DATA_HOME"):
         return Path(sys_platform) / "elemental_keep"
-    if os.environ.get("DARWIN") or os.name == "posix":
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "ElementalKeep"
+    if os.name == "posix":
         return Path.home() / ".local" / "share" / "elemental_keep"
     return Path.home() / ".elemental_keep"
 
