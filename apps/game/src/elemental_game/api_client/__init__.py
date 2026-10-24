@@ -1,10 +1,6 @@
 from .auth import (
     AuthClient,
     CredentialStore,
-    keyring_available,
-    login,
-    logout,
-    register,
 )
 from .http import APIClient, APIError, AuthError, ValidationError
 from .models import (
@@ -39,8 +35,4 @@ __all__ = [
     "RunSubmittedResponse",
     "UserResponse",
     "ValidationError",
-    "keyring_available",
-    "login",
-    "logout",
-    "register",
 ]

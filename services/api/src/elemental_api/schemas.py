@@ -65,6 +65,9 @@ class RunResponse(BaseModel):
 
 class LeaderboardResponse(BaseModel):
     scores: list[RunResponse]
+    total: int
+    offset: int
+    limit: int
 
 
 class RunSubmittedResponse(BaseModel):

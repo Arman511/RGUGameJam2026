@@ -1,1 +1,1 @@
-Empty placeholder assets go here.
+Graphics, Images, Resources etc.

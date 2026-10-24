@@ -1,8 +1,14 @@
+import asyncio
 import importlib
 import sqlite3
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from elemental_api.main import (
+    ALLOWED_ORIGINS,
+    LOCAL_ORIGIN_PATTERN,
+    WebSocketOriginMiddleware,
+)
 from fastapi.testclient import TestClient
 from sqlalchemy import inspect, select
 from sqlalchemy.orm import Session
@@ -144,8 +150,7 @@ def test_migration_preserves_legacy_run_data_without_score(
     database_path = tmp_path / "legacy.db"
     monkeypatch.setenv("ELEMENTAL_API_DB_PATH", str(database_path))
     with sqlite3.connect(database_path) as connection:
-        connection.executescript(
-            """
+        connection.executescript("""
             CREATE TABLE users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL UNIQUE,
@@ -179,8 +184,7 @@ def test_migration_preserves_legacy_run_data_without_score(
             INSERT INTO scores
                 (user_id, run_id, survival_time, final_wave, score, enemies_defeated, submitted_at)
             VALUES (1, 'old-run', 64.2, 5, 1500, 14, '2026-10-24T10:01:00Z');
-            """
-        )
+            """)
 
     import elemental_api.database.connection as connection_module
     from elemental_api.database.models import RunRecord
@@ -214,3 +218,103 @@ def test_auth_and_leaderboard_indexes_are_created(client) -> None:
         "ix_auth_tokens_revoked_at",
     } <= auth_indexes
     assert "ix_scores_leaderboard_rank" in score_indexes
+
+
+def test_leaderboard_page_is_served(client) -> None:
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "Hall of Keepers" in response.text
+    assert 'id="search"' in response.text
+    assert 'id="theme-toggle"' in response.text
+    assert "/static/css/leaderboard.css" in response.text
+    assert "/static/js/leaderboard.js" in response.text
+
+
+def test_registration_page_is_served(client) -> None:
+    response = client.get("/register")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "Create your account" in response.text
+    assert 'id="register-form"' in response.text
+    assert "/static/js/register.js" in response.text
+
+
+def test_leaderboard_static_assets_are_served(client) -> None:
+    stylesheet = client.get("/static/css/leaderboard.css")
+    script = client.get("/static/js/leaderboard.js")
+    register_script = client.get("/static/js/register.js")
+
+    assert stylesheet.status_code == 200
+    assert 'data-bs-theme="light"' in stylesheet.text
+    assert script.status_code == 200
+    assert "REFRESH_INTERVAL = 7000" in script.text
+    assert register_script.status_code == 200
+    assert "/api/v1/auth/register" in register_script.text
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "https://elemental-keep.armandev.co.uk",
+        "http://localhost:5173",
+        "http://127.0.0.1:8000",
+    ],
+)
+def test_cors_allows_leaderboard_origins(client, origin: str) -> None:
+    response = client.options(
+        "/api/v1/leaderboard",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == origin
+
+
+@pytest.mark.parametrize(
+    ("origin", "allowed"),
+    [
+        ("https://elemental-keep.armandev.co.uk", True),
+        ("http://localhost:5173", True),
+        ("http://127.0.0.1:8000", True),
+        ("https://attacker.example", False),
+    ],
+)
+def test_websocket_origin_policy(origin: str, allowed: bool) -> None:
+    forwarded = False
+    sent_messages = []
+
+    async def app(scope, receive, send):
+        nonlocal forwarded
+        forwarded = True
+        await send({"type": "websocket.accept"})
+
+    async def receive():
+        return {"type": "websocket.connect"}
+
+    async def send(message):
+        sent_messages.append(message)
+
+    middleware = WebSocketOriginMiddleware(
+        app,
+        allowed_origins=ALLOWED_ORIGINS,
+        allowed_origin_regex=LOCAL_ORIGIN_PATTERN,
+    )
+    scope = {
+        "type": "websocket",
+        "headers": [(b"origin", origin.encode("ascii"))],
+    }
+    asyncio.run(middleware(scope, receive, send))
+
+    assert forwarded is allowed
+    assert sent_messages == (
+        [{"type": "websocket.accept"}]
+        if allowed
+        else [{"type": "websocket.close", "code": 1008}]
+    )

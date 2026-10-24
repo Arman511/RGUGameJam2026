@@ -3,9 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from ..database.local_database import get_default_data_dir
+
 try:
     import keyring
-except ImportError:  # pragma: no cover - optional dependency
+except ImportError:
     keyring = None
 
 from .http import APIClient
@@ -23,11 +25,10 @@ class CredentialStore:
         self, app_name: str = "elemental-keep", cache_path: str | None = None
     ) -> None:
         self.app_name = app_name
-        self.cache_path = Path(
-            cache_path
-            or (
-                Path.home() / ".local" / "share" / "elemental_keep" / "credentials.json"
-            )
+        self.cache_path = (
+            Path(cache_path)
+            if cache_path is not None
+            else get_default_data_dir() / "credentials.json"
         )
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -50,11 +51,32 @@ class CredentialStore:
             return payload.get("api_token")
         return None
 
+    def save_username(self, username: str) -> None:
+        if self.cache_path.exists():
+            try:
+                payload = json.loads(self.cache_path.read_text(encoding="utf-8"))
+            except (TypeError, ValueError):
+                payload = {}
+        else:
+            payload = {}
+        payload["username"] = username
+        self.cache_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    def load_username(self) -> str | None:
+        if not self.cache_path.exists():
+            return None
+        try:
+            payload = json.loads(self.cache_path.read_text(encoding="utf-8"))
+        except (TypeError, ValueError):
+            return None
+        username = payload.get("username")
+        return username if isinstance(username, str) else None
+
     def clear_token(self) -> None:
         if keyring is not None:
             try:
                 keyring.delete_password(self.app_name, "api_token")
-            except keyring.errors.PasswordDeleteError:
+            except Exception:
                 pass
         if self.cache_path.exists():
             try:
@@ -62,6 +84,7 @@ class CredentialStore:
             except (TypeError, ValueError):
                 payload = {}
             payload.pop("api_token", None)
+            payload.pop("username", None)
             self.cache_path.write_text(json.dumps(payload), encoding="utf-8")
 
 
@@ -81,34 +104,25 @@ class AuthClient:
         response = self.client.post("/api/v1/auth/login", json_body=request)
         auth_response = AuthResponse.model_validate(response)
         self.credentials.save_token(auth_response.token)
+        self.credentials.save_username(auth_response.user.username)
         return auth_response
 
     def logout(self) -> MessageResponse:
+        if not self.credentials.load_token():
+            print("Not logged in")
+            return MessageResponse(message="Not logged in")
+
         response = self.client.post("/api/v1/auth/logout")
         self.credentials.clear_token()
         return MessageResponse.model_validate(response)
 
+    def username_for_run(self, guest_username: str | None = None) -> str:
+        if self.credentials.load_token():
+            username = self.credentials.load_username()
+            if username is None:
+                raise RuntimeError("sign in again to associate runs with your account")
+            return username
 
-def keyring_available() -> bool:
-    return keyring is not None
-
-
-def register(client: APIClient, username: str, password: str) -> RegisterResponse:
-    request = RegisterRequest(username=username, password=password)
-    response = client.post("/api/v1/auth/register", json_body=request)
-    return RegisterResponse.model_validate(response)
-
-
-def login(client: APIClient, username: str, password: str) -> AuthResponse:
-    request = LoginRequest(username=username, password=password)
-    response = client.post("/api/v1/auth/login", json_body=request)
-    return AuthResponse.model_validate(response)
-
-
-def logout(client: APIClient) -> MessageResponse:
-    response = client.post("/api/v1/auth/logout")
-    return MessageResponse.model_validate(response)
-
-
-def auth_headers(token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token}"}
+        if guest_username is None or not guest_username.strip():
+            raise ValueError("enter a username to save this run")
+        return guest_username.strip()
