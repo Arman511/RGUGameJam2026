@@ -8,7 +8,4 @@ services:
     environment:
       ELEMENTAL_API_DB_PATH: /data/elemental_api.db
     volumes:
-      - elemental_api_data:/data
-
-volumes:
-  elemental_api_data:
+      - ./elemental_api_data:/data

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .crops import CropInstance, CROP_DEFS
+from .game_entities.crops import CROP_DEFS, CropInstance
+
 
 @dataclass
 class FarmPlot:
