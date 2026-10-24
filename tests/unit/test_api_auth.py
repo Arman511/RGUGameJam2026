@@ -1,5 +1,6 @@
 import importlib
 import sqlite3
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -50,6 +51,52 @@ def test_login_succeeds_and_returns_token(client) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert "token" in payload
+
+
+def test_login_prunes_expired_and_revoked_tokens(client) -> None:
+    from elemental_api.database.connection import get_engine
+    from elemental_api.database.models import AuthToken, User
+
+    client.post(
+        "/api/v1/auth/register", json={"username": "alice", "password": "secretpass"}
+    )
+    now = datetime.now(UTC).replace(tzinfo=None)
+    with Session(get_engine()) as session:
+        user = session.scalar(select(User).where(User.username == "alice"))
+        assert user is not None
+        session.add_all(
+            [
+                AuthToken(
+                    user_id=user.id,
+                    token_hash="expired-token-hash",
+                    expires_at=now - timedelta(days=1),
+                ),
+                AuthToken(
+                    user_id=user.id,
+                    token_hash="revoked-token-hash",
+                    expires_at=now + timedelta(days=1),
+                    revoked_at=now,
+                ),
+                AuthToken(
+                    user_id=user.id,
+                    token_hash="active-token-hash",
+                    expires_at=now + timedelta(days=1),
+                ),
+            ]
+        )
+        session.commit()
+
+    response = client.post(
+        "/api/v1/auth/login", json={"username": "alice", "password": "secretpass"}
+    )
+    assert response.status_code == 200
+
+    with Session(get_engine()) as session:
+        token_hashes = set(session.scalars(select(AuthToken.token_hash)).all())
+    assert "active-token-hash" in token_hashes
+    assert "expired-token-hash" not in token_hashes
+    assert "revoked-token-hash" not in token_hashes
+    assert len(token_hashes) == 2
 
 
 def test_protected_routes_require_authentication(client) -> None:
@@ -148,3 +195,22 @@ def test_migration_preserves_legacy_run_data_without_score(
         column["name"]
         for column in inspect(connection_module.get_engine()).get_columns("scores")
     }
+    assert "is_casual" not in {
+        column["name"]
+        for column in inspect(connection_module.get_engine()).get_columns("scores")
+    }
+
+
+def test_auth_and_leaderboard_indexes_are_created(client) -> None:
+    from elemental_api.database.connection import get_engine
+
+    indexes = inspect(get_engine())
+    auth_indexes = {index["name"] for index in indexes.get_indexes("auth_tokens")}
+    score_indexes = {index["name"] for index in indexes.get_indexes("scores")}
+
+    assert {
+        "ix_auth_tokens_user_id",
+        "ix_auth_tokens_expires_at",
+        "ix_auth_tokens_revoked_at",
+    } <= auth_indexes
+    assert "ix_scores_leaderboard_rank" in score_indexes

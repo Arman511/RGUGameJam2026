@@ -40,7 +40,6 @@ class LocalRunRecord(BaseModel):
     survival_time: float = Field(ge=0, le=86_400)
     final_wave: int = Field(ge=0, le=1_000)
     enemies_defeated: int = Field(ge=0, le=100_000)
-    is_casual: bool = True
 
     def to_submission(self) -> RunSubmission:
         return RunSubmission(
@@ -48,7 +47,6 @@ class LocalRunRecord(BaseModel):
             time_survived=self.survival_time,
             wave_number=self.final_wave,
             enemies_defeated=self.enemies_defeated,
-            is_casual=self.is_casual,
         )
 
 
@@ -57,7 +55,6 @@ class RunSubmission(BaseModel):
     time_survived: float = Field(ge=0, le=86_400)
     wave_number: int = Field(ge=0, le=1_000)
     enemies_defeated: int = Field(ge=0, le=100_000)
-    is_casual: bool = True
 
 
 class RunSubmittedResponse(BaseModel):

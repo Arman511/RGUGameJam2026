@@ -66,3 +66,15 @@ def test_legacy_local_leaderboard_migrates_without_score(tmp_path: Path) -> None
         }
     assert revision == "0002_remove_local_score"
     assert "score" not in columns
+
+
+def test_leaderboard_rank_index_is_created(tmp_path: Path) -> None:
+    path = tmp_path / "leaderboard.db"
+    LocalLeaderboardStore(path=path)
+
+    with sqlite3.connect(path) as connection:
+        indexes = {
+            row[1] for row in connection.execute("PRAGMA index_list(leaderboard)")
+        }
+
+    assert "ix_leaderboard_rank" in indexes

@@ -19,7 +19,7 @@ from elemental_api.schemas import (
 )
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -120,6 +120,12 @@ def login(
             detail="Invalid credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    now = datetime.now(UTC).replace(tzinfo=None)
+    db.execute(
+        delete(AuthToken).where(
+            or_(AuthToken.expires_at <= now, AuthToken.revoked_at.is_not(None))
+        )
+    )
     expires_at = token_expiry().replace(tzinfo=None)
     bearer_key = key_service.issue()
     db.add(
@@ -160,3 +166,20 @@ def logout(
         token.revoked_at = datetime.now(UTC).replace(tzinfo=None)
         db.commit()
     return MessageResponse(message="logged out")
+
+
+@router.post("/logout_all", response_model=MessageResponse)
+def logout_all(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[TokenKeyService, Depends(get_token_key_service)],
+) -> MessageResponse:
+    tokens = db.scalars(
+        select(AuthToken).where(
+            AuthToken.user_id == user.id,
+        )
+    ).all()
+    for token in tokens:
+        token.revoked_at = datetime.now(UTC).replace(tzinfo=None)
+    db.commit()
+    return MessageResponse(message="logged out all sessions")

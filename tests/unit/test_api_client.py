@@ -40,5 +40,4 @@ def test_submit_local_run_maps_local_database_fields(monkeypatch) -> None:
         "time_survived": 64.2,
         "wave_number": 5,
         "enemies_defeated": 14,
-        "is_casual": True,
     }

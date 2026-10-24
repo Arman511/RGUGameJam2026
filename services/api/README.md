@@ -20,3 +20,6 @@ Score submissions use `time_survived` (seconds) and `wave_number`. The game
 client maps its existing local leaderboard fields, `survival_time` and
 `final_wave`, to those API fields. Leaderboards rank runs by survival time,
 enemies defeated, then wave reached, all descending.
+
+Successful logins remove expired and revoked authentication tokens. Database
+indexes support token cleanup, per-user token lookups, and leaderboard ranking.

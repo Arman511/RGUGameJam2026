@@ -52,7 +52,6 @@ class RunSubmit(BaseModel):
     time_survived: float = Field(ge=0, le=86_400)
     wave_number: int = Field(ge=0, le=1_000)
     enemies_defeated: int = Field(ge=0, le=100_000)
-    is_casual: bool = True
 
 
 class RunResponse(BaseModel):

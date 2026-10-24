@@ -3,9 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import (
-    Boolean,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -36,6 +36,11 @@ class User(Base):
 
 class AuthToken(Base):
     __tablename__ = "auth_tokens"
+    __table_args__ = (
+        Index("ix_auth_tokens_user_id", "user_id"),
+        Index("ix_auth_tokens_expires_at", "expires_at"),
+        Index("ix_auth_tokens_revoked_at", "revoked_at"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
@@ -52,7 +57,16 @@ class AuthToken(Base):
 
 class RunRecord(Base):
     __tablename__ = "scores"
-    __table_args__ = (UniqueConstraint("user_id", "run_id", name="uq_scores_user_run"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "run_id", name="uq_scores_user_run"),
+        Index(
+            "ix_scores_leaderboard_rank",
+            "time_survived",
+            "enemies_defeated",
+            "wave_number",
+            "submitted_at",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
@@ -60,7 +74,6 @@ class RunRecord(Base):
     time_survived: Mapped[float] = mapped_column(nullable=False)
     wave_number: Mapped[int] = mapped_column(Integer, nullable=False)
     enemies_defeated: Mapped[int] = mapped_column(Integer, nullable=False)
-    is_casual: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     submitted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.current_timestamp()
     )
