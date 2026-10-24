@@ -47,9 +47,9 @@ class Enemy(ABC):
 Create new enemy objects with the below classes
 """
 
-class Swarmer(Enemy):
-    def __init__(self, id, image): # other stats are fixed
-        super().__init__(id, 10, 70, 5, image, 50, 70, None)
+class Swarmer(Enemy): # the slime dude
+    def __init__(self, id): # other stats are fixed
+        super().__init__(id, 10, 70, 5, image="path to slime image", width=50, height=70, resistance=None)
 
     def attack(self):
         pass
