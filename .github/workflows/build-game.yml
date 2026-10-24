@@ -1,0 +1,182 @@
+name: Build and Release ElementalKeep
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-game:
+    name: Build ${{ matrix.platform }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            arch: x64
+            runner: ubuntu-24.04
+
+          - platform: linux
+            arch: arm64
+            runner: ubuntu-24.04-arm
+
+          - platform: windows
+            arch: x64
+            runner: windows-2025
+
+          - platform: windows
+            arch: arm64
+            runner: windows-11-arm
+
+          - platform: macos
+            arch: arm64
+            runner: macos-15
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            apps/game/pyproject.toml
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Build executable
+        shell: bash
+        run: |
+          ICON_ARGS=()
+
+          if [ "${{ matrix.platform }}" = "windows" ]; then
+            ICON_ARGS=(--icon apps/game/src/elemental_game/assets/icon.ico)
+          elif [ "${{ matrix.platform }}" = "macos" ]; then
+            if [ -f apps/game/src/elemental_game/assets/icon.icns ]; then
+              ICON_ARGS=(--icon apps/game/src/elemental_game/assets/icon.icns)
+            fi
+          elif [ "${{ matrix.platform }}" = "linux" ]; then
+            if [ -f apps/game/src/elemental_game/assets/icon.png ]; then
+              ICON_ARGS=(--icon apps/game/src/elemental_game/assets/icon.png)
+            fi
+          fi
+
+          uv run --project apps/game --with pyinstaller pyinstaller \
+            --noconfirm \
+            --clean \
+            --onefile \
+            --windowed \
+            --name ElementalKeep \
+            "${ICON_ARGS[@]}" \
+            --paths apps/game/src \
+            --collect-all elemental_game \
+            apps/game/src/elemental_game/main.py
+
+
+      - name: Rename executable
+        shell: bash
+        run: |
+          if [ "${{ matrix.platform }}" = "windows" ]; then
+            mv dist/ElementalKeep.exe \
+              "dist/ElementalKeep-${{ matrix.platform }}-${{ matrix.arch }}.exe"
+          else
+            mv dist/ElementalKeep \
+              "dist/ElementalKeep-${{ matrix.platform }}-${{ matrix.arch }}"
+          fi
+
+      - name: Upload game artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ElementalKeep-${{ matrix.platform }}-${{ matrix.arch }}
+          path: dist/ElementalKeep-${{ matrix.platform }}-${{ matrix.arch }}*
+          if-no-files-found: error
+          retention-days: 30
+
+  build-api:
+    name: Build and publish API Docker image
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare image name
+        id: image
+        shell: bash
+        run: |
+          echo "name=ghcr.io/${GITHUB_REPOSITORY,,}-api" >> "$GITHUB_OUTPUT"
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=ref,event=tag
+            type=sha,format=long,prefix=sha-
+            type=raw,value=latest
+
+      - name: Build and push multi-platform API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/api/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  release:
+    name: Publish GitHub Release
+    needs:
+      - build-game
+      - build-api
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Download game artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: ElementalKeep-*
+          merge-multiple: true
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* \
+              --title "ElementalKeep $TAG" \
+              --generate-notes
+          fi

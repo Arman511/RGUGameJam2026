@@ -8,7 +8,9 @@ farm.update(dt)      # every frame
 """
 
 import pygame
+import random
 from elemental_game.game_entities.crops.crops import Crop, CropType
+from elemental_game.types.player import PlayerType
 from elemental_game.types.seed import SeedType
 from elemental_game.config import IMAGES_DIR
 import os
@@ -16,6 +18,14 @@ import os
 
 class Farm:
     TILE_SIZE = 50
+    OPPOSING_ELEMENTS = {
+        PlayerType.FIRE: CropType.WATER,
+        PlayerType.WATER: CropType.FIRE,
+        PlayerType.EARTH: CropType.LIGHTNING,
+        PlayerType.LIGHTNING: CropType.EARTH,
+        PlayerType.ICE: CropType.AIR,
+        PlayerType.AIR: CropType.ICE,
+    }
 
     def __init__(self, rows, cols, origin=(0, 0)):
         self.rows = rows
@@ -137,7 +147,17 @@ class Farm:
             crop = self.get_crop(*tile)  # determine which crop is on that tile
             if crop is not None and crop.is_ready():
                 harvested = self.harvest(*tile)
-                player.add_crop(harvested.crop_type, harvested.tier)
+                yield_amount = harvested.tier
+                if harvested.crop_type.name == player.player_type.name:
+                    if random.random() < 0.25:
+                        yield_amount *= 2
+                elif (
+                    harvested.crop_type
+                    is self.OPPOSING_ELEMENTS[player.player_type]
+                    and random.random() < 0.10
+                ):
+                    yield_amount //= 2
+                player.add_crop(harvested.crop_type, yield_amount)
 
         if self.planting:
             if event.key == pygame.K_ESCAPE:

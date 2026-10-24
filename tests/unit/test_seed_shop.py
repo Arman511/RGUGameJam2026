@@ -9,6 +9,7 @@ from elemental_game.types.seed import SeedType
 
 def make_player():
     player = Player.__new__(Player)
+    player.player_type = PlayerType.WATER
     player.seeds = {
         seed_type: {"tier1": 0, "tier2": 0, "tier3": 0}
         for seed_type in SeedType
@@ -87,6 +88,34 @@ def test_harvest_yield_matches_crop_tier() -> None:
 
     assert farm.grid[0][0] is None
     assert player.crops[CropType.ICE] == 2
+
+
+def test_matching_element_has_chance_to_double_harvest_yield(monkeypatch) -> None:
+    player = make_player()
+    player.player_type = PlayerType.FIRE
+    crop = Crop(CropType.FIRE, (0, 0), tier=2)
+    crop.growth_timer = crop.GROWTH_TIME
+    farm = make_farm(crop)
+    player.pos = pygame.Vector2(25, 25)
+    monkeypatch.setattr("elemental_game.game_entities.farm.random.random", lambda: 0.2)
+
+    farm.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_g}), player)
+
+    assert player.crops[CropType.FIRE] == 4
+
+
+def test_opposing_element_has_chance_to_floor_half_harvest_yield(monkeypatch) -> None:
+    player = make_player()
+    player.player_type = PlayerType.FIRE
+    crop = Crop(CropType.WATER, (0, 0), tier=3)
+    crop.growth_timer = crop.GROWTH_TIME
+    farm = make_farm(crop)
+    player.pos = pygame.Vector2(25, 25)
+    monkeypatch.setattr("elemental_game.game_entities.farm.random.random", lambda: 0.05)
+
+    farm.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_g}), player)
+
+    assert player.crops[CropType.WATER] == 1
 
 
 def test_selling_crop_adds_three_coins_and_removes_one_crop() -> None:
