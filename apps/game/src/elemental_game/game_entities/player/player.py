@@ -16,8 +16,8 @@ class Player:
     )
 
     def __init__(self, pos=(150, 150), player_type: PlayerType = PlayerType.WATER):
-        self.width = 60
-        self.height = 60
+        self.width = 70
+        self.height = 70
         self.player_type = player_type
         image = pygame.image.load(player_type.full_image_path).convert_alpha()
         self.image = pygame.transform.scale(image, (self.width, self.height))
