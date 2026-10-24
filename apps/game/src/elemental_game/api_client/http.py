@@ -8,7 +8,9 @@ from typing import Any
 
 import httpx
 from pydantic import BaseModel
+from dotenv import load_dotenv
 
+load_dotenv()
 from .models import (
     LeaderboardResponse,
     LocalRunRecord,

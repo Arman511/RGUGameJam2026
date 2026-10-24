@@ -3,9 +3,18 @@ services:
     build:
       context: .
       dockerfile: services/api/Dockerfile
-    ports:
-      - "8000:8000"
+    restart: unless-stopped
     environment:
       ELEMENTAL_API_DB_PATH: /data/elemental_api.db
     volumes:
-      - ./elemental_api_data:/data
+      - ./.local/elemental_api_data:/data
+    networks:
+      default:
+        aliases:
+          - elemental-keep
+
+
+networks:
+  default:
+    name: zoraxy_proxy
+    external: true
