@@ -5,6 +5,9 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from .migrations import upgrade_database
+
+
 def get_default_data_dir() -> Path:
     if os.name == "nt":
         base = os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local"
@@ -15,9 +18,14 @@ def get_default_data_dir() -> Path:
         return Path.home() / ".local" / "share" / "elemental_keep"
     return Path.home() / ".elemental_keep"
 
+
 class LocalLeaderboardStore:
     def __init__(self, path: str | Path | None = None) -> None:
-        self.path = Path(path) if path is not None else get_default_data_dir() / "leaderboard.db"
+        self.path = (
+            Path(path)
+            if path is not None
+            else get_default_data_dir() / "leaderboard.db"
+        )
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
@@ -28,25 +36,11 @@ class LocalLeaderboardStore:
         return connection
 
     def _initialize(self) -> None:
-        with self._connect() as connection:
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS leaderboard (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    run_id TEXT NOT NULL UNIQUE,
-                    timestamp TEXT NOT NULL,
-                    survival_time REAL NOT NULL,
-                    final_wave INTEGER NOT NULL,
-                    score INTEGER NOT NULL,
-                    enemies_defeated INTEGER NOT NULL
-                )
-                """
-            )
+        upgrade_database(self.path)
 
     def submit_run(
         self,
         run_id: str,
-        score: int,
         survival_time: float,
         final_wave: int,
         enemies_defeated: int,
@@ -54,16 +48,15 @@ class LocalLeaderboardStore:
         with self._connect() as connection:
             connection.execute(
                 """
-                INSERT INTO leaderboard(run_id, timestamp, survival_time, final_wave, score, enemies_defeated)
-                VALUES (?, datetime('now'), ?, ?, ?, ?)
+                INSERT INTO leaderboard(run_id, timestamp, survival_time, final_wave, enemies_defeated)
+                VALUES (?, datetime('now'), ?, ?, ?)
                 ON CONFLICT(run_id) DO UPDATE SET
                     timestamp = excluded.timestamp,
                     survival_time = excluded.survival_time,
                     final_wave = excluded.final_wave,
-                    score = excluded.score,
                     enemies_defeated = excluded.enemies_defeated
                 """,
-                (run_id, survival_time, final_wave, score, enemies_defeated),
+                (run_id, survival_time, final_wave, enemies_defeated),
             )
             connection.commit()
 
@@ -71,9 +64,9 @@ class LocalLeaderboardStore:
         with self._connect() as connection:
             rows = connection.execute(
                 """
-                SELECT run_id, timestamp, survival_time, final_wave, score, enemies_defeated
+                SELECT run_id, timestamp, survival_time, final_wave, enemies_defeated
                 FROM leaderboard
-                ORDER BY score DESC, survival_time DESC
+                ORDER BY survival_time DESC, enemies_defeated DESC, final_wave DESC
                 LIMIT ?
                 """,
                 (limit,),

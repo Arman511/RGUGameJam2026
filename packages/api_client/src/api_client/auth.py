@@ -5,15 +5,30 @@ from pathlib import Path
 
 try:
     import keyring
-except Exception:  # pragma: no cover - optional dependency
+except ImportError:  # pragma: no cover - optional dependency
     keyring = None
 
-from .http import APIClient, APIError, AuthError, ValidationError
+from .http import APIClient
+from .models import (
+    AuthResponse,
+    LoginRequest,
+    MessageResponse,
+    RegisterRequest,
+    RegisterResponse,
+)
+
 
 class CredentialStore:
-    def __init__(self, app_name: str = "elemental-keep", cache_path: str | None = None) -> None:
+    def __init__(
+        self, app_name: str = "elemental-keep", cache_path: str | None = None
+    ) -> None:
         self.app_name = app_name
-        self.cache_path = Path(cache_path or (Path.home() / ".local" / "share" / "elemental_keep" / "credentials.json"))
+        self.cache_path = Path(
+            cache_path
+            or (
+                Path.home() / ".local" / "share" / "elemental_keep" / "credentials.json"
+            )
+        )
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
 
     def save_token(self, token: str) -> None:
@@ -49,23 +64,51 @@ class CredentialStore:
             payload.pop("api_token", None)
             self.cache_path.write_text(json.dumps(payload), encoding="utf-8")
 
+
+class AuthClient:
+    def __init__(self, client: APIClient, credentials: CredentialStore) -> None:
+        self.client = client
+        self.credentials = credentials
+        self.client.token_provider = credentials.load_token
+
+    def register(self, username: str, password: str) -> RegisterResponse:
+        request = RegisterRequest(username=username, password=password)
+        response = self.client.post("/api/v1/auth/register", json_body=request)
+        return RegisterResponse.model_validate(response)
+
+    def login(self, username: str, password: str) -> AuthResponse:
+        request = LoginRequest(username=username, password=password)
+        response = self.client.post("/api/v1/auth/login", json_body=request)
+        auth_response = AuthResponse.model_validate(response)
+        self.credentials.save_token(auth_response.token)
+        return auth_response
+
+    def logout(self) -> MessageResponse:
+        response = self.client.post("/api/v1/auth/logout")
+        self.credentials.clear_token()
+        return MessageResponse.model_validate(response)
+
+
 def keyring_available() -> bool:
     return keyring is not None
 
-def register(client: APIClient, username: str, password: str) -> dict[str, object]:
-    return client.post(
-        "/api/v1/auth/register",
-        json_body={"username": username, "password": password},
-    )
 
-def login(client: APIClient, username: str, password: str) -> dict[str, object]:
-    return client.post(
-        "/api/v1/auth/login",
-        json_body={"username": username, "password": password},
-    )
+def register(client: APIClient, username: str, password: str) -> RegisterResponse:
+    request = RegisterRequest(username=username, password=password)
+    response = client.post("/api/v1/auth/register", json_body=request)
+    return RegisterResponse.model_validate(response)
 
-def logout(client: APIClient) -> dict[str, object]:
-    return client.post("/api/v1/auth/logout")
+
+def login(client: APIClient, username: str, password: str) -> AuthResponse:
+    request = LoginRequest(username=username, password=password)
+    response = client.post("/api/v1/auth/login", json_body=request)
+    return AuthResponse.model_validate(response)
+
+
+def logout(client: APIClient) -> MessageResponse:
+    response = client.post("/api/v1/auth/logout")
+    return MessageResponse.model_validate(response)
+
 
 def auth_headers(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}

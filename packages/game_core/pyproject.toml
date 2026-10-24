@@ -3,7 +3,10 @@ name = "game-core"
 version = "0.1.0"
 description = "Pure Python simulation logic for Elemental Keep"
 requires-python = ">=3.12,<3.14"
-dependencies = []
+dependencies = [
+    "alembic>=1.14.0",
+    "sqlalchemy>=2.0.0",
+]
 
 [build-system]
 requires = ["hatchling>=1.18.0"]

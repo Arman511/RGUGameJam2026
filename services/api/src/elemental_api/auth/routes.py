@@ -1,135 +1,162 @@
 from __future__ import annotations
 
-import sqlite3
-from datetime import datetime, timezone
-from typing import Any
-
-from fastapi import APIRouter, Depends, HTTPException, Header, status
-from pydantic import BaseModel, Field
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Annotated
 
 from elemental_api.auth.passwords import hash_password, verify_password
-from elemental_api.auth.tokens import format_utc, generate_token, token_expiry, token_hash, utc_now
-from elemental_api.database.connection import get_db_connection
+from elemental_api.auth.tokens import generate_token, token_expiry, token_hash
+from elemental_api.database.connection import get_db
+from elemental_api.database.models import AuthToken, User
+from elemental_api.schemas import (
+    AuthResponse,
+    LoginRequest,
+    MessageResponse,
+    RegisterRequest,
+    RegisterResponse,
+    UserResponse,
+)
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/api/v1/auth")
+bearer_scheme = HTTPBearer(auto_error=False)
 
-class RegisterRequest(BaseModel):
-    username: str = Field(min_length=3, max_length=32)
-    password: str = Field(min_length=8, max_length=128)
 
-class LoginRequest(BaseModel):
-    username: str = Field(min_length=3, max_length=32)
-    password: str = Field(min_length=8, max_length=128)
+@dataclass(frozen=True)
+class TokenKeyService:
+    issue: Callable[[], str] = generate_token
+    digest: Callable[[str], str] = token_hash
 
-class AuthResponse(BaseModel):
-    token: str
-    user: dict[str, Any]
+
+def get_token_key_service() -> TokenKeyService:
+    return TokenKeyService()
+
+
+def get_bearer_key(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+) -> str:
+    if credentials is None or not credentials.credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing bearer token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return credentials.credentials
+
+
+def get_current_user(
+    bearer_key: Annotated[str, Depends(get_bearer_key)],
+    db: Annotated[Session, Depends(get_db)],
+    key_service: Annotated[TokenKeyService, Depends(get_token_key_service)],
+) -> User:
+    token = db.scalar(
+        select(AuthToken).where(AuthToken.token_hash == key_service.digest(bearer_key))
+    )
+    now = datetime.now(UTC).replace(tzinfo=None)
+    if token is None or token.revoked_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or revoked token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    expires_at = token.expires_at
+    if expires_at.tzinfo is not None:
+        expires_at = expires_at.astimezone(UTC).replace(tzinfo=None)
+    if now > expires_at:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return token.user
+
 
 def _normalize_username(value: str) -> str:
     return value.strip().lower()
 
-def _get_user_from_db(connection: sqlite3.Connection, user_id: int) -> dict[str, Any]:
-    row = connection.execute(
-        "SELECT id, username, normalized_username, created_at FROM users WHERE id = ?",
-        (user_id,),
-    ).fetchone()
-    if row is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    return {
-        "id": row["id"],
-        "username": row["username"],
-        "created_at": row["created_at"],
-    }
 
-def get_current_user(
-    authorization: str | None = Header(default=None, alias="Authorization"),
-) -> dict[str, Any]:
-    if not authorization or not authorization.lower().startswith("bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
-    token = authorization.split(" ", 1)[1].strip()
-    token_hash_value = token_hash(token)
-    with get_db_connection() as connection:
-        row = connection.execute(
-            """
-            SELECT t.user_id, t.expires_at, t.revoked_at, u.username
-            FROM auth_tokens t
-            INNER JOIN users u ON u.id = t.user_id
-            WHERE t.token_hash = ?
-            ORDER BY t.id DESC
-            LIMIT 1
-            """,
-            (token_hash_value,),
-        ).fetchone()
-        if row is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-        expires_at = datetime.strptime(row["expires_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-        if row["revoked_at"] is not None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token revoked")
-        if datetime.now(timezone.utc) > expires_at:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
-        return _get_user_from_db(connection, row["user_id"])
+@router.post("/register", response_model=RegisterResponse)
+def register(
+    payload: RegisterRequest,
+    db: Annotated[Session, Depends(get_db)],
+) -> RegisterResponse:
+    user = User(
+        username=payload.username.strip(),
+        normalized_username=_normalize_username(payload.username),
+        password_hash=hash_password(payload.password),
+    )
+    db.add(user)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Username already exists"
+        ) from exc
+    return RegisterResponse(
+        user=UserResponse.model_validate(user), message="registered"
+    )
 
-@router.post("/register")
-def register(payload: RegisterRequest) -> dict[str, Any]:
-    normalized = _normalize_username(payload.username)
-    with get_db_connection() as connection:
-        existing = connection.execute(
-            "SELECT id FROM users WHERE normalized_username = ?",
-            (normalized,),
-        ).fetchone()
-        if existing is not None:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already exists")
-        user_id = connection.execute(
-            "INSERT INTO users(username, normalized_username, password_hash) VALUES (?, ?, ?)",
-            (payload.username.strip(), normalized, hash_password(payload.password)),
-        ).lastrowid
-        connection.commit()
-        user = _get_user_from_db(connection, user_id)
-    return {"user": user, "message": "registered"}
 
-@router.post("/login")
-def login(payload: LoginRequest) -> dict[str, Any]:
-    normalized = _normalize_username(payload.username)
-    with get_db_connection() as connection:
-        row = connection.execute(
-            "SELECT id, username, password_hash FROM users WHERE normalized_username = ?",
-            (normalized,),
-        ).fetchone()
-        if row is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-        if not verify_password(payload.password, row["password_hash"]):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-        token = generate_token()
-        expires_at = format_utc(token_expiry())
-        connection.execute(
-            "INSERT INTO auth_tokens(user_id, token_hash, expires_at) VALUES (?, ?, ?)",
-            (row["id"], token_hash(token), expires_at),
+@router.post("/login", response_model=AuthResponse)
+def login(
+    payload: LoginRequest,
+    db: Annotated[Session, Depends(get_db)],
+    key_service: Annotated[TokenKeyService, Depends(get_token_key_service)],
+) -> AuthResponse:
+    user = db.scalar(
+        select(User).where(
+            User.normalized_username == _normalize_username(payload.username)
         )
-        connection.commit()
-        return {
-            "token": token,
-            "user": {"id": row["id"], "username": row["username"]},
-        }
+    )
+    if user is None or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    expires_at = token_expiry().replace(tzinfo=None)
+    bearer_key = key_service.issue()
+    db.add(
+        AuthToken(
+            user_id=user.id,
+            token_hash=key_service.digest(bearer_key),
+            expires_at=expires_at,
+        )
+    )
+    db.commit()
+    return AuthResponse(
+        token=bearer_key,
+        user=UserResponse.model_validate(user),
+    )
 
-@router.get("/me")
-def current_user(user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
-    return user
 
-@router.post("/logout")
-def logout(user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
-    token = None
-    authorization = None
-    # A real implementation would receive the token from the Authorization header via dependency injection.
-    # This simplified version uses the user context that was already verified and revokes all active tokens.
-    with get_db_connection() as connection:
-        rows = connection.execute(
-            "SELECT id FROM auth_tokens WHERE user_id = ? AND revoked_at IS NULL",
-            (user["id"],),
-        ).fetchall()
-        for row in rows:
-            connection.execute(
-                "UPDATE auth_tokens SET revoked_at = ? WHERE id = ?",
-                (format_utc(utc_now()), row["id"]),
-            )
-        connection.commit()
-    return {"message": "logged out"}
+@router.get("/me", response_model=UserResponse)
+def current_user(
+    user: Annotated[User, Depends(get_current_user)],
+) -> UserResponse:
+    return UserResponse.model_validate(user)
+
+
+@router.post("/logout", response_model=MessageResponse)
+def logout(
+    bearer_key: Annotated[str, Depends(get_bearer_key)],
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    key_service: Annotated[TokenKeyService, Depends(get_token_key_service)],
+) -> MessageResponse:
+    token = db.scalar(
+        select(AuthToken).where(
+            AuthToken.user_id == user.id,
+            AuthToken.token_hash == key_service.digest(bearer_key),
+        )
+    )
+    if token is not None:
+        token.revoked_at = datetime.now(UTC).replace(tzinfo=None)
+        db.commit()
+    return MessageResponse(message="logged out")
