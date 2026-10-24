@@ -97,7 +97,6 @@ class Farm:
             for crop in row:
                 if crop is not None:
                     crop.growth_timer += dt
-                    crop.get_crop_stage()  # updates crop.stage
 
     def tile_at_pixel(self, x, y):
         """Convert a mouse position to (row, col), or None if outside the grid."""

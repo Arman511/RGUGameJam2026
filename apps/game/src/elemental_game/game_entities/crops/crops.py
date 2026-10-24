@@ -42,7 +42,6 @@ class Crop:
         self.image = self.CROP_APPEARANCE[crop_type]
         self.pos = pos  # position in farm grid
         self.growth_timer = 0
-        self.stage = 0  # how much plant has grown
 
     def is_ready(self):
         return self.growth_timer >= self.GROWTH_TIME
@@ -54,11 +53,6 @@ class Crop:
 
     def get_value(self):
         return self.VALUE
-
-    def get_crop_stage(self):
-        # based on time passed since planting, update the stage of the crop
-        # return the corresponding appearence png
-        pass
 
     def set_crop_yield(self, y):
         # may want to change this as game progresses
