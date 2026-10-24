@@ -18,7 +18,12 @@ class FertilizerUpgrade:
     crop_type: CropType
 
 
-UpgradeOption = LandUpgrade | FertilizerUpgrade
+@dataclass(frozen=True)
+class TurretSlotUpgrade:
+    cost: int
+
+
+UpgradeOption = LandUpgrade | FertilizerUpgrade | TurretSlotUpgrade
 
 
 class ShopMenu:
@@ -81,6 +86,12 @@ class ShopMenu:
                 if isinstance(option, LandUpgrade):
                     if player.buy_next_farm_quadrant():
                         self.status_message = "Farm quadrant unlocked."
+                    else:
+                        self.status_message = "Not enough coins."
+                elif isinstance(option, TurretSlotUpgrade):
+                    if player.buy_turret_slot():
+                        self.status_message = "Elemental turret plot unlocked."
+                        self.selected = 0
                     else:
                         self.status_message = "Not enough coins."
                 else:
@@ -198,7 +209,9 @@ class ShopMenu:
         list_y = panel.y + (
             130
             if self.mode == "buy" and not self.selecting_quadrant
-            else 105 if self.selecting_quadrant or self.mode == "upgrade" else 88
+            else 105
+            if self.selecting_quadrant or self.mode == "upgrade"
+            else 88
         )
         for index, option in enumerate(options):
             if isinstance(option, str):
@@ -212,6 +225,8 @@ class ShopMenu:
                     f"Unlock {option.quadrant.replace('_', ' ').title()} - "
                     f"{option.cost} coins"
                 )
+            elif isinstance(option, TurretSlotUpgrade):
+                label = f"Unlock next turret plot - {option.cost} coins"
             elif isinstance(option, FertilizerUpgrade):
                 label = (
                     f"{option.crop_type.name.title()} fertilizer - "
@@ -285,6 +300,9 @@ class ShopMenu:
         if unlock is not None:
             quadrant, cost = unlock
             options.insert(0, LandUpgrade(quadrant, cost))
+        turret_cost = player.next_turret_slot_cost()
+        if turret_cost is not None:
+            options.append(TurretSlotUpgrade(turret_cost))
         return options
 
     def _options(self, player) -> Sequence[object]:

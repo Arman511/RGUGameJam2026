@@ -1,7 +1,15 @@
 from elemental_game.game_entities.enemies.enemies import ENEMY_DEFS, EnemyState
 from elemental_game.game_entities.enemies.waves import build_wave_sequence
-from elemental_game.game_entities.player.player import PlayerType
-from elemental_game.game_entities.turrets.turrets import TURRET_DEFS
+from elemental_game.game_entities.house import House
+from elemental_game.game_entities.player.player import Player, PlayerType
+from elemental_game.game_entities.turrets.turrets import (
+    DEFINITION_BY_ELEMENT,
+    ELEMENTAL_TURRET_RANGE,
+    TURRET_DEFS,
+    ManualTurret,
+    TurretSystem,
+)
+from elemental_game.types.crop import CropType
 
 
 def test_player_types_map_numbers_to_expected_sprite_paths() -> None:
@@ -55,3 +63,114 @@ def test_boss_wave_contains_known_enemy_types() -> None:
 
 def test_wave_sequence_is_deterministic() -> None:
     assert build_wave_sequence(3) == build_wave_sequence(3)
+
+
+def test_elemental_turrets_cover_every_crop_and_cost_five_matching_crops() -> None:
+    assert set(DEFINITION_BY_ELEMENT) == set(CropType)
+    assert all(turret.resource_cost == 5 for turret in TURRET_DEFS.values())
+    assert len({turret.image for turret in TURRET_DEFS.values()}) == len(CropType)
+
+
+def test_elemental_damage_matchups_and_neutral_slimes() -> None:
+    lightning_enemy = EnemyState(
+        key="lightning",
+        health=100,
+        max_health=100,
+        speed=1,
+        damage=1,
+        reward=1,
+    )
+    fire_enemy = EnemyState(
+        key="fire", health=100, max_health=100, speed=1, damage=1, reward=1
+    )
+    water_enemy = EnemyState(
+        key="water", health=100, max_health=100, speed=1, damage=1, reward=1
+    )
+    slime = EnemyState(
+        key="swarmer", health=100, max_health=100, speed=1, damage=1, reward=1
+    )
+
+    lightning_enemy.take_damage(10, CropType.EARTH)
+    fire_enemy.take_damage(10, CropType.WATER)
+    water_enemy.take_damage(10, CropType.EARTH)
+    slime.take_damage(10, CropType.FIRE)
+
+    assert lightning_enemy.health == 85
+    assert fire_enemy.health == 85
+    assert water_enemy.health == 94
+    assert slime.health == 90
+
+
+def test_elites_are_resistant_and_bosses_appear_every_fifth_wave() -> None:
+    elite = EnemyState.create("elite_fire", (0, 0))
+    boss = EnemyState.create("boss", (0, 0))
+
+    elite.take_damage(10, CropType.AIR)
+    boss.take_damage(10, CropType.FIRE)
+
+    assert elite.health == elite.max_health - 5
+    assert boss.health == boss.max_health - 5
+    assert build_wave_sequence(5)[0] == "boss"
+    assert build_wave_sequence(6)[0] != "boss"
+
+
+def test_turret_plot_unlock_costs_increase_from_ten_to_forty_coins() -> None:
+    player = Player.__new__(Player)
+    player.coins = 100
+    player.turret_slots_unlocked = 0
+
+    for expected_cost in (10, 20, 30, 40):
+        assert player.next_turret_slot_cost() == expected_cost
+        assert player.buy_turret_slot()
+
+    assert player.turret_slots_unlocked == 4
+    assert player.next_turret_slot_cost() is None
+    assert player.coins == 100 - sum((10, 20, 30, 40))
+
+
+def test_turret_slots_are_outside_both_farm_edges() -> None:
+    from types import SimpleNamespace
+
+    player = Player.__new__(Player)
+    player.turret_slots_unlocked = 0
+    system = TurretSystem.__new__(TurretSystem)
+    system.farm = SimpleNamespace(origin=(475, 399), cols=6, rows=6)
+    system.slots = []
+
+    system._refresh_slots(player)
+
+    left_edge = system.farm.origin[0]
+    right_edge = left_edge + system.farm.cols * 55
+    assert all(
+        slot.center[0] + 27 < left_edge for slot in system.slots if slot.side == "left"
+    )
+    assert all(
+        slot.center[0] - 27 > right_edge
+        for slot in system.slots
+        if slot.side == "right"
+    )
+
+
+def test_manual_turret_can_hit_targets_at_unlimited_range() -> None:
+    turret = ManualTurret.__new__(ManualTurret)
+    turret.angle = 0
+    turret.cooldown = 0
+    turret.damage_level = 0
+    turret.fire_rate_level = 0
+    enemy = EnemyState.create("swarmer", (5000, 0))
+
+    turret.update(0.01, [enemy], (0, 0), 0, True)
+
+    assert enemy.health < enemy.max_health
+
+
+def test_house_roof_includes_the_mounted_turret_standing_area() -> None:
+    house = House.__new__(House)
+    house.dimensions = (250, 200)
+    rect = house.turret_control_rect()
+
+    assert rect.collidepoint(house.return_rect().centerx, house.return_rect().y + 20)
+
+
+def test_elemental_turret_range_is_increased() -> None:
+    assert ELEMENTAL_TURRET_RANGE > 190

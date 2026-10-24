@@ -1,9 +1,7 @@
-import os
-
+import pygame
+from elemental_game import config
 from elemental_game.types.player import PlayerType
 from elemental_game.types.seed import SeedType
-import pygame
-from elemental_game.config import IMAGES_DIR
 
 
 class Player:
@@ -28,6 +26,7 @@ class Player:
         self.coins = 5
         self.crops = {}
         self.unlocked_quadrants = set(self.STARTING_UNLOCKED_QUADRANTS)
+        self.turret_slots_unlocked = 0
 
     def update(self, dt):
         keys = pygame.key.get_pressed()
@@ -106,6 +105,20 @@ class Player:
         self.unlocked_quadrants.add(quadrant)
         return True
 
+    def next_turret_slot_cost(self):
+        unlocked = getattr(self, "turret_slots_unlocked", 0)
+        if unlocked >= len(config.TURRET_SLOT_UNLOCK_COSTS):
+            return None
+        return config.TURRET_SLOT_UNLOCK_COSTS[unlocked]
+
+    def buy_turret_slot(self):
+        cost = self.next_turret_slot_cost()
+        if cost is None or self.coins < cost:
+            return False
+        self.coins -= cost
+        self.turret_slots_unlocked = getattr(self, "turret_slots_unlocked", 0) + 1
+        return True
+
     def reset(self):
         self.seeds = {
             seed_type: {"tier1": 0, "tier2": 0, "tier3": 0} for seed_type in SeedType
@@ -113,6 +126,7 @@ class Player:
         self.coins = 5
         self.crops = {}
         self.unlocked_quadrants = set(self.STARTING_UNLOCKED_QUADRANTS)
+        self.turret_slots_unlocked = 0
 
     def can_afford(self, cost):
         return self.coins >= cost

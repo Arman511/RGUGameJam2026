@@ -140,6 +140,78 @@ def test_menu_click_target_uses_scaled_window_layout() -> None:
     assert not app.running
 
 
+def test_local_leaderboard_censors_rude_username_until_clicked() -> None:
+    class Filter:
+        value = ""
+
+        def handle_event(self, event) -> None:
+            return None
+
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.layout = menus.MenuLayout(800, 600)
+    app.leaderboard_filter = Filter()
+    app.leaderboard_rows = [
+        {
+            "run_id": "run-1",
+            "username": "fuck player",
+            "final_wave": 1,
+            "survival_time": 10,
+            "enemies_defeated": 2,
+        }
+    ]
+    app.leaderboard_scroll = 0
+    app.revealed_usernames = set()
+    assert menus.censor_username("fuckface") == "********"
+    assert menus.censor_username("garden") == "garden"
+
+    pygame.font.init()
+    app.font = pygame.font.Font(None, 22)
+    click = app.layout.point((146, 221))
+    app._handle_leaderboard_event(
+        pygame.event.Event(pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": click})
+    )
+
+    assert "run-1" in app.revealed_usernames
+
+
+def test_game_over_saves_guest_run_locally_and_requests_username() -> None:
+    from elemental_game.screen_rendering.game_over import GameOverDialog
+
+    class Store:
+        def __init__(self) -> None:
+            self.saved_runs = []
+
+        def submit_run(self, *args, **kwargs) -> None:
+            self.saved_runs.append((args, kwargs))
+
+    class Menus:
+        username = None
+        store = Store()
+
+    pygame.font.init()
+    dialog = GameOverDialog(
+        pygame.Surface((800, 600)),
+        pygame.font.Font(None, 22),
+        Menus(),
+        run_id="run-guest",
+        survival_time=61.5,
+        final_wave=2,
+        enemies_defeated=9,
+    )
+
+    assert dialog.state == "username"
+    assert dialog.local_saved
+    dialog.draw()
+    assert Menus.store.saved_runs[0] == (
+        ("run-guest", 61.5, 2, 9),
+        {"username": "Guest"},
+    )
+    dialog.username_input.value = "player-one"
+    dialog._save_guest_username()
+    assert dialog.state == "publish"
+    assert Menus.store.saved_runs[-1][1] == {"username": "player-one"}
+
+
 def test_exit_button_closes_menu_without_starting_game() -> None:
     app = menus.MenuSystem.__new__(menus.MenuSystem)
     app.layout = menus.MenuLayout(1000, 800)

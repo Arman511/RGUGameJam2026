@@ -11,11 +11,11 @@ from __future__ import annotations
 
 import os
 import platform
+import re
 import subprocess
 import webbrowser
 from typing import Any
 
-from elemental_game.types.player import PlayerType
 import pygame
 
 from elemental_game.api_client import APIClient, AuthClient, CredentialStore
@@ -26,6 +26,7 @@ from elemental_game.audio import (
 )
 from elemental_game.config import IMAGES_DIR
 from elemental_game.database import LocalLeaderboardStore
+from elemental_game.types.player import PlayerType
 
 BUTTON = (65, 85, 65)
 BUTTON_HOVER = (85, 110, 85)
@@ -55,6 +56,33 @@ LOGIN_PASSWORD_RECT = pygame.Rect(250, 265, 300, 44)
 MENU_DESIGN_WIDTH = 800
 MENU_DESIGN_HEIGHT = 600
 REGISTER_URL = "https://elemental-keep.armandev.co.uk/register"
+RUDE_USERNAME_WORDS = (
+    "asshole",
+    "bastard",
+    "bitch",
+    "bullshit",
+    "cunt",
+    "dick",
+    "fuck",
+    "fuckface",
+    "fucker",
+    "motherfucker",
+    "shit",
+    "shithead",
+    "slut",
+    "whore",
+)
+RUDE_USERNAME_PATTERN = re.compile(
+    rf"\b(?:{'|'.join(re.escape(word) for word in RUDE_USERNAME_WORDS)})\b",
+    re.IGNORECASE,
+)
+
+
+def censor_username(username: str) -> str:
+    return RUDE_USERNAME_PATTERN.sub(
+        lambda match: "*" * len(match.group()),
+        username,
+    )
 
 
 class MenuLayout:
@@ -163,6 +191,7 @@ class MenuSystem:
         self.error_message = ""
         self.notice_message = ""
         self.leaderboard_rows: list[dict[str, Any]] = []
+        self.revealed_usernames: set[str] = set()
         self.leaderboard_scroll = 0
         self.leaderboard_filter = InputField(
             self.layout.rect(LEADERBOARD_FILTER_RECT),
@@ -331,6 +360,7 @@ class MenuSystem:
             self.leaderboard_filter.value = ""
             self.leaderboard_filter.focused = False
             self.leaderboard_scroll = 0
+            self.revealed_usernames.clear()
             self.state = "leaderboard"
         elif self.layout.rect(SETTINGS_BUTTON).collidepoint(event.pos):
             self.notice_message = ""
@@ -363,6 +393,21 @@ class MenuSystem:
                     max(0, len(self._filtered_leaderboard()) - 12),
                 ),
             )
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            rows = self._filtered_leaderboard()
+            visible_rows = rows[self.leaderboard_scroll : self.leaderboard_scroll + 12]
+            revealed_usernames = getattr(self, "revealed_usernames", set())
+            for index, row in enumerate(visible_rows):
+                run_id = str(row["run_id"])
+                display_name = str(row["username"])
+                if run_id not in revealed_usernames:
+                    display_name = censor_username(display_name)
+                x, y = self.layout.point((145, 220 + index * 24))
+                width, height = self.font.size(display_name)
+                if pygame.Rect(x, y, width, height).collidepoint(event.pos):
+                    revealed_usernames.add(run_id)
+                    self.revealed_usernames = revealed_usernames
+                    return
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (
             event.type == pygame.MOUSEBUTTONDOWN
             and event.button == 1
@@ -491,8 +536,11 @@ class MenuSystem:
         visible_rows = rows[self.leaderboard_scroll : self.leaderboard_scroll + 12]
         for index, row in enumerate(visible_rows):
             y = 220 + index * 24
+            username = str(row["username"])
+            if str(row["run_id"]) not in getattr(self, "revealed_usernames", set()):
+                username = censor_username(username)
             values = (
-                str(row["username"]),
+                username,
                 str(row["final_wave"]),
                 f"{float(row['survival_time']):.1f}",
                 str(row["enemies_defeated"]),
