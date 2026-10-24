@@ -89,3 +89,26 @@ def test_credentials_persist_expiry_and_reject_expired_tokens(
     assert credentials.token_expired() is True
     assert credentials.load_token() is None
     assert credentials.load_username() is None
+
+
+def test_credentials_fall_back_when_keyring_backend_is_unavailable(
+    tmp_path, monkeypatch
+) -> None:
+    import keyring
+    from elemental_game.api_client import auth as auth_module
+
+    def keyring_unavailable(*_args: Any) -> None:
+        raise keyring.errors.NoKeyringError("no backend available")
+
+    monkeypatch.setattr(auth_module.keyring, "set_password", keyring_unavailable)
+    monkeypatch.setattr(auth_module.keyring, "get_password", keyring_unavailable)
+    monkeypatch.setattr(auth_module.keyring, "delete_password", keyring_unavailable)
+    credentials = CredentialStore(cache_path=str(tmp_path / "credentials.json"))
+
+    credentials.save_token("fallback-token", datetime.now(UTC) + timedelta(days=1))
+
+    assert credentials.load_token() == "fallback-token"
+
+    credentials.clear_token()
+
+    assert credentials.load_token() is None

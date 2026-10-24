@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pygame
 
 from elemental_game.api_client import APIClient, AuthClient, CredentialStore
@@ -62,13 +60,6 @@ class GameApplication:
     def __init__(self) -> None:
         self.screen = pygame.display.set_mode(WINDOW_SIZE)
         pygame.display.set_caption("Elemental Keep")
-        assets_dir = Path(__file__).resolve().parent / "assets"
-        self.menu_background = pygame.image.load(
-            assets_dir / "imgs" / "menu-background.png"
-        ).convert()
-        self.game_background = pygame.image.load(
-            assets_dir / "imgs" / "Background.png"
-        ).convert()
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont(None, 28)
         self.title_font = pygame.font.SysFont(None, 42)
@@ -100,7 +91,6 @@ class GameApplication:
         )
         self.preferences = self.store.sound_preferences()
         self._apply_sound_preferences()
-        self._start_background_music(assets_dir / "audio" / "background.ogg")
         self.farm = Farm(rows=4, cols=6, origin=(300, 300))
         self.player = Player(pos=self.farm.tile_rect(1, 2).center)
         self.dragging_slider: str | None = None
@@ -135,12 +125,6 @@ class GameApplication:
             pygame.mixer.Channel(channel_number).set_volume(
                 self.preferences["sfx_volume"]
             )
-
-    def _start_background_music(self, music_path: Path) -> None:
-        if pygame.mixer.get_init() is None:
-            return
-        pygame.mixer.music.load(music_path)
-        pygame.mixer.music.play(-1)
 
     def _save_sound_preferences(self) -> None:
         self.store.save_sound_preferences(
@@ -328,10 +312,7 @@ class GameApplication:
         self.farm.handle_event(event, tile)
 
     def _draw(self) -> None:
-        background = (
-            self.menu_background if self.state == "menu" else self.game_background
-        )
-        self.screen.blit(background, (0, 0))
+        self.screen.fill(BACKGROUND)
         if self.state == "login":
             self._draw_login()
         elif self.state == "menu":

@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from time import perf_counter
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from starlette.responses import HTMLResponse
+from starlette.responses import HTMLResponse, JSONResponse
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.types import ASGIApp, Receive, Scope, Send
@@ -17,6 +19,8 @@ from elemental_api.auth.routes import router as auth_router
 from elemental_api.database.connection import initialize_database
 from elemental_api.leaderboard.routes import router as leaderboard_router
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 PACKAGE_DIR = Path(__file__).parent
 templates = Jinja2Templates(directory=str(PACKAGE_DIR / "template"))
 ALLOWED_ORIGINS = [
@@ -56,10 +60,6 @@ class WebSocketOriginMiddleware:
         await self.app(scope, receive, send)
 
 
-class HealthResponse(BaseModel):
-    status: str
-
-
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
     initialize_database()
@@ -67,6 +67,40 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
 
 
 app = FastAPI(title="Elemental Keep API", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def log_api_requests(request: Request, call_next):
+    if not request.url.path.startswith("/api/"):
+        return await call_next(request)
+
+    started_at = perf_counter()
+    response = await call_next(request)
+    elapsed_ms = (perf_counter() - started_at) * 1000
+    logger.info(
+        "API request completed method=%s path=%s status=%d duration_ms=%.2f",
+        request.method,
+        request.url.path,
+        response.status_code,
+        elapsed_ms,
+    )
+    return response
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.error(
+        "Unhandled exception while handling API request method=%s path=%s",
+        request.method,
+        request.url.path,
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+    )
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -108,5 +142,5 @@ def registration_page(request: Request) -> HTMLResponse:
 
 
 @app.get("/health")
-def health() -> HealthResponse:
-    return HealthResponse(status="ok")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
