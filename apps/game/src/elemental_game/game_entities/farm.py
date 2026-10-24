@@ -9,6 +9,8 @@ farm.update(dt)      # every frame
 
 import pygame
 from elemental_game.game_entities.crops.crops import Crop, CropType
+from elemental_game.config import SPRITES_DIR
+import os
 
 
 class Farm:
@@ -21,6 +23,11 @@ class Farm:
         self.grid = [[None] * cols for _ in range(rows)]
         self.menu = CropMenu()   # one menu, created once
         self.planting = False    # True = menu is drawn and taking input
+
+        soil_img = pygame.image.load(os.path.join(SPRITES_DIR, "settings-and-gameplay","soil.png")).convert_alpha()
+        seedling_img = pygame.image.load(os.path.join(SPRITES_DIR, "settings-and-gameplay","soil_plant.png")).convert_alpha()
+        self.soil_img = pygame.transform.scale(soil_img, (self.TILE_SIZE, self.TILE_SIZE))
+        self.seedling_img = pygame.transform.scale(seedling_img, (self.TILE_SIZE, self.TILE_SIZE))
 
     def in_bounds(self, row, col):
         return 0 <= row < self.rows and 0 <= col < self.cols
@@ -59,16 +66,13 @@ class Farm:
         )
 
     def draw(self, surface, font, hovered=None):
-        # draw the farm tiles on the screen
         for row in range(self.rows):
-            for col in range(self.cols):  # placeholder:
+            for col in range(self.cols):
                 rect = self.tile_rect(row, col)
-                colour = (150, 105, 60) if (row, col) == hovered else (120, 80, 40)
-                pygame.draw.rect(surface, colour, rect)
-                pygame.draw.rect(surface, (60, 40, 20), rect, 1)
+                surface.blit(self.soil_img, rect)
 
                 crop = self.grid[row][col]
-                if crop:  # Placeholder: will be replaced with crop image
+                if crop:  
                     colour = (0, 255, 0) if crop.is_ready() else (255, 255, 255)
                     letter = font.render(crop.crop_type.name[0], True, colour)
                     surface.blit(letter, letter.get_rect(center=rect.center))
