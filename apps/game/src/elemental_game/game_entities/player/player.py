@@ -1,6 +1,8 @@
-from settings import SPRITES_DIR
 import os
+
 import pygame
+
+from elemental_game.settings import SPRITES_DIR
 
 class Player():
     SPEED = 165

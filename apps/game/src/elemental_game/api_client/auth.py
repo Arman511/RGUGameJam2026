@@ -36,7 +36,14 @@ class CredentialStore:
 
     def save_token(self, token: str, expires_at: datetime) -> None:
         if keyring is not None:
-            keyring.set_password(self.app_name, "api_token", token)
+            try:
+                keyring.set_password(self.app_name, "api_token", token)
+            except keyring.errors.NoKeyringError:
+                payload = self._read_cache()
+                payload["api_token"] = token
+                payload["expires_at"] = expires_at.isoformat()
+                self._write_cache(payload)
+                return
         payload = self._read_cache()
         if keyring is None:
             payload["api_token"] = token
@@ -48,7 +55,10 @@ class CredentialStore:
             self.clear_token()
             return None
         if keyring is not None:
-            token = keyring.get_password(self.app_name, "api_token")
+            try:
+                token = keyring.get_password(self.app_name, "api_token")
+            except keyring.errors.NoKeyringError:
+                token = None
             if token:
                 return token
         token = self._read_cache().get("api_token")
@@ -93,7 +103,7 @@ class CredentialStore:
         if keyring is not None:
             try:
                 keyring.delete_password(self.app_name, "api_token")
-            except Exception:
+            except keyring.errors.NoKeyringError:
                 pass
         if self.cache_path.exists():
             try:

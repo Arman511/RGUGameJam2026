@@ -6,6 +6,7 @@ Usage:
 farm.plant(0, 0, CropType.FIRE)
 farm.update(dt)      # every frame
 """
+
 import pygame
 from elemental_game.game_entities.crops.crops import Crop, CropType
 
@@ -50,20 +51,20 @@ class Farm:
     def tile_rect(self, row, col):
         # return the screen area of the tile as x, y, width, height
         return pygame.Rect(
-            self.origin[0] + col * self.TILE_SIZE, 
+            self.origin[0] + col * self.TILE_SIZE,
             self.origin[1] + row * self.TILE_SIZE,
-            self.TILE_SIZE, self.TILE_SIZE,
+            self.TILE_SIZE,
+            self.TILE_SIZE,
         )
 
     def draw(self, surface, font, hovered=None):
         # draw the farm tiles on the screen
         for row in range(self.rows):
-            for col in range(self.cols): # placeholder:
+            for col in range(self.cols):  # placeholder:
                 rect = self.tile_rect(row, col)
                 colour = (150, 105, 60) if (row, col) == hovered else (120, 80, 40)
                 pygame.draw.rect(surface, colour, rect)
                 pygame.draw.rect(surface, (60, 40, 20), rect, 1)
-
 
                 crop = self.grid[row][col]
                 if crop:  # Placeholder: will be replaced with crop image
@@ -71,13 +72,12 @@ class Farm:
                     letter = font.render(crop.crop_type.name[0], True, colour)
                     surface.blit(letter, letter.get_rect(center=rect.center))
 
-
     def update(self, dt):
         for row in self.grid:
             for crop in row:
                 if crop is not None:
                     crop.growth_timer += dt
-                    crop.get_crop_stage()   # updates crop.stage
+                    crop.get_crop_stage()  # updates crop.stage
 
     def tile_at_pixel(self, x, y):
         """Convert a mouse position to (row, col), or None if outside the grid."""
@@ -116,14 +116,19 @@ class Farm:
         if self.menu:
             self.menu.draw(surface, font)
 
+
 class CropMenu:
     """Popup listing the plant types. Opens at the mouse when F is pressed."""
+
     ITEM_W, ITEM_H = 120, 30
 
     def __init__(self, tile, pos):
         self.tile = tile
         self.options = [
-            (crop_type, pygame.Rect(pos[0], pos[1] + i * self.ITEM_H, self.ITEM_W, self.ITEM_H))
+            (
+                crop_type,
+                pygame.Rect(pos[0], pos[1] + i * self.ITEM_H, self.ITEM_W, self.ITEM_H),
+            )
             for i, crop_type in enumerate(CropType)
         ]
 
@@ -137,8 +142,11 @@ class CropMenu:
     def draw(self, surface, font):
         mouse = pygame.mouse.get_pos()
         for crop_type, rect in self.options:
-            pygame.draw.rect(surface, (90, 90, 90) if rect.collidepoint(mouse) else (60, 60, 60), rect)
+            pygame.draw.rect(
+                surface,
+                (90, 90, 90) if rect.collidepoint(mouse) else (60, 60, 60),
+                rect,
+            )
             pygame.draw.rect(surface, (200, 200, 200), rect, 1)
             text = font.render(crop_type.name.title(), True, (255, 255, 255))
             surface.blit(text, text.get_rect(midleft=(rect.x + 8, rect.centery)))
-

@@ -1,7 +1,9 @@
 import asyncio
 import importlib
+import logging
 import sqlite3
 from datetime import UTC, datetime, timedelta
+from io import StringIO
 
 import pytest
 from elemental_api.main import (
@@ -57,6 +59,70 @@ def test_login_succeeds_and_returns_token(client) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert "token" in payload
+
+
+def test_login_with_wrong_password_returns_unauthorized(client) -> None:
+    client.post(
+        "/api/v1/auth/register", json={"username": "alice", "password": "secretpass"}
+    )
+
+    response = client.post(
+        "/api/v1/auth/login", json={"username": "alice", "password": "wrongpass"}
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid credentials"
+
+
+def test_login_unexpected_error_is_logged_without_exposing_details(
+    client
+) -> None:
+    from elemental_api.auth.routes import get_db
+
+    log_output = StringIO()
+    log_handler = logging.StreamHandler(log_output)
+    api_logger = logging.getLogger("elemental_api.main")
+    api_logger.addHandler(log_handler)
+
+    def fail_database():
+        raise RuntimeError("database connection failed")
+        yield
+
+    client.app.dependency_overrides[get_db] = fail_database
+
+    try:
+        response = TestClient(
+            client.app, raise_server_exceptions=False
+        ).post(
+            "/api/v1/auth/login",
+            json={"username": "alice", "password": "secretpass"},
+        )
+    finally:
+        api_logger.removeHandler(log_handler)
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": "Internal server error"}
+    assert "database connection failed" not in response.text
+    assert "Unhandled exception while handling API request" in log_output.getvalue()
+    assert "RuntimeError: database connection failed" in log_output.getvalue()
+
+
+def test_api_request_logs_method_path_and_status(client) -> None:
+    log_output = StringIO()
+    log_handler = logging.StreamHandler(log_output)
+    api_logger = logging.getLogger("elemental_api.main")
+    api_logger.addHandler(log_handler)
+
+    try:
+        response = client.get("/api/v1/leaderboard")
+    finally:
+        api_logger.removeHandler(log_handler)
+
+    assert response.status_code == 200
+    assert (
+        "API request completed method=GET path=/api/v1/leaderboard status=200"
+        in log_output.getvalue()
+    )
 
 
 def test_login_prunes_expired_and_revoked_tokens(client) -> None:
