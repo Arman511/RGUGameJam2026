@@ -3,8 +3,8 @@ from __future__ import annotations
 import os
 import sys
 
-WINDOW_WIDTH = 800
-WINDOW_HEIGHT = 600
+WINDOW_WIDTH = 1280
+WINDOW_HEIGHT = 960
 FULLSCREEN = os.environ.get("ELEMENTAL_FULL_SCREEN", "0") == "1"
 
 FARM_DIMENSIONS = (6, 6)
