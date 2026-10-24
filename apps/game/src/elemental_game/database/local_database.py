@@ -73,32 +73,32 @@ class LocalLeaderboardStore:
             connection.commit()
 
     def top_scores(
-        self, limit: int = 10, *, username: str | None = None
+        self, limit: int | None = 10, *, username: str | None = None
     ) -> list[dict[str, Any]]:
         with self._connect() as connection:
             if username is None:
-                rows = connection.execute(
-                    """
+                query = """
                     SELECT run_id, timestamp, survival_time, final_wave,
                         enemies_defeated, username
                     FROM leaderboard
-                    ORDER BY survival_time DESC, enemies_defeated DESC, final_wave DESC
-                    LIMIT ?
-                    """,
-                    (limit,),
-                ).fetchall()
+                    ORDER BY final_wave DESC, survival_time DESC, enemies_defeated DESC
+                """
+                parameters: tuple[Any, ...] = ()
             else:
-                rows = connection.execute(
-                    """
+                query = """
                     SELECT run_id, timestamp, survival_time, final_wave,
                         enemies_defeated, username
                     FROM leaderboard
                     WHERE username = ?
-                    ORDER BY survival_time DESC, enemies_defeated DESC, final_wave DESC
-                    LIMIT ?
-                    """,
-                    (username, limit),
-                ).fetchall()
+                    ORDER BY final_wave DESC, survival_time DESC, enemies_defeated DESC
+                """
+                parameters = (username,)
+            if limit is not None:
+                if limit < 0:
+                    raise ValueError("limit must not be negative")
+                query += " LIMIT ?"
+                parameters += (limit,)
+            rows = connection.execute(query, parameters).fetchall()
         return [dict(row) for row in rows]
 
     def personal_best(self, *, username: str | None = None) -> dict[str, Any] | None:
@@ -108,4 +108,37 @@ class LocalLeaderboardStore:
     def clear_leaderboard(self) -> None:
         with self._connect() as connection:
             connection.execute("DELETE FROM leaderboard")
+            connection.commit()
+
+    def sound_preferences(self) -> dict[str, float]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT setting_key, setting_value
+                FROM game_settings
+                WHERE setting_key IN ('music_volume', 'sfx_volume')
+                """
+            ).fetchall()
+        preferences = {"music_volume": 1.0, "sfx_volume": 1.0}
+        preferences.update({row["setting_key"]: row["setting_value"] for row in rows})
+        return preferences
+
+    def save_sound_preferences(
+        self, *, music_volume: float, sfx_volume: float
+    ) -> None:
+        if not 0.0 <= music_volume <= 1.0 or not 0.0 <= sfx_volume <= 1.0:
+            raise ValueError("sound volumes must be between 0.0 and 1.0")
+        with self._connect() as connection:
+            connection.executemany(
+                """
+                INSERT INTO game_settings(setting_key, setting_value)
+                VALUES (?, ?)
+                ON CONFLICT(setting_key) DO UPDATE SET
+                    setting_value = excluded.setting_value
+                """,
+                (
+                    ("music_volume", music_volume),
+                    ("sfx_volume", sfx_volume),
+                ),
+            )
             connection.commit()

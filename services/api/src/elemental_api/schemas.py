@@ -36,6 +36,7 @@ class LoginRequest(BaseModel):
 class AuthResponse(BaseModel):
     token: str
     user: UserResponse
+    expires_at: datetime
 
 
 class RegisterResponse(BaseModel):

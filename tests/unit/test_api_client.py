@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -67,3 +68,24 @@ def test_auth_client_uses_active_username_and_guest_name(tmp_path, monkeypatch) 
 
     auth.logout()
     assert auth.username_for_run(" guest ") == "guest"
+
+
+def test_credentials_persist_expiry_and_reject_expired_tokens(
+    tmp_path, monkeypatch
+) -> None:
+    from elemental_game.api_client import auth as auth_module
+
+    monkeypatch.setattr(auth_module, "keyring", None)
+    credentials = CredentialStore(cache_path=str(tmp_path / "credentials.json"))
+    expiry = datetime.now(UTC) + timedelta(days=1)
+
+    credentials.save_token("valid-token", expiry)
+    credentials.save_username("alice")
+    assert credentials.load_token() == "valid-token"
+    assert credentials.load_username() == "alice"
+    assert credentials.token_expired() is False
+
+    credentials.save_token("expired-token", datetime.now(UTC) - timedelta(seconds=1))
+    assert credentials.token_expired() is True
+    assert credentials.load_token() is None
+    assert credentials.load_username() is None

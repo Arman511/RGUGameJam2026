@@ -37,6 +37,32 @@ def test_scores_are_separated_by_username(tmp_path: Path) -> None:
     assert db.personal_best(username="bob")["run_id"] == "bob-run"  # type: ignore
 
 
+def test_leaderboard_sorts_by_wave_and_can_return_all_rows(tmp_path: Path) -> None:
+    db = LocalLeaderboardStore(path=tmp_path / "leaderboard.db")
+    db.submit_run("long-run", 900.0, 1, 2, username="alice")
+    db.submit_run("high-wave", 30.0, 8, 2, username="bob")
+
+    assert [row["run_id"] for row in db.top_scores(limit=None)] == [
+        "high-wave",
+        "long-run",
+    ]
+
+
+def test_sound_preferences_persist_and_validate(tmp_path: Path) -> None:
+    db = LocalLeaderboardStore(path=tmp_path / "leaderboard.db")
+
+    assert db.sound_preferences() == {"music_volume": 1.0, "sfx_volume": 1.0}
+    db.save_sound_preferences(music_volume=0.4, sfx_volume=0.7)
+    assert db.sound_preferences() == {"music_volume": 0.4, "sfx_volume": 0.7}
+
+    try:
+        db.save_sound_preferences(music_volume=1.1, sfx_volume=0.7)
+    except ValueError as error:
+        assert str(error) == "sound volumes must be between 0.0 and 1.0"
+    else:
+        raise AssertionError("out-of-range sound settings must not be saved")
+
+
 def test_run_requires_a_nonempty_username(tmp_path: Path) -> None:
     db = LocalLeaderboardStore(path=tmp_path / "leaderboard.db")
 
@@ -85,7 +111,7 @@ def test_legacy_local_leaderboard_migrates_without_score(tmp_path: Path) -> None
         columns = {
             row[1] for row in connection.execute("PRAGMA table_info(leaderboard)")
         }
-    assert revision == "0004_local_leaderboard_username"
+    assert revision == "0005_game_settings"
     assert "score" not in columns
 
 
