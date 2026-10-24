@@ -424,6 +424,7 @@ class MenuSystem:
         ]
 
     def _draw_settings(self) -> None:
+        self._draw_panel(pygame.Rect(115, 30, 570, 65))
         self._draw_panel(pygame.Rect(115, 115, 570, 175))
         self._draw_panel(pygame.Rect(115, 305, 570, 140))
         self._draw_title("Settings", 65)
