@@ -36,12 +36,37 @@ def test_background_music_loops_when_mixer_is_available(monkeypatch) -> None:
     monkeypatch.setattr(pygame.mixer.music, "load", load)
     monkeypatch.setattr(pygame.mixer.music, "set_volume", set_volume)
     monkeypatch.setattr(pygame.mixer.music, "play", play)
+    stop = Mock()
+    monkeypatch.setattr(pygame.mixer.music, "stop", stop)
+    monkeypatch.setattr(pygame.mixer.music, "get_busy", Mock(return_value=False))
+    monkeypatch.setattr("elemental_game.audio._current_background_track", None)
 
     assert play_background_music(volume=0.4)
 
     assert load.call_args.args[0].endswith("background.ogg")
     set_volume.assert_called_once_with(0.4)
+    stop.assert_called_once_with()
     play.assert_called_once_with(-1)
+
+
+def test_playing_background_music_again_does_not_restart_track(monkeypatch) -> None:
+    monkeypatch.setattr(pygame.mixer, "get_init", lambda: (44100, -16, 2))
+    load = Mock()
+    play = Mock()
+    set_volume = Mock()
+    monkeypatch.setattr(pygame.mixer.music, "load", load)
+    monkeypatch.setattr(pygame.mixer.music, "play", play)
+    monkeypatch.setattr(pygame.mixer.music, "set_volume", set_volume)
+    monkeypatch.setattr(pygame.mixer.music, "stop", Mock())
+    monkeypatch.setattr(pygame.mixer.music, "get_busy", Mock(return_value=True))
+    monkeypatch.setattr("elemental_game.audio._current_background_track", None)
+
+    assert play_background_music()
+    assert play_background_music(volume=0.5)
+
+    load.assert_called_once()
+    play.assert_called_once_with(-1)
+    assert set_volume.call_args_list[-1].args == (0.5,)
 
 
 def test_sound_effect_plays_when_mixer_is_available(monkeypatch) -> None:

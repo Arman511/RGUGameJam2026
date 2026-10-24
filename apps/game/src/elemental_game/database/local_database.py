@@ -142,3 +142,31 @@ class LocalLeaderboardStore:
                 ),
             )
             connection.commit()
+
+    def player_image_number(self) -> int:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT player_number
+                FROM player_settings
+                WHERE setting_key = 'player_number'
+                """
+            ).fetchone()
+        if row is None:
+            raise RuntimeError("player image setting is missing from the database")
+        return int(row["player_number"])
+
+    def save_player_image_number(self, player_number: int) -> None:
+        if type(player_number) is not int or not 1 <= player_number <= 6:
+            raise ValueError("player image number must be between 1 and 6")
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO player_settings(setting_key, player_number)
+                VALUES ('player_number', ?)
+                ON CONFLICT(setting_key) DO UPDATE SET
+                    player_number = excluded.player_number
+                """,
+                (player_number,),
+            )
+            connection.commit()
