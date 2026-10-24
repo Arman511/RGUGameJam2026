@@ -3,6 +3,14 @@
 The API uses SQLAlchemy ORM models and Alembic migrations. On server startup,
 the API applies all pending migrations to the configured database.
 
+The root URL serves the live Jinja2 leaderboard, styled with Bootstrap. Its
+CSS and JavaScript are served from `/static/`; the page refreshes scores every
+seven seconds and supports searching by player/run ID, sorting by score
+fields, and switching between light and dark themes. CORS allows
+`https://elemental-keep.armandev.co.uk` and local `localhost`/`127.0.0.1`
+development origins. WebSocket handshakes use the same origin allowlist for
+the planned multiplayer feature.
+
 Set `ELEMENTAL_API_DB_PATH` to select the SQLite database file. To inspect or
 apply migrations manually from this directory:
 
