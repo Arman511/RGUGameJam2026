@@ -42,7 +42,9 @@ def main():
     menus = MenuSystem(screen)
     running = menus.run()
 
-    farm = Farm(rows=6, cols=6, origin=(300, 300))
+    dimensions = (6, 6)
+    farm = Farm(*dimensions,
+                origin=((screen.get_width() - dimensions[1] * Farm.TILE_SIZE) // 2, 250))
     player = Player(player_type=PlayerType(menus.store.player_image_number()))
 
     while running:
