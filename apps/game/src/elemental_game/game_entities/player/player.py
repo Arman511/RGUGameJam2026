@@ -113,3 +113,12 @@ class Player:
         self.coins = 5
         self.crops = {}
         self.unlocked_quadrants = set(self.STARTING_UNLOCKED_QUADRANTS)
+
+    def can_afford(self, cost):
+        return self.coins >= cost
+
+    def deduct_coins(self, amount):
+        if self.coins < amount:
+            return False
+        self.coins -= amount
+        return True
