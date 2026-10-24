@@ -11,6 +11,9 @@ from enum import Enum
 
 # initialise pygame attributes
 pygame.init()
+pygame.display.set_icon(
+    pygame.image.load(os.path.join(config.ASSETS_DIR, "assets", "icon.ico"))
+)
 screen = pygame.display.set_mode((config.WINDOW_WIDTH, config.WINDOW_HEIGHT))
 clock = pygame.time.Clock()
 font = pygame.font.SysFont(
