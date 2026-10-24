@@ -1,35 +1,55 @@
-from __future__ import annotations
+"""
+Defines Enemy class and Enemy type sub classes
 
-from dataclasses import dataclass, field
+Attributes and behaviour specific to the enemy
+"""
 
-@dataclass(frozen=True)
-class EnemyDefinition:
-    key: str
-    name: str
-    max_health: int
-    speed: float
-    damage: int
-    reward: int
-    size: int = 1
+from abc import ABC, abstractmethod
 
-@dataclass
-class EnemyState:
-    key: str
-    health: int
-    max_health: int
-    speed: float
-    damage: int
-    reward: int
-    distance: float = 0.0
-    id: int = 0
-    hit_flash: float = 0.0
+class Enemy(ABC):
+    def __init__(self, id, max_hp, speed, damage, image, width, height, resistance):
+        # attributes for enemy creation:
+        self.enemy_id = id
+        self.max_hp = max_hp
+        self.speed = speed
+        self.damage = damage # damage the enemy does
+        self.image = image # path to assets folder, list
+        self.resistance = resistance
+        self.width = width
+        self.height = height
 
-    def move(self, dt: float) -> None:
-        self.distance = max(0.0, self.distance - self.speed * dt)
+        # dynamic attributes
+        self.pos = (0, 0) # starting pos for now
+        self.current_hp = self.max_hp
 
-ENEMY_DEFS: dict[str, EnemyDefinition] = {
-    "swarmer": EnemyDefinition("swarmer", "Swarmer", 10, 3.0, 2, 12, size=1),
-    "brute": EnemyDefinition("brute", "Brute", 28, 1.3, 5, 22, size=2),
-    "runner": EnemyDefinition("runner", "Runner", 8, 5.0, 2, 16, size=1),
-    "boss": EnemyDefinition("boss", "Elemental Boss", 80, 1.0, 12, 120, size=3),
-}
+    def approach_farm(self, destination_coord):
+        # function that makes enemy move to farm
+        # makes enemy attack things
+        pass
+
+    def is_alive(self):
+        return self.current_hp > 0
+
+    def take_damage(self, damage_done):
+        # change to consider resistance, might end up abstract method
+        self.current_hp -= damage_done
+
+    def die(self):
+        # enemy is removed from screen
+        pass
+
+    @abstractmethod
+    def attack(self):
+        """Every enemy type must define what happens when it attacks."""
+
+
+"""
+Create new enemy objects with the below classes
+"""
+
+class Swarmer(Enemy):
+    def __init__(self, id, image): # other stats are fixed
+        super().__init__(id, 10, 70, 5, image, 50, 70, None)
+
+    def attack(self):
+        pass
