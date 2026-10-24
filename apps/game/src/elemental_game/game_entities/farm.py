@@ -6,8 +6,8 @@ Usage:
 farm.plant(0, 0, CropType.FIRE)
 farm.update(dt)      # every frame
 """
-
-from elemental_game.game_entities.crops.crops import Crop
+import pygame
+from game_entities.crops.crops import Crop, CropType
 
 
 class Farm:
@@ -46,11 +46,37 @@ class Farm:
         self.grid[row][col] = None
         return crop.harvest()
 
+    def tile_rect(self, row, col):
+        # return the screen area of the tile as x, y, width, height
+        return pygame.Rect(
+            self.origin[0] + col * self.TILE_SIZE, 
+            self.origin[1] + row * self.TILE_SIZE,
+            self.TILE_SIZE, self.TILE_SIZE,
+        )
+
+    def draw(self, surface, font, hovered=None):
+        # draw the farm tiles on the screen
+        for row in range(self.rows):
+            for col in range(self.cols): # placeholder:
+                rect = self.tile_rect(row, col)
+                colour = (150, 105, 60) if (row, col) == hovered else (120, 80, 40)
+                pygame.draw.rect(surface, colour, rect)
+                pygame.draw.rect(surface, (60, 40, 20), rect, 1)
+
+
+                crop = self.grid[row][col]
+                if crop:  # Placeholder: will be replaced with crop image
+                    colour = (0, 255, 0) if crop.is_ready() else (255, 255, 255)
+                    letter = font.render(crop.crop_type.name[0], True, colour)
+                    surface.blit(letter, letter.get_rect(center=rect.center))
+
+
     def update(self, dt):
         for row in self.grid:
             for crop in row:
                 if crop is not None:
                     crop.growth_timer += dt
+                    crop.get_crop_stage()   # updates crop.stage
 
     def tile_at_pixel(self, x, y):
         """Convert a mouse position to (row, col), or None if outside the grid."""
