@@ -1,7 +1,7 @@
 import sqlite3
 from pathlib import Path
 
-from game_core.local_database import LocalLeaderboardStore
+from elemental_game.database.local_database import LocalLeaderboardStore
 
 
 def test_database_initialises_and_persists_runs(tmp_path: Path) -> None:
@@ -27,8 +27,7 @@ def test_duplicate_run_ids_are_handled_safely(tmp_path: Path) -> None:
 def test_legacy_local_leaderboard_migrates_without_score(tmp_path: Path) -> None:
     path = tmp_path / "leaderboard.db"
     with sqlite3.connect(path) as connection:
-        connection.execute(
-            """
+        connection.execute("""
             CREATE TABLE leaderboard (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 run_id TEXT NOT NULL UNIQUE,
@@ -38,15 +37,12 @@ def test_legacy_local_leaderboard_migrates_without_score(tmp_path: Path) -> None
                 score INTEGER NOT NULL,
                 enemies_defeated INTEGER NOT NULL
             )
-            """
-        )
-        connection.execute(
-            """
+            """)
+        connection.execute("""
             INSERT INTO leaderboard
                 (run_id, timestamp, survival_time, final_wave, score, enemies_defeated)
             VALUES ('legacy-run', '2026-10-24 10:00:00', 64.2, 5, 1500, 14)
-            """
-        )
+            """)
 
     store = LocalLeaderboardStore(path=path)
 
@@ -64,7 +60,7 @@ def test_legacy_local_leaderboard_migrates_without_score(tmp_path: Path) -> None
         columns = {
             row[1] for row in connection.execute("PRAGMA table_info(leaderboard)")
         }
-    assert revision == "0002_remove_local_score"
+    assert revision == "0003_leaderboard_rank_index"
     assert "score" not in columns
 
 

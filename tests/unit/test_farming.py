@@ -1,26 +1,32 @@
-from game_core.simulation import Simulation
+from elemental_game.farm import Farm
+
 
 def test_planting_on_empty_plot_succeeds() -> None:
-    sim = Simulation()
-    assert sim.plant_crop(0, "ember_root") is True
-    assert sim.farm.plots[0].crop is not None
+    farm = Farm()
+    assert farm.plant(0, "ember_root") is True
+    assert farm.plots[0].crop is not None
 
-def test_planting_on_occupied_or_invalid_plot_fails_without_charging_resources() -> None:
-    sim = Simulation()
-    sim.plant_crop(0, "ember_root")
-    before = sim.resources.snapshot()
-    assert sim.plant_crop(0, "mist_leaf") is False
-    assert sim.resources.snapshot() == before
-    assert sim.plant_crop(999, "mist_leaf") is False
+
+def test_invalid_planting_leaves_existing_crops_unchanged() -> None:
+    farm = Farm()
+    assert farm.plant(0, "ember_root") is True
+    planted_crop = farm.plots[0].crop
+    assert farm.plant(0, "mist_leaf") is False
+    assert farm.plant(999, "mist_leaf") is False
+    assert farm.plant(1, "unknown_crop") is False
+    assert farm.plots[0].crop is planted_crop
+    assert farm.plots[1].crop is None
+
 
 def test_harvesting_before_maturity_fails() -> None:
-    sim = Simulation()
-    sim.plant_crop(0, "ember_root")
-    assert sim.harvest_crop(0) is False
+    farm = Farm()
+    assert farm.plant(0, "ember_root") is True
+    assert farm.harvest(0) is None
 
-def test_harvesting_after_maturity_awards_expected_resource() -> None:
-    sim = Simulation()
-    sim.plant_crop(0, "ember_root")
-    sim.advance(10.0)
-    assert sim.harvest_crop(0) is True
-    assert sim.resources["ember"] >= 10
+
+def test_harvesting_mature_crop_clears_plot() -> None:
+    farm = Farm()
+    assert farm.plant(0, "ember_root") is True
+    farm.tick(4.0)
+    assert farm.harvest(0) == "ember_root"
+    assert farm.plots[0].crop is None

@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 import httpx
-from api_client import APIClient
-from api_client import http as http_module
-from api_client.models import LocalRunRecord, RunSubmittedResponse
+
+from elemental_game.api_client import APIClient, http as http_module
+from elemental_game.api_client.models import LocalRunRecord, RunSubmittedResponse
 
 
 def test_submit_local_run_maps_local_database_fields(monkeypatch) -> None:
