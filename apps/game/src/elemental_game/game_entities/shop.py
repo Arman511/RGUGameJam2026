@@ -67,7 +67,7 @@ class ShopMenu:
             self.tier = (self.tier - 2) % 3 + 1
         elif self.mode == "buy" and event.key == pygame.K_RIGHT:
             self.tier = self.tier % 3 + 1
-        elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+        elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE):
             if self.mode == "buy":
                 crop_type = self.CROP_TYPES[self.selected]
                 player.buy_seed(SeedType[crop_type.name], self.tier)
