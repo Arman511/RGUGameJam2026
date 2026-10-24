@@ -11,6 +11,7 @@ screen = pygame.display.set_mode((800, 600))
 clock = pygame.time.Clock()
 font = pygame.font.SysFont(None, 28)
 
+
 # game state attributes
 class GameState(Enum):
     FARMING = 1
@@ -19,43 +20,50 @@ class GameState(Enum):
     BOSS = 4
     SHOP = 5
 
+
 PLANTING = True
+
 
 # login / main menu / leaderboard / settings (menus.py)
 # returns True when they press Play, False if they close the window
-menus = MenuSystem(screen)
-running = menus.run()
+def main():
+    menus = MenuSystem(screen)
+    running = menus.run()
 
-farm = Farm(rows=6, cols=6, origin=(300, 300))
-player = Player(player_type=PlayerType(menus.store.player_image_number()))
+    farm = Farm(rows=6, cols=6, origin=(300, 300))
+    player = Player(player_type=PlayerType(menus.store.player_image_number()))
 
-while running:
-    seconds = clock.tick(60) / 1000 # seconds since last frame
-    tile = farm.tile_at_pixel(*player.pos)   # tile the player is standing on
+    while running:
+        seconds = clock.tick(60) / 1000  # seconds since last frame
+        tile = farm.tile_at_pixel(*player.pos)  # tile the player is standing on
 
-    # handle keyboard and mouse inputs
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False # close the pygame window
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            running = menus.run()   # back to the main menu
-            clock.tick()            # discard the time spent in the menus
-        else:
-            farm.handle_event(event, player)
+        # handle keyboard and mouse inputs
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False  # close the pygame window
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                running = menus.run()  # back to the main menu
+                clock.tick()  # discard the time spent in the menus
+            else:
+                farm.handle_event(event, player)
+
+        if not farm.planting:
+            player.update(seconds)  # update player pos
+        farm.update(seconds)  # update crop growth
+
+        # render screen:
+        screen.fill((30, 30, 30))  # TODO PLACEHOLDER
+        farm.draw(screen, font, tile)
+        player.draw(screen)
+        farm.draw_menu(screen, font)  # after the player so the menu sits on top
+        hint = font.render(
+            "Arrows = move   F = plant   H = harvest", True, (255, 255, 255)
+        )
+        screen.blit(hint, (10, 10))
+        pygame.display.flip()
+
+    pygame.quit()
 
 
-    
-    if not farm.planting:
-        player.update(seconds) # update player pos
-    farm.update(seconds) # update crop growth
-
-    # render screen:
-    screen.fill((30, 30, 30)) #TODO PLACEHOLDER
-    farm.draw(screen, font, tile)
-    player.draw(screen)
-    farm.draw_menu(screen, font)   # after the player so the menu sits on top
-    hint = font.render("Arrows = move   F = plant   H = harvest", True, (255, 255, 255))
-    screen.blit(hint, (10, 10))
-    pygame.display.flip()
-
-pygame.quit()
+if __name__ == "__main__":
+    main()

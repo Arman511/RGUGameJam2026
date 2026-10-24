@@ -17,3 +17,6 @@ lint:
 
 format:
 	uv run ruff format .
+
+serve:
+	docker compose up -d --build
