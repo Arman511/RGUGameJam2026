@@ -50,20 +50,24 @@ class ShopMenu:
         pygame.draw.rect(surface, (225, 225, 225), panel, 2)
 
         title = font.render(
-            f"SHOP - {self.mode.upper()}   Coins: {player.coins}",
+            f"SHOP - {self.mode.upper()}      Coins: {player.coins}",
             True,
             (255, 230, 120),
         )
         surface.blit(title, (panel.x + 20, panel.y + 16))
+        if self.mode == "buy":
+            text = "TAB: Sell Crops    UP/DOWN: Select    ENTER: confirm  "
+        else:
+            text = "TAB: Buy Crops    UP/DOWN: Select    ENTER: confirm"
         controls = font.render(
-            "TAB: buy/sell  UP/DOWN: select  ENTER: confirm",
+            text,
             True,
             (220, 220, 220),
         )
         surface.blit(controls, (panel.x + 20, panel.y + 50))
         if self.mode == "buy":
             tier_text = font.render(
-                f"LEFT/RIGHT: tier {self.tier} ({self.tier} coin)",
+                f"LEFT/RIGHT: change seed tier",
                 True,
                 (220, 220, 220),
             )
@@ -78,7 +82,7 @@ class ShopMenu:
             )
             return
 
-        list_y = panel.y + (116 if self.mode == "buy" else 88)
+        list_y = panel.y + (130 if self.mode == "buy" else 88)
         for index, crop_type in enumerate(options):
             if self.mode == "buy":
                 seed_type = SeedType[crop_type.name]
