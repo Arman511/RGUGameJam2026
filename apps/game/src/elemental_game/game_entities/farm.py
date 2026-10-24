@@ -95,66 +95,67 @@ class Farm:
         self.rows += add_rows
         self.cols += add_cols
 
-    def handle_event(self, event, tile) -> str | None:
-        """tile is the (row, col) the player is standing on, or None."""
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                self.menu = None
-            elif self.menu is None and tile:
-                row, col = tile
-                if event.key == pygame.K_f and self.is_empty(row, col):
-                    self.menu = CropMenu(tile, self.tile_rect(row, col).bottomleft)
-                elif event.key == pygame.K_h:
-                    crop = self.get_crop(row, col)
-                    if crop is not None and crop.is_ready():
-                        self.harvest(row, col)
-                        return "harvesting"
+    def handle_event(self, event, player):
+        # determine if and which tile player is standing on
+        if event.type != pygame.KEYDOWN:
+            return # why is there a return statement here do we need this at all
+        tile = self.tile_at_pixel(*player.pos)
 
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.menu:
-            crop_type = self.menu.click(event.pos)
-            planted = crop_type is not None and self.plant(
-                *self.menu.tile, crop_type
-            ) is not None
-            self.menu = None  # any click closes the menu
-            if planted:
-                return "planting"
-        return None
+        # if a player does farm action
+        if event.key == pygame.K_f and tile and self.is_empty(*tile):
+            self.menu.move_to(tile, self.tile_rect(*tile).bottomleft) # position the menu
+            self.planting = True
+        # if a player does harvest action
+        elif event.key == pygame.K_h and tile:
+            crop = self.get_crop(*tile) # determine which crop is on that tile
+            if crop is not None and crop.is_ready():
+                self.harvest(*tile) # player gains some crop
+                player.add_crop(crop.crop_type, crop.CROP_YIELD)
+
+        if self.planting:
+            if event.key == pygame.K_UP:
+                self.menu.move_selection(-1)
+            elif event.key == pygame.K_DOWN:
+                self.menu.move_selection(1)
+            elif event.key == pygame.K_RETURN:
+                self.plant(*self.menu.tile, self.menu.selected_type())
+                self.planting = False
 
     def draw_menu(self, surface, font):
-        if self.menu:
+        if self.planting: # good
             self.menu.draw(surface, font)
 
 
 class CropMenu:
-    """Popup listing the plant types. Opens at the mouse when F is pressed."""
+    """Popup listing the plant types."""
 
     ITEM_W, ITEM_H = 120, 30
 
-    def __init__(self, tile, pos):
-        self.tile = tile
+    def __init__(self):
+        self.tile = None     # tile the menu is currently open for
+        self.selected = 0    # index of the highlighted option
         self.options = [
-            (
-                crop_type,
-                pygame.Rect(pos[0], pos[1] + i * self.ITEM_H, self.ITEM_W, self.ITEM_H),
-            )
-            for i, crop_type in enumerate(CropType)
+            (crop_type, pygame.Rect(0, 0, self.ITEM_W, self.ITEM_H))
+            for crop_type in CropType
         ]
 
-    def click(self, pos):
-        """Returns the CropType that was clicked, or None."""
-        for crop_type, rect in self.options:
-            if rect.collidepoint(pos):
-                return crop_type
-        return None
+    def move_to(self, tile, pos):
+        """Point the menu at a tile, place it at pos and reset the selection."""
+        self.tile = tile
+        self.selected = 0
+        for i, (_, rect) in enumerate(self.options):
+            rect.topleft = (pos[0], pos[1] + i * self.ITEM_H)
+
+    def move_selection(self, step):
+        self.selected = (self.selected + step) % len(self.options)   # wraps around
+
+    def selected_type(self):
+        return self.options[self.selected][0]
 
     def draw(self, surface, font):
-        mouse = pygame.mouse.get_pos()
-        for crop_type, rect in self.options:
-            pygame.draw.rect(
-                surface,
-                (90, 90, 90) if rect.collidepoint(mouse) else (60, 60, 60),
-                rect,
-            )
+        for i, (crop_type, rect) in enumerate(self.options):
+            colour = (110, 110, 110) if i == self.selected else (60, 60, 60)
+            pygame.draw.rect(surface, colour, rect)
             pygame.draw.rect(surface, (200, 200, 200), rect, 1)
             text = font.render(crop_type.name.title(), True, (255, 255, 255))
             surface.blit(text, text.get_rect(midleft=(rect.x + 8, rect.centery)))
