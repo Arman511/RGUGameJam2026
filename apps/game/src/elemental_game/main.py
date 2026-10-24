@@ -15,12 +15,12 @@ from enum import Enum
 # initialise pygame attributes
 pygame.init()
 pygame.display.set_icon(
-    pygame.image.load(os.path.join(config.ASSETS_DIR, "assets", "icon.ico"))
+    pygame.image.load(os.path.join(config.ASSETS_DIR, "icon.ico"))
 )
 screen = pygame.display.set_mode((config.WINDOW_WIDTH, config.WINDOW_HEIGHT))
 clock = pygame.time.Clock()
-font = pygame.font.SysFont(
-    os.path.join(config.ASSETS_DIR, "fonts", "pixelfont.ttf"), 28
+font = pygame.font.Font(
+    os.path.join(config.ASSETS_DIR ,"font", "pixelfont.ttf"), 22
 )
 game_background = pygame.transform.smoothscale(
     pygame.image.load(
@@ -115,13 +115,13 @@ def main():
         player.draw(screen)
         farm.draw_menu(screen, font)  # after the player so the menu sits on top
         hint = font.render(
-            "Arrows = move   F = plant   G = gather   M = market   H = HUD",
+            "Arrows = move  F = plant  G = gather  M = market  H = Inventory",
             True,
-            (255, 255, 255),
+            (0, 0, 0),
         )
         screen.blit(hint, (10, 10))
         if hud_visible:
-            draw_inventory_hud(screen, font, player)
+            draw_inventory_hud(screen, player)
         if shop_open:
             shop.draw(screen, font, player)
         if confirm_exit:
