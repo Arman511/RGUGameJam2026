@@ -19,3 +19,16 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+Third-party audio assets
+------------------------
+
+The following audio files are third-party assets and are not covered by this
+MIT License. Refer to their individual license certificates:
+
+- apps/game/src/elemental_game/assets/audio/background.ogg:
+  licenses/background-license.txt
+- apps/game/src/elemental_game/assets/audio/boss.ogg:
+  licenses/boss-license.txt
+- apps/game/src/elemental_game/assets/audio/enemies.ogg:
+  licenses/enemies-license.txt
