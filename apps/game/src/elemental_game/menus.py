@@ -41,7 +41,39 @@ SAVE_SETTINGS_BUTTON = pygame.Rect(330, 540, 140, 44)
 LOGIN_BUTTON = pygame.Rect(205, 340, 120, 48)
 REGISTER_BUTTON = pygame.Rect(340, 340, 120, 48)
 GUEST_BUTTON = pygame.Rect(475, 340, 120, 48)
+PLAY_BUTTON = pygame.Rect(250, 190, 300, 54)
+LEADERBOARD_BUTTON = pygame.Rect(250, 270, 300, 54)
+SETTINGS_BUTTON = pygame.Rect(250, 350, 300, 54)
+SIGN_IN_BUTTON = pygame.Rect(250, 430, 300, 54)
+LEADERBOARD_BACK_BUTTON = pygame.Rect(330, 520, 140, 44)
+CLEAR_CONFIRM_BUTTON = pygame.Rect(250, 340, 140, 48)
+CANCEL_CONFIRM_BUTTON = pygame.Rect(410, 340, 140, 48)
+LEADERBOARD_FILTER_RECT = pygame.Rect(265, 105, 330, 42)
+LOGIN_USERNAME_RECT = pygame.Rect(250, 205, 300, 44)
+LOGIN_PASSWORD_RECT = pygame.Rect(250, 265, 300, 44)
+MENU_DESIGN_WIDTH = 800
+MENU_DESIGN_HEIGHT = 600
 REGISTER_URL = "https://elemental-keep.armandev.co.uk/register"
+
+
+class MenuLayout:
+    def __init__(self, width: int, height: int) -> None:
+        self.scale = min(width / MENU_DESIGN_WIDTH, height / MENU_DESIGN_HEIGHT)
+        self.offset = (
+            round((width - MENU_DESIGN_WIDTH * self.scale) / 2),
+            round((height - MENU_DESIGN_HEIGHT * self.scale) / 2),
+        )
+
+    def point(self, point: tuple[int, int]) -> tuple[int, int]:
+        return (
+            round(point[0] * self.scale) + self.offset[0],
+            round(point[1] * self.scale) + self.offset[1],
+        )
+
+    def rect(self, rect: pygame.Rect) -> pygame.Rect:
+        x, y = self.point(rect.topleft)
+        right, bottom = self.point(rect.bottomright)
+        return pygame.Rect(x, y, right - x, bottom - y)
 
 
 def _open_registration_page() -> bool:
@@ -72,11 +104,13 @@ class InputField:
         placeholder: str,
         max_length: int,
         secret: bool = False,
+        scale: float = 1.0,
     ) -> None:
         self.rect = rect
         self.placeholder = placeholder
         self.max_length = max_length
         self.secret = secret
+        self.scale = scale
         self.value = ""
         self.focused = False
 
@@ -92,23 +126,32 @@ class InputField:
     def draw(self, surface: pygame.Surface, font: pygame.font.Font) -> None:
         pygame.draw.rect(surface, (50, 50, 50), self.rect)
         border = (170, 210, 170) if self.focused else (130, 130, 130)
-        pygame.draw.rect(surface, border, self.rect, 2)
+        pygame.draw.rect(surface, border, self.rect, max(1, round(2 * self.scale)))
         value = "*" * len(self.value) if self.secret else self.value
         label = value or self.placeholder
         color = TEXT if value else MUTED_TEXT
         surface.blit(
-            font.render(label, True, color), (self.rect.x + 12, self.rect.y + 10)
+            font.render(label, True, color),
+            (
+                self.rect.x + round(12 * self.scale),
+                self.rect.y + round(10 * self.scale),
+            ),
         )
 
 
 class MenuSystem:
+    layout = MenuLayout(MENU_DESIGN_WIDTH, MENU_DESIGN_HEIGHT)
+
     def __init__(self, screen: pygame.Surface) -> None:
         initialise_audio()
         self.screen = screen
+        self.layout = MenuLayout(*screen.get_size())
         pygame.display.set_caption("Elemental Keep")
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.SysFont(None, 28)
-        self.title_font = pygame.font.SysFont(None, 42)
+        self.font = pygame.font.SysFont(None, max(1, round(28 * self.layout.scale)))
+        self.title_font = pygame.font.SysFont(
+            None, max(1, round(42 * self.layout.scale))
+        )
         self.store = LocalLeaderboardStore()
         self.credentials = CredentialStore()
         self.auth = AuthClient(APIClient(), self.credentials)
@@ -121,20 +164,23 @@ class MenuSystem:
         self.leaderboard_rows: list[dict[str, Any]] = []
         self.leaderboard_scroll = 0
         self.leaderboard_filter = InputField(
-            pygame.Rect(265, 105, 330, 42),
+            self.layout.rect(LEADERBOARD_FILTER_RECT),
             placeholder="Filter by username",
             max_length=32,
+            scale=self.layout.scale,
         )
         self.login_username = InputField(
-            pygame.Rect(250, 205, 300, 44),
+            self.layout.rect(LOGIN_USERNAME_RECT),
             placeholder="Username",
             max_length=32,
+            scale=self.layout.scale,
         )
         self.login_password = InputField(
-            pygame.Rect(250, 265, 300, 44),
+            self.layout.rect(LOGIN_PASSWORD_RECT),
             placeholder="Password",
             max_length=128,
             secret=True,
+            scale=self.layout.scale,
         )
         self.preferences = self.store.sound_preferences()
         self.player_type = PlayerType(self.store.player_image_number())
@@ -145,10 +191,11 @@ class MenuSystem:
             ).convert(),
             self.screen.get_size(),
         )
+        preview_size = max(1, round(64 * self.layout.scale))
         self.player_previews = {
             player_type: pygame.transform.smoothscale(
                 pygame.image.load(player_type.full_image_path).convert_alpha(),
-                (64, 64),
+                (preview_size, preview_size),
             )
             for player_type in PlayerType
         }
@@ -237,12 +284,12 @@ class MenuSystem:
             elif event.key == pygame.K_RETURN:
                 self._login()
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if LOGIN_BUTTON.collidepoint(event.pos):
+            if self.layout.rect(LOGIN_BUTTON).collidepoint(event.pos):
                 self._login()
-            elif REGISTER_BUTTON.collidepoint(event.pos):
+            elif self.layout.rect(REGISTER_BUTTON).collidepoint(event.pos):
                 if not _open_registration_page():
                     self.error_message = "Could not open the registration page."
-            elif GUEST_BUTTON.collidepoint(event.pos):
+            elif self.layout.rect(GUEST_BUTTON).collidepoint(event.pos):
                 self._continue_as_guest()
 
     def _login(self) -> None:
@@ -275,19 +322,19 @@ class MenuSystem:
             return
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return
-        if pygame.Rect(250, 190, 300, 54).collidepoint(event.pos):
+        if self.layout.rect(PLAY_BUTTON).collidepoint(event.pos):
             self.start_game = True  # hand control back to main.py
             self.running = False
-        elif pygame.Rect(250, 270, 300, 54).collidepoint(event.pos):
+        elif self.layout.rect(LEADERBOARD_BUTTON).collidepoint(event.pos):
             self.leaderboard_rows = self.store.top_scores(limit=None)
             self.leaderboard_filter.value = ""
             self.leaderboard_filter.focused = False
             self.leaderboard_scroll = 0
             self.state = "leaderboard"
-        elif pygame.Rect(250, 350, 300, 54).collidepoint(event.pos):
+        elif self.layout.rect(SETTINGS_BUTTON).collidepoint(event.pos):
             self.notice_message = ""
             self.state = "settings"
-        elif pygame.Rect(250, 430, 300, 54).collidepoint(event.pos):
+        elif self.layout.rect(SIGN_IN_BUTTON).collidepoint(event.pos):
             if self.username is None:
                 self.error_message = ""
                 self.state = "login"
@@ -315,7 +362,7 @@ class MenuSystem:
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (
             event.type == pygame.MOUSEBUTTONDOWN
             and event.button == 1
-            and pygame.Rect(330, 520, 140, 44).collidepoint(event.pos)
+            and self.layout.rect(LEADERBOARD_BACK_BUTTON).collidepoint(event.pos)
         ):
             self.state = "menu"
 
@@ -324,22 +371,22 @@ class MenuSystem:
             self._close_settings()
             return
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if CLEAR_LEADERBOARD_BUTTON.collidepoint(event.pos):
+            if self.layout.rect(CLEAR_LEADERBOARD_BUTTON).collidepoint(event.pos):
                 self.state = "confirm_clear"
                 return
-            if PLAYER_PREVIOUS_BUTTON.collidepoint(event.pos):
+            if self.layout.rect(PLAYER_PREVIOUS_BUTTON).collidepoint(event.pos):
                 self._change_player_type(-1)
                 return
-            if PLAYER_NEXT_BUTTON.collidepoint(event.pos):
+            if self.layout.rect(PLAYER_NEXT_BUTTON).collidepoint(event.pos):
                 self._change_player_type(1)
                 return
-            if MUSIC_SLIDER.inflate(0, 18).collidepoint(event.pos):
+            if self.layout.rect(MUSIC_SLIDER.inflate(0, 18)).collidepoint(event.pos):
                 self.dragging_slider = "music_volume"
                 self._update_slider(event.pos[0])
-            elif SFX_SLIDER.inflate(0, 18).collidepoint(event.pos):
+            elif self.layout.rect(SFX_SLIDER.inflate(0, 18)).collidepoint(event.pos):
                 self.dragging_slider = "sfx_volume"
                 self._update_slider(event.pos[0])
-            elif SAVE_SETTINGS_BUTTON.collidepoint(event.pos):
+            elif self.layout.rect(SAVE_SETTINGS_BUTTON).collidepoint(event.pos):
                 self._close_settings()
         elif event.type == pygame.MOUSEMOTION and self.dragging_slider:
             self._update_slider(event.pos[0])
@@ -360,6 +407,7 @@ class MenuSystem:
         if key is None:
             return
         slider = MUSIC_SLIDER if key == "music_volume" else SFX_SLIDER
+        slider = self.layout.rect(slider)
         self.preferences[key] = max(0.0, min(1.0, (mouse_x - slider.x) / slider.width))
         self._apply_sound_preferences()
 
@@ -367,11 +415,11 @@ class MenuSystem:
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             self.state = "settings"
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if pygame.Rect(250, 340, 140, 48).collidepoint(event.pos):
+            if self.layout.rect(CLEAR_CONFIRM_BUTTON).collidepoint(event.pos):
                 self.store.clear_leaderboard()
                 self.notice_message = "Local leaderboard cleared."
                 self.state = "settings"
-            elif pygame.Rect(410, 340, 140, 48).collidepoint(event.pos):
+            elif self.layout.rect(CANCEL_CONFIRM_BUTTON).collidepoint(event.pos):
                 self.state = "settings"
 
     def _draw(self) -> None:
@@ -408,12 +456,12 @@ class MenuSystem:
             f"Signed in as {self.username}" if self.username else "Playing as Guest"
         )
         self._draw_text(identity, 400, 150)
-        self._draw_button("Play game", pygame.Rect(250, 190, 300, 54))
-        self._draw_button("Leaderboard", pygame.Rect(250, 270, 300, 54))
-        self._draw_button("Settings", pygame.Rect(250, 350, 300, 54))
+        self._draw_button("Play game", PLAY_BUTTON)
+        self._draw_button("Leaderboard", LEADERBOARD_BUTTON)
+        self._draw_button("Settings", SETTINGS_BUTTON)
         self._draw_button(
             "Sign out" if self.username else "Sign in",
-            pygame.Rect(250, 430, 300, 54),
+            SIGN_IN_BUTTON,
         )
         if self.error_message:
             self._draw_text(self.error_message, 400, 510, color=ERROR_TEXT)
@@ -426,7 +474,13 @@ class MenuSystem:
         columns = (145, 355, 460, 565)
         for label, x in zip(labels, columns, strict=True):
             self._draw_text(label, x, 175, center=False)
-        pygame.draw.line(self.screen, (130, 130, 130), (145, 198), (655, 198), 1)
+        pygame.draw.line(
+            self.screen,
+            (130, 130, 130),
+            self.layout.point((145, 198)),
+            self.layout.point((655, 198)),
+            max(1, round(self.layout.scale)),
+        )
 
         rows = self._filtered_leaderboard()
         visible_rows = rows[self.leaderboard_scroll : self.leaderboard_scroll + 12]
@@ -444,7 +498,7 @@ class MenuSystem:
             self._draw_text("No local runs match this filter.", 400, 245)
         elif len(rows) > 12:
             self._draw_text("Scroll to see more runs", 400, 500, color=MUTED_TEXT)
-        self._draw_button("Back", pygame.Rect(330, 520, 140, 44))
+        self._draw_button("Back", LEADERBOARD_BACK_BUTTON)
 
     def _filtered_leaderboard(self) -> list[dict[str, Any]]:
         query = self.leaderboard_filter.value.casefold().strip()
@@ -469,7 +523,9 @@ class MenuSystem:
         self._draw_text("Player", 145, 322, center=False)
         self._draw_button("<", PLAYER_PREVIOUS_BUTTON)
         preview = self.player_previews[self.player_type]
-        self.screen.blit(preview, preview.get_rect(center=(370, 378)))
+        self.screen.blit(
+            preview, preview.get_rect(center=self.layout.point((370, 378)))
+        )
         self._draw_text(self.player_type.name.title(), 555, 378)
         self._draw_button(">", PLAYER_NEXT_BUTTON)
         self._draw_button("Clear local leaderboard", CLEAR_LEADERBOARD_BUTTON)
@@ -481,12 +537,12 @@ class MenuSystem:
         self._draw_panel(pygame.Rect(175, 175, 450, 255))
         self._draw_title("Clear leaderboard?", 210)
         self._draw_text("This permanently removes all local runs.", 400, 275)
-        self._draw_button("Clear", pygame.Rect(250, 340, 140, 48))
-        self._draw_button("Cancel", pygame.Rect(410, 340, 140, 48))
+        self._draw_button("Clear", CLEAR_CONFIRM_BUTTON)
+        self._draw_button("Cancel", CANCEL_CONFIRM_BUTTON)
 
     def _draw_title(self, label: str, y: int) -> None:
         text = self.title_font.render(label, True, TEXT)
-        self.screen.blit(text, text.get_rect(center=(400, y)))
+        self.screen.blit(text, text.get_rect(center=self.layout.point((400, y))))
 
     def _draw_text(
         self,
@@ -499,33 +555,47 @@ class MenuSystem:
         x: int | None = None,
     ) -> None:
         text = self.font.render(label, True, color)
+        anchor = self.layout.point(
+            (center_x if center else x if x is not None else center_x, y)
+        )
         position = (
-            text.get_rect(center=(center_x, y))
+            text.get_rect(center=anchor)
             if center
-            else text.get_rect(topleft=(x if x is not None else center_x, y))
+            else text.get_rect(topleft=anchor)
         )
         self.screen.blit(text, position)
 
     def _draw_button(self, label: str, rect: pygame.Rect) -> None:
+        rect = self.layout.rect(rect)
         color = BUTTON_HOVER if rect.collidepoint(pygame.mouse.get_pos()) else BUTTON
-        pygame.draw.rect(self.screen, color, rect, border_radius=5)
-        pygame.draw.rect(self.screen, (155, 175, 155), rect, 1, border_radius=5)
+        radius = max(1, round(5 * self.layout.scale))
+        pygame.draw.rect(self.screen, color, rect, border_radius=radius)
+        pygame.draw.rect(
+            self.screen,
+            (155, 175, 155),
+            rect,
+            max(1, round(self.layout.scale)),
+            border_radius=radius,
+        )
         text = self.font.render(label, True, TEXT)
         self.screen.blit(text, text.get_rect(center=rect.center))
 
     def _draw_panel(self, rect: pygame.Rect) -> None:
+        rect = self.layout.rect(rect)
         panel = pygame.Surface(rect.size, pygame.SRCALPHA)
-        pygame.draw.rect(panel, (20, 30, 25, 220), panel.get_rect(), border_radius=10)
+        radius = max(1, round(10 * self.layout.scale))
+        pygame.draw.rect(panel, (20, 30, 25, 220), panel.get_rect(), border_radius=radius)
         pygame.draw.rect(
             panel,
             (125, 150, 125, 230),
             panel.get_rect(),
-            width=1,
-            border_radius=10,
+            width=max(1, round(self.layout.scale)),
+            border_radius=radius,
         )
         self.screen.blit(panel, rect)
 
     def _draw_slider(self, rect: pygame.Rect, value: float) -> None:
+        rect = self.layout.rect(rect)
         pygame.draw.rect(self.screen, (85, 85, 85), rect, border_radius=8)
         filled = rect.copy()
         filled.width = round(rect.width * value)
@@ -534,5 +604,5 @@ class MenuSystem:
             self.screen,
             TEXT,
             (rect.x + round(rect.width * value), rect.centery),
-            11,
+            max(1, round(11 * self.layout.scale)),
         )
