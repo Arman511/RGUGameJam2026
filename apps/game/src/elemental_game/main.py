@@ -1,4 +1,8 @@
+import os
+
 import pygame
+
+from elemental_game import config
 from elemental_game.game_entities.farm import Farm, CropMenu
 from elemental_game.game_entities.crops.crops import CropType
 from elemental_game.game_entities.player.player import Player, PlayerType
@@ -7,9 +11,17 @@ from enum import Enum
 
 # initialise pygame attributes
 pygame.init()
-screen = pygame.display.set_mode((800, 600))
+screen = pygame.display.set_mode((config.WINDOW_WIDTH, config.WINDOW_HEIGHT))
 clock = pygame.time.Clock()
-font = pygame.font.SysFont(None, 28)
+font = pygame.font.SysFont(
+    os.path.join(config.ASSETS_DIR, "fonts", "pixelfont.ttf"), 28
+)
+game_background = pygame.transform.smoothscale(
+    pygame.image.load(
+        os.path.join(config.IMAGES_DIR, "backgrounds", "background.png")
+    ).convert(),
+    screen.get_size(),
+)
 
 
 # game state attributes
@@ -52,7 +64,7 @@ def main():
         farm.update(seconds)  # update crop growth
 
         # render screen:
-        screen.fill((30, 30, 30))  # TODO PLACEHOLDER
+        screen.blit(game_background, (0, 0))
         farm.draw(screen, font, tile)
         player.draw(screen)
         farm.draw_menu(screen, font)  # after the player so the menu sits on top

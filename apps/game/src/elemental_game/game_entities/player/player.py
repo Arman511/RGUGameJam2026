@@ -2,7 +2,7 @@ import os
 from enum import IntEnum
 
 import pygame
-from elemental_game.config import SPRITES_DIR
+from elemental_game.config import IMAGES_DIR
 
 
 class PlayerType(IntEnum):
@@ -19,7 +19,7 @@ class PlayerType(IntEnum):
 
     @property
     def full_image_path(self) -> str:
-        return os.path.join(SPRITES_DIR, "players", self.image_path)
+        return os.path.join(IMAGES_DIR, "players", self.image_path)
 
 
 class Player:
@@ -39,7 +39,7 @@ class Player:
         self.lightning_seed = {"tier1": 0, "tier2": 0, "tier3": 0}
         self.ice_seed = {"tier1": 0, "tier2": 0, "tier3": 0}
         self.coins = 0
-        self.crops={}
+        self.crops = {}
 
     def update(self, dt):
         keys = pygame.key.get_pressed()

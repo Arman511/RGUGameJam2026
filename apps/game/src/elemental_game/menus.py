@@ -9,6 +9,7 @@ Usage (from main.py):
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import pygame
@@ -19,17 +20,21 @@ from elemental_game.audio import (
     initialise_audio,
     play_background_music,
 )
+from elemental_game.config import IMAGES_DIR
 from elemental_game.database import LocalLeaderboardStore
 from elemental_game.game_entities.player.player import PlayerType
 
-BACKGROUND = (30, 30, 30)
 BUTTON = (65, 85, 65)
 BUTTON_HOVER = (85, 110, 85)
 TEXT = (245, 245, 245)
 MUTED_TEXT = (180, 180, 180)
 ERROR_TEXT = (255, 130, 130)
-MUSIC_SLIDER = pygame.Rect(330, 220, 260, 18)
-SFX_SLIDER = pygame.Rect(330, 295, 260, 18)
+MUSIC_SLIDER = pygame.Rect(175, 185, 450, 14)
+SFX_SLIDER = pygame.Rect(175, 250, 450, 14)
+PLAYER_PREVIOUS_BUTTON = pygame.Rect(285, 355, 48, 42)
+PLAYER_NEXT_BUTTON = pygame.Rect(445, 355, 48, 42)
+CLEAR_LEADERBOARD_BUTTON = pygame.Rect(250, 465, 300, 44)
+SAVE_SETTINGS_BUTTON = pygame.Rect(330, 540, 140, 44)
 
 
 class InputField:
@@ -106,6 +111,20 @@ class MenuSystem:
         )
         self.preferences = self.store.sound_preferences()
         self.player_type = PlayerType(self.store.player_image_number())
+        backgrounds_dir = os.path.join(IMAGES_DIR, "backgrounds")
+        self.menu_background = pygame.transform.smoothscale(
+            pygame.image.load(
+                os.path.join(backgrounds_dir, "menu-background.png")
+            ).convert(),
+            self.screen.get_size(),
+        )
+        self.player_previews = {
+            player_type: pygame.transform.smoothscale(
+                pygame.image.load(player_type.full_image_path).convert_alpha(),
+                (64, 64),
+            )
+            for player_type in PlayerType
+        }
         self._apply_sound_preferences()
         play_background_music(volume=self.preferences["music_volume"])
         self.dragging_slider: str | None = None
@@ -227,7 +246,7 @@ class MenuSystem:
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return
         if pygame.Rect(250, 190, 300, 54).collidepoint(event.pos):
-            self.start_game = True   # hand control back to main.py
+            self.start_game = True  # hand control back to main.py
             self.running = False
         elif pygame.Rect(250, 270, 300, 54).collidepoint(event.pos):
             self.leaderboard_rows = self.store.top_scores(limit=None)
@@ -275,22 +294,22 @@ class MenuSystem:
             self._close_settings()
             return
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if pygame.Rect(250, 410, 300, 48).collidepoint(event.pos):
+            if CLEAR_LEADERBOARD_BUTTON.collidepoint(event.pos):
                 self.state = "confirm_clear"
                 return
-            if pygame.Rect(280, 345, 50, 40).collidepoint(event.pos):
+            if PLAYER_PREVIOUS_BUTTON.collidepoint(event.pos):
                 self._change_player_type(-1)
                 return
-            if pygame.Rect(470, 345, 50, 40).collidepoint(event.pos):
+            if PLAYER_NEXT_BUTTON.collidepoint(event.pos):
                 self._change_player_type(1)
                 return
-            if pygame.Rect(330, 220, 260, 18).inflate(0, 18).collidepoint(event.pos):
+            if MUSIC_SLIDER.inflate(0, 18).collidepoint(event.pos):
                 self.dragging_slider = "music_volume"
                 self._update_slider(event.pos[0])
-            elif pygame.Rect(330, 295, 260, 18).inflate(0, 18).collidepoint(event.pos):
+            elif SFX_SLIDER.inflate(0, 18).collidepoint(event.pos):
                 self.dragging_slider = "sfx_volume"
                 self._update_slider(event.pos[0])
-            elif pygame.Rect(330, 520, 140, 44).collidepoint(event.pos):
+            elif SAVE_SETTINGS_BUTTON.collidepoint(event.pos):
                 self._close_settings()
         elif event.type == pygame.MOUSEMOTION and self.dragging_slider:
             self._update_slider(event.pos[0])
@@ -310,10 +329,8 @@ class MenuSystem:
         key = self.dragging_slider
         if key is None:
             return
-        self.preferences[key] = max(
-            0.0,
-            min(1.0, (mouse_x - MUSIC_SLIDER.x) / MUSIC_SLIDER.width),
-        )
+        slider = MUSIC_SLIDER if key == "music_volume" else SFX_SLIDER
+        self.preferences[key] = max(0.0, min(1.0, (mouse_x - slider.x) / slider.width))
         self._apply_sound_preferences()
 
     def _handle_clear_confirmation_event(self, event: pygame.event.Event) -> None:
@@ -328,7 +345,7 @@ class MenuSystem:
                 self.state = "settings"
 
     def _draw(self) -> None:
-        self.screen.fill(BACKGROUND)
+        self.screen.blit(self.menu_background, (0, 0))
         if self.state == "login":
             self._draw_login()
         elif self.state == "menu":
@@ -341,6 +358,7 @@ class MenuSystem:
             self._draw_clear_confirmation()
 
     def _draw_login(self) -> None:
+        self._draw_panel(pygame.Rect(115, 75, 570, 115))
         self._draw_title("Elemental Keep", 110)
         self._draw_text("Log in to your account, or skip to play as a guest.", 400, 170)
         self.login_username.draw(self.screen, self.font)
@@ -353,11 +371,12 @@ class MenuSystem:
             )
 
     def _draw_menu(self) -> None:
+        self._draw_panel(pygame.Rect(180, 65, 440, 110))
         self._draw_title("Elemental Keep", 105)
         identity = (
             f"Signed in as {self.username}" if self.username else "Playing as Guest"
         )
-        self._draw_text(identity, 400, 150, color=MUTED_TEXT)
+        self._draw_text(identity, 400, 150)
         self._draw_button("Play game", pygame.Rect(250, 190, 300, 54))
         self._draw_button("Leaderboard", pygame.Rect(250, 270, 300, 54))
         self._draw_button("Settings", pygame.Rect(250, 350, 300, 54))
@@ -369,10 +388,11 @@ class MenuSystem:
             self._draw_text(self.error_message, 400, 510, color=ERROR_TEXT)
 
     def _draw_leaderboard(self) -> None:
+        self._draw_panel(pygame.Rect(125, 30, 550, 480))
         self._draw_title("Local Leaderboard", 50)
         self.leaderboard_filter.draw(self.screen, self.font)
         labels = ("Username", "Waves", "Time (s)", "Enemies")
-        columns = (155, 385, 490, 620)
+        columns = (145, 355, 460, 565)
         for label, x in zip(labels, columns, strict=True):
             self._draw_text(label, x, 175, center=False)
         pygame.draw.line(self.screen, (130, 130, 130), (145, 198), (655, 198), 1)
@@ -404,25 +424,29 @@ class MenuSystem:
         ]
 
     def _draw_settings(self) -> None:
-        self._draw_title("Settings", 105)
-        self._draw_text("Music volume", 400, 190)
+        self._draw_panel(pygame.Rect(115, 115, 570, 175))
+        self._draw_panel(pygame.Rect(115, 305, 570, 140))
+        self._draw_title("Settings", 65)
+        self._draw_text("Audio", 145, 132, center=False)
+        self._draw_text("Music volume", 150, 160, center=False)
         self._draw_slider(MUSIC_SLIDER, self.preferences["music_volume"])
-        self._draw_text("SFX volume", 400, 265)
+
+        self._draw_text("SFX volume", 150, 225, center=False)
         self._draw_slider(SFX_SLIDER, self.preferences["sfx_volume"])
-        self._draw_text("Player image", 400, 325)
-        self._draw_button("<", pygame.Rect(280, 345, 50, 40))
-        self._draw_text(
-            f"{int(self.player_type)} - {self.player_type.name.title()}",
-            400,
-            365,
-        )
-        self._draw_button(">", pygame.Rect(470, 345, 50, 40))
-        self._draw_button("Clear local leaderboard", pygame.Rect(250, 410, 300, 48))
+
+        self._draw_text("Player", 145, 322, center=False)
+        self._draw_button("<", PLAYER_PREVIOUS_BUTTON)
+        preview = self.player_previews[self.player_type]
+        self.screen.blit(preview, preview.get_rect(center=(370, 378)))
+        self._draw_text(self.player_type.name.title(), 555, 378)
+        self._draw_button(">", PLAYER_NEXT_BUTTON)
+        self._draw_button("Clear local leaderboard", CLEAR_LEADERBOARD_BUTTON)
         if self.notice_message:
-            self._draw_text(self.notice_message, 400, 475, color=MUTED_TEXT)
-        self._draw_button("Save", pygame.Rect(330, 520, 140, 44))
+            self._draw_text(self.notice_message, 400, 520, color=MUTED_TEXT)
+        self._draw_button("Save", SAVE_SETTINGS_BUTTON)
 
     def _draw_clear_confirmation(self) -> None:
+        self._draw_panel(pygame.Rect(175, 175, 450, 255))
         self._draw_title("Clear leaderboard?", 210)
         self._draw_text("This permanently removes all local runs.", 400, 275)
         self._draw_button("Clear", pygame.Rect(250, 340, 140, 48))
@@ -457,6 +481,18 @@ class MenuSystem:
         text = self.font.render(label, True, TEXT)
         self.screen.blit(text, text.get_rect(center=rect.center))
 
+    def _draw_panel(self, rect: pygame.Rect) -> None:
+        panel = pygame.Surface(rect.size, pygame.SRCALPHA)
+        pygame.draw.rect(panel, (20, 30, 25, 220), panel.get_rect(), border_radius=10)
+        pygame.draw.rect(
+            panel,
+            (125, 150, 125, 230),
+            panel.get_rect(),
+            width=1,
+            border_radius=10,
+        )
+        self.screen.blit(panel, rect)
+
     def _draw_slider(self, rect: pygame.Rect, value: float) -> None:
         pygame.draw.rect(self.screen, (85, 85, 85), rect, border_radius=8)
         filled = rect.copy()
@@ -468,4 +504,3 @@ class MenuSystem:
             (rect.x + round(rect.width * value), rect.centery),
             11,
         )
-        self._draw_text(f"{value:.0%}", rect.right + 48, rect.centery)

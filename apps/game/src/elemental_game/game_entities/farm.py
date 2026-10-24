@@ -9,7 +9,7 @@ farm.update(dt)      # every frame
 
 import pygame
 from elemental_game.game_entities.crops.crops import Crop, CropType
-from elemental_game.config import SPRITES_DIR
+from elemental_game.config import IMAGES_DIR
 import os
 
 
@@ -21,13 +21,21 @@ class Farm:
         self.cols = cols
         self.origin = origin  # top-left pixel of the grid
         self.grid = [[None] * cols for _ in range(rows)]
-        self.menu = CropMenu()   # one menu, created once
-        self.planting = False    # True = menu is drawn and taking input
+        self.menu = CropMenu()  # one menu, created once
+        self.planting = False  # True = menu is drawn and taking input
 
-        soil_img = pygame.image.load(os.path.join(SPRITES_DIR, "settings-and-gameplay","soil.png")).convert_alpha()
-        seedling_img = pygame.image.load(os.path.join(SPRITES_DIR, "settings-and-gameplay","soil_plant.png")).convert_alpha()
-        self.soil_img = pygame.transform.scale(soil_img, (self.TILE_SIZE, self.TILE_SIZE))
-        self.seedling_img = pygame.transform.scale(seedling_img, (self.TILE_SIZE, self.TILE_SIZE))
+        soil_img = pygame.image.load(
+            os.path.join(IMAGES_DIR, "settings-and-gameplay", "soil.png")
+        ).convert_alpha()
+        seedling_img = pygame.image.load(
+            os.path.join(IMAGES_DIR, "settings-and-gameplay", "soil_plant.png")
+        ).convert_alpha()
+        self.soil_img = pygame.transform.scale(
+            soil_img, (self.TILE_SIZE, self.TILE_SIZE)
+        )
+        self.seedling_img = pygame.transform.scale(
+            seedling_img, (self.TILE_SIZE, self.TILE_SIZE)
+        )
 
         air_flower_img = pygame.image.load(os.path.join(SPRITES_DIR, "flower","air-flower.png")).convert_alpha()
         earth_flower_img= pygame.image.load(os.path.join(SPRITES_DIR, "flower","earth-flower.png")).convert_alpha()
@@ -118,18 +126,20 @@ class Farm:
     def handle_event(self, event, player):
         # determine if and which tile player is standing on
         if event.type != pygame.KEYDOWN:
-            return # why is there a return statement here do we need this at all
+            return  # why is there a return statement here do we need this at all
         tile = self.tile_at_pixel(*player.pos)
 
         # if a player does farm action
         if event.key == pygame.K_f and tile and self.is_empty(*tile):
-            self.menu.move_to(tile, self.tile_rect(*tile).bottomleft) # position the menu
+            self.menu.move_to(
+                tile, self.tile_rect(*tile).bottomleft
+            )  # position the menu
             self.planting = True
         # if a player does harvest action
         elif event.key == pygame.K_h and tile:
-            crop = self.get_crop(*tile) # determine which crop is on that tile
+            crop = self.get_crop(*tile)  # determine which crop is on that tile
             if crop is not None and crop.is_ready():
-                self.harvest(*tile) # player gains some crop
+                self.harvest(*tile)  # player gains some crop
                 player.add_crop(crop.crop_type, crop.CROP_YIELD)
 
         if self.planting:
@@ -142,7 +152,7 @@ class Farm:
                 self.planting = False
 
     def draw_menu(self, surface, font):
-        if self.planting: # good
+        if self.planting:  # good
             self.menu.draw(surface, font)
 
 
@@ -152,8 +162,8 @@ class CropMenu:
     ITEM_W, ITEM_H = 120, 30
 
     def __init__(self):
-        self.tile = None     # tile the menu is currently open for
-        self.selected = 0    # index of the highlighted option
+        self.tile = None  # tile the menu is currently open for
+        self.selected = 0  # index of the highlighted option
         self.options = [
             (crop_type, pygame.Rect(0, 0, self.ITEM_W, self.ITEM_H))
             for crop_type in CropType
@@ -167,7 +177,7 @@ class CropMenu:
             rect.topleft = (pos[0], pos[1] + i * self.ITEM_H)
 
     def move_selection(self, step):
-        self.selected = (self.selected + step) % len(self.options)   # wraps around
+        self.selected = (self.selected + step) % len(self.options)  # wraps around
 
     def selected_type(self):
         return self.options[self.selected][0]
