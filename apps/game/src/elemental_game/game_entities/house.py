@@ -33,6 +33,6 @@ class House:
 
     def return_rect(self):
         y = FARM_HEIGHT - 225
-        x = (WINDOW_WIDTH - self.dimensions[0])//2s
+        x = (WINDOW_WIDTH - self.dimensions[0])//2
         return pygame.Rect(x, y, *self.dimensions)
 
