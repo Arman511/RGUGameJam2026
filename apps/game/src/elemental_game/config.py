@@ -10,7 +10,7 @@ FULLSCREEN = os.environ.get("ELEMENTAL_FULL_SCREEN", "0") == "1"
 import os
 
 ASSETS_DIR = os.path.dirname(os.path.abspath(__file__))  # .../src/elemental_game
-SPRITES_DIR = os.path.join(ASSETS_DIR, "assets", "imgs")
+IMAGES_DIR = os.path.join(ASSETS_DIR, "assets", "imgs")
 ELEMENTAL_KEEP_API_BASE_URL = os.environ.get(
     "ELEMENTAL_KEEP_API_BASE_URL", "https://elemental-keep.armandev.co.uk"
 )
