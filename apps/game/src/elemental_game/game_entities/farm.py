@@ -7,7 +7,7 @@ farm.plant(0, 0, CropType.FIRE)
 farm.update(dt)      # every frame
 """
 
-from crops import Crop, CropType
+from elemental_game.game_entities.crops.crops import Crop
 
 
 class Farm:
@@ -16,7 +16,7 @@ class Farm:
     def __init__(self, rows, cols, origin=(0, 0)):
         self.rows = rows
         self.cols = cols
-        self.origin = origin            # top-left pixel of the grid
+        self.origin = origin  # top-left pixel of the grid
         self.grid = [[None] * cols for _ in range(rows)]
 
     def in_bounds(self, row, col):
@@ -43,7 +43,7 @@ class Farm:
         crop = self.get_crop(row, col)
         if crop is None or not crop.is_ready():
             return None
-        self.grid[row][col] = None  
+        self.grid[row][col] = None
         return crop.harvest()
 
     def update(self, dt):
