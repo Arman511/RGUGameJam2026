@@ -6,35 +6,17 @@ const rowsElement = document.querySelector("#score-rows");
 const podiumElement = document.querySelector("#podium");
 const refreshStatus = document.querySelector("#refresh-status");
 const footerStatus = document.querySelector("#footer-status");
-const themeToggle = document.querySelector("#theme-toggle");
-const themeLabel = document.querySelector("#theme-label");
-const themeIcon = document.querySelector("#theme-icon");
+const pageStatus = document.querySelector("#page-status");
+const previousPageButton = document.querySelector("#previous-page");
+const nextPageButton = document.querySelector("#next-page");
+const pageSizeSelect = document.querySelector("#page-size");
+const PAGE_SIZE_KEY = "leaderboard-page-size";
 let scores = [];
 let descending = true;
-let refreshing = false;
-
-function storedTheme() {
-  try {
-    return window.localStorage.getItem("leaderboard-theme");
-  } catch (error) {
-    console.warn("Could not read the saved theme preference.", error);
-    return null;
-  }
-}
-
-function applyTheme(theme) {
-  const isDark = theme === "dark";
-  document.documentElement.setAttribute("data-bs-theme", theme);
-  themeToggle.setAttribute("aria-pressed", String(isDark));
-  themeToggle.setAttribute("aria-label", `Switch to ${isDark ? "light" : "dark"} mode`);
-  themeLabel.textContent = isDark ? "Light mode" : "Dark mode";
-  themeIcon.textContent = isDark ? "☀" : "☾";
-  try {
-    window.localStorage.setItem("leaderboard-theme", theme);
-  } catch (error) {
-    console.warn("Could not save the theme preference.", error);
-  }
-}
+let totalScores = 0;
+let offset = 0;
+let activeRequest;
+let searchTimer;
 
 function formatDuration(seconds) {
   const wholeSeconds = Math.floor(seconds);
@@ -49,27 +31,9 @@ function makeCell(value, className = "") {
   return cell;
 }
 
-function filteredScores() {
-  const query = searchInput.value.trim().toLocaleLowerCase();
-  const key = sortSelect.value;
-  return scores
-    .filter((score) => !query || `${score.username} ${score.run_id}`.toLocaleLowerCase().includes(query))
-    .slice()
-    .sort((first, second) => {
-      const left = first[key];
-      const right = second[key];
-      const comparison = typeof left === "string" && key === "username"
-        ? left.localeCompare(right)
-        : key === "submitted_at"
-          ? new Date(left) - new Date(right)
-          : Number(left) - Number(right);
-      return (descending ? -1 : 1) * comparison;
-    });
-}
-
 function renderPodium(ranked) {
   podiumElement.replaceChildren();
-  ranked.slice(0, 3).forEach((score, index) => {
+  (offset === 0 ? ranked.slice(0, 3) : []).forEach((score, index) => {
     const column = document.createElement("div");
     column.className = "col-12 col-md-4";
     const card = document.createElement("article");
@@ -90,12 +54,17 @@ function renderPodium(ranked) {
 }
 
 function render() {
-  const ranked = filteredScores();
+  const ranked = scores;
   rowsElement.replaceChildren();
   renderPodium(ranked);
+  const firstResult = totalScores === 0 ? 0 : offset + 1;
+  const lastResult = Math.min(offset + scores.length, totalScores);
+  pageStatus.textContent = `${firstResult}–${lastResult} of ${totalScores}`;
+  previousPageButton.disabled = offset === 0;
+  nextPageButton.disabled = offset + scores.length >= totalScores;
   if (!ranked.length) {
     const row = document.createElement("tr");
-    const message = scores.length
+    const message = searchInput.value.trim()
       ? "No scores match your search."
       : "No scores yet. Be the first keeper to enter the hall.";
     const cell = makeCell(message, "empty-state text-center py-5");
@@ -115,7 +84,7 @@ function render() {
     player.append(runId);
     const date = new Date(score.submitted_at);
     row.append(
-      makeCell(String(index + 1).padStart(2, "0"), "rank-cell"),
+      makeCell(String(offset + index + 1).padStart(2, "0"), "rank-cell"),
       player,
       makeCell(formatDuration(score.time_survived), "text-end survival-cell numeric-cell"),
       makeCell(String(score.wave_number), "text-end numeric-cell"),
@@ -130,16 +99,31 @@ function render() {
 }
 
 async function refresh() {
-  if (refreshing) return;
-  refreshing = true;
+  activeRequest?.abort();
+  const controller = new AbortController();
+  activeRequest = controller;
+  const pageSize = Number(pageSizeSelect.value);
+  const parameters = new URLSearchParams({
+    limit: String(pageSize),
+    offset: String(offset),
+    search: searchInput.value.trim(),
+    sort: sortSelect.value,
+    direction: descending ? "desc" : "asc",
+  });
   try {
-    const response = await fetch("/api/v1/leaderboard?limit=100", { cache: "no-store" });
+    const response = await fetch(`/api/v1/leaderboard?${parameters}`, {
+      cache: "no-store",
+      signal: controller.signal,
+    });
     if (!response.ok) throw new Error(`Leaderboard request failed (${response.status})`);
     const payload = await response.json();
-    if (!Array.isArray(payload.scores)) throw new Error("Leaderboard response has an invalid format");
+    if (!Array.isArray(payload.scores) || !Number.isInteger(payload.total)) {
+      throw new Error("Leaderboard response has an invalid format");
+    }
     scores = payload.scores;
+    totalScores = payload.total;
     const updated = new Date();
-    document.querySelector("#stat-runs").textContent = String(scores.length);
+    document.querySelector("#stat-runs").textContent = String(totalScores);
     document.querySelector("#stat-wave").textContent = scores.length
       ? String(Math.max(...scores.map((score) => score.wave_number)))
       : "—";
@@ -155,6 +139,7 @@ async function refresh() {
     footerStatus.classList.remove("error");
     render();
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") return;
     refreshStatus.textContent = "Could not refresh";
     footerStatus.textContent = error instanceof Error
       ? error.message
@@ -172,30 +157,55 @@ async function refresh() {
       rowsElement.append(row);
     }
   } finally {
-    refreshing = false;
+    if (activeRequest === controller) activeRequest = undefined;
   }
 }
 
-const savedTheme = storedTheme();
-const initialTheme = savedTheme === "light" || savedTheme === "dark"
-  ? savedTheme
-  : window.matchMedia("(prefers-color-scheme: light)").matches
-    ? "light"
-    : "dark";
-applyTheme(initialTheme);
-
-themeToggle.addEventListener("click", () => {
-  const currentTheme = document.documentElement.getAttribute("data-bs-theme");
-  applyTheme(currentTheme === "dark" ? "light" : "dark");
+searchInput.addEventListener("input", () => {
+  window.clearTimeout(searchTimer);
+  searchTimer = window.setTimeout(() => {
+    offset = 0;
+    refresh();
+  }, 300);
 });
-searchInput.addEventListener("input", render);
-sortSelect.addEventListener("change", render);
+sortSelect.addEventListener("change", () => {
+  offset = 0;
+  refresh();
+});
 directionButton.addEventListener("click", () => {
   descending = !descending;
   directionButton.textContent = descending ? "↓" : "↑";
   directionButton.setAttribute("aria-label", `Sort ${descending ? "descending" : "ascending"}`);
-  render();
+  offset = 0;
+  refresh();
 });
+
+previousPageButton.addEventListener("click", () => {
+  offset = Math.max(0, offset - Number(pageSizeSelect.value));
+  refresh();
+});
+nextPageButton.addEventListener("click", () => {
+  offset += Number(pageSizeSelect.value);
+  refresh();
+});
+pageSizeSelect.addEventListener("change", () => {
+  try {
+    window.localStorage.setItem(PAGE_SIZE_KEY, pageSizeSelect.value);
+  } catch (error) {
+    console.warn("Could not save the leaderboard page size.", error);
+  }
+  offset = 0;
+  refresh();
+});
+
+try {
+  const savedPageSize = window.localStorage.getItem(PAGE_SIZE_KEY);
+  if (["10", "25", "50", "100"].includes(savedPageSize)) {
+    pageSizeSelect.value = savedPageSize;
+  }
+} catch (error) {
+  console.warn("Could not read the saved leaderboard page size.", error);
+}
 
 refresh();
 window.setInterval(refresh, REFRESH_INTERVAL);

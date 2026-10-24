@@ -98,6 +98,15 @@ def leaderboard_page(request: Request) -> HTMLResponse:
     )
 
 
+@app.get("/register", response_class=HTMLResponse, include_in_schema=False)
+def registration_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request=request,
+        name="register.html",
+        context={"page_title": "Create an account · Elemental Keep"},
+    )
+
+
 @app.get("/health")
 def health() -> HealthResponse:
     return HealthResponse(status="ok")
