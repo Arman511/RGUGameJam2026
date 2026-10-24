@@ -1,0 +1,12 @@
+services:
+  elemental-api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      ELEMENTAL_API_DB_PATH: /data/elemental_api.db
+    volumes:
+      - ./.local/elemental_api_data:/data

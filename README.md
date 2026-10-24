@@ -19,12 +19,12 @@ uv sync --all-packages --all-groups
 
 ## Run the solo game
 ```bash
-uv run --package elemental-game python -m elemental_game.main
+uv run --project apps/game python -m elemental_game.main
 ```
 
 ## Run the API locally
 ```bash
-uv run --package elemental-api uvicorn elemental_api.main:app --reload --host 127.0.0.1 --port 8000
+uv run --project services/api uvicorn elemental_api.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 ## Controls
