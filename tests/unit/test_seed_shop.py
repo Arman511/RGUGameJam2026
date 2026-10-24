@@ -198,6 +198,43 @@ def test_planting_offers_only_owned_seed_tiers_and_consumes_selection() -> None:
     assert not farm.planting
 
 
+def test_farm_plays_sfx_only_after_successful_planting_and_harvesting(
+    monkeypatch,
+) -> None:
+    events = []
+    farm = make_farm()
+
+    monkeypatch.setattr(
+        "elemental_game.game_entities.farm.play_sfx",
+        lambda name: events.append(("sound", name, farm.grid[0][0])) or True,
+    )
+    monkeypatch.setattr(
+        pygame.time,
+        "delay",
+        lambda milliseconds: events.append(
+            ("delay", milliseconds, farm.grid[0][0])
+        ),
+    )
+
+    crop = farm.plant(0, 0, CropType.FIRE)
+    assert crop is not None
+    assert farm.plant(0, 0, CropType.WATER) is None
+    assert events == [
+        ("sound", "planting", None),
+        ("delay", 250, None),
+    ]
+
+    crop.growth_timer = crop.GROWTH_TIME
+    assert farm.harvest(0, 0) is crop
+    assert farm.harvest(0, 0) is None
+    assert events == [
+        ("sound", "planting", None),
+        ("delay", 250, None),
+        ("sound", "harvesting", crop),
+        ("delay", 250, crop),
+    ]
+
+
 def test_harvest_yield_matches_crop_tier() -> None:
     player = make_player()
     crop = Crop(CropType.ICE, (0, 0), tier=2)

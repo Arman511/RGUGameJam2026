@@ -149,6 +149,15 @@ def registration_page(request: Request) -> HTMLResponse:
     )
 
 
+@app.get("/download", response_class=HTMLResponse, include_in_schema=False)
+def download_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request=request,
+        name="download.html",
+        context={"page_title": "Download · Elemental Keep"},
+    )
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}

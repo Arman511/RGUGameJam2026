@@ -39,6 +39,24 @@ def test_registration_succeeds(client) -> None:
     assert response.json()["user"]["username"] == "alice"
 
 
+def test_pages_link_to_download_page(client) -> None:
+    download_page = client.get("/download")
+    leaderboard_page = client.get("/")
+    registration_page = client.get("/register")
+
+    assert download_page.status_code == 200
+    assert "Download the game" in download_page.text
+    assert (
+        'href="https://github.com/Arman511/RGUGameJam2026/releases"'
+        in download_page.text
+    )
+    assert 'href="/register">Register</a>' in download_page.text
+    assert leaderboard_page.status_code == 200
+    assert 'href="/download">Download</a>' in leaderboard_page.text
+    assert registration_page.status_code == 200
+    assert 'href="/download">Download</a>' in registration_page.text
+
+
 def test_duplicate_username_is_rejected(client) -> None:
     client.post(
         "/api/v1/auth/register", json={"username": "alice", "password": "secretpass"}

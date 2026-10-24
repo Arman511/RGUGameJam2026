@@ -38,6 +38,9 @@ Windows). Run this command on the platform you want to build for: PyInstaller
 does not cross-compile, so build Windows releases on Windows, macOS releases on
 macOS, and Linux releases on Linux.
 
+## Enviroment variables (Game)
+- ELEMENTAL_KEEP_API_BASE_URL - Set this to change the games backendend server for global leaderboard
+
 ## Run the API locally
 ```bash
 uv run --project services/api uvicorn elemental_api.main:app --reload --host 127.0.0.1 --port 8000
@@ -57,6 +60,14 @@ Local leaderboard data is stored in the OS app-data directory, not in the reposi
 uv run pytest
 uv run ruff check .
 ```
+
+## Licenses
+The project is licensed under the [MIT License](LICENSE). Audio tracks are
+covered by separate license certificates:
+
+- `background.ogg` — [background license](licenses/background-license.txt)
+- `boss.ogg` — [boss license](licenses/boss-license.txt)
+- `enemies.ogg` — [enemies license](licenses/enemies-license.txt)
 
 ## Current status
 Implemented: core simulation, local persistence, Pygame menu and loop, API/auth routes, and tests.
