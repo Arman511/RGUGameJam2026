@@ -1,8 +1,24 @@
-import pygame
+from collections.abc import Sequence
+from dataclasses import dataclass
 
-from elemental_game.game_entities.farm import Farm
+import pygame
 from elemental_game.game_entities.crops.crops import CropType
+from elemental_game.game_entities.farm import Farm
 from elemental_game.types.seed import SeedType
+
+
+@dataclass(frozen=True)
+class LandUpgrade:
+    quadrant: str
+    cost: int
+
+
+@dataclass(frozen=True)
+class FertilizerUpgrade:
+    crop_type: CropType
+
+
+UpgradeOption = LandUpgrade | FertilizerUpgrade
 
 
 class ShopMenu:
@@ -15,6 +31,14 @@ class ShopMenu:
         CropType.EARTH,
         CropType.WATER,
         CropType.LIGHTNING,
+    )
+    CROP_TYPES = (
+        CropType.FIRE,
+        CropType.WATER,
+        CropType.LIGHTNING,
+        CropType.EARTH,
+        CropType.ICE,
+        CropType.AIR,
     )
 
     def __init__(self):
@@ -44,25 +68,23 @@ class ShopMenu:
         elif self.mode == "buy" and event.key == pygame.K_RIGHT:
             self.tier = self.tier % 3 + 1
         elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
-            options = self._options(player)
-            if options:
-                if self.mode == "buy":
-                    crop_type = options[self.selected]
-                    player.buy_seed(SeedType[crop_type.name], self.tier)
-                elif self.mode == "sell":
-                    crop_type = options[self.selected]
-                    player.sell_crop(crop_type)
-                    self.selected = min(self.selected, len(self._options(player)) - 1)
-                elif self.mode == "upgrade":
-                    upgrade_type, upgrade_value = options[self.selected]
-                    if upgrade_type == "land":
-                        if player.buy_next_farm_quadrant():
-                            self.status_message = "Farm quadrant unlocked."
-                        else:
-                            self.status_message = "Not enough coins."
+            if self.mode == "buy":
+                crop_type = self.CROP_TYPES[self.selected]
+                player.buy_seed(SeedType[crop_type.name], self.tier)
+            elif self.mode == "sell":
+                crop_type = self._crop_options(player)[self.selected]
+                player.sell_crop(crop_type)
+                self.selected = min(self.selected, len(self._options(player)) - 1)
+            elif self.mode == "upgrade":
+                option = self._upgrade_options(player)[self.selected]
+                if isinstance(option, LandUpgrade):
+                    if player.buy_next_farm_quadrant():
+                        self.status_message = "Farm quadrant unlocked."
                     else:
-                        self.pending_fertilizer = upgrade_value
-                        self._begin_fertilizer_purchase(player, farm)
+                        self.status_message = "Not enough coins."
+                else:
+                    self.pending_fertilizer = option.crop_type
+                    self._begin_fertilizer_purchase(player, farm)
 
     def _begin_fertilizer_purchase(self, player, farm):
         quadrants = self._unlocked_quadrants(player)
@@ -150,11 +172,12 @@ class ShopMenu:
                 panel.width - 40,
             )
 
-        options = (
-            self._unlocked_quadrants(player)
-            if self.selecting_quadrant
-            else self._options(player)
-        )
+        if self.selecting_quadrant:
+            options = self._unlocked_quadrants(player)
+        elif self.mode == "upgrade":
+            options = self._upgrade_options(player)
+        else:
+            options = self._crop_options(player)
         if not options:
             messages = {
                 "buy": "No seeds available",
@@ -179,42 +202,35 @@ class ShopMenu:
             else 88
         )
         for index, option in enumerate(options):
-            if self.selecting_quadrant:
+            if isinstance(option, str):
                 quadrant = option
                 active = farm.fertilizers.get(quadrant)
                 label = quadrant.replace("_", " ").title()
                 if active is not None:
                     label += f" - {active[0].name.title()} {active[1]:.0f}s left"
-            elif self.mode == "buy":
-                crop_type = option
-                seed_type = SeedType[crop_type.name]
+            elif isinstance(option, LandUpgrade):
+                label = (
+                    f"Unlock {option.quadrant.replace('_', ' ').title()} - "
+                    f"{option.cost} coins"
+                )
+            elif isinstance(option, FertilizerUpgrade):
+                label = (
+                    f"{option.crop_type.name.title()} fertilizer - "
+                    f"{self.FERTILIZER_COST} coins"
+                )
+            elif isinstance(option, CropType) and self.mode == "buy":
+                seed_type = SeedType[option.name]
                 owned = player.seeds[seed_type][f"tier{self.tier}"]
                 label = (
-                    f"{crop_type.name.title()} seed T{self.tier} - "
+                    f"{option.name.title()} seed T{self.tier} - "
                     f"{self.tier} coin(s), owned {owned}"
                 )
-            elif self.mode == "sell":
+            elif isinstance(option, CropType) and self.mode == "sell":
                 crop_type = option
                 count = player.crops.get(crop_type, 0)
                 label = f"{crop_type.name.title()} crop x{count} - sell 1 for 3 coins"
-            elif self.mode == "upgrade":
-                upgrade_type, upgrade_value = option
-                if upgrade_type == "land":
-                    quadrant, cost = upgrade_value
-                    label = (
-                        f"Unlock {quadrant.replace('_', ' ').title()} - {cost} coins"
-                    )
-                else:
-                    label = (
-                        f"{upgrade_value.name.title()} fertilizer - "
-                        f"{self.FERTILIZER_COST} coins"
-                    )
             else:
-                crop_type = option
-                label = (
-                    f"{crop_type.name.title()} fertilizer - "
-                    f"{self.FERTILIZER_COST} coins"
-                )
+                raise ValueError(f"Unsupported market option: {option!r}")
 
             row = pygame.Rect(
                 panel.x + 16,
@@ -253,18 +269,29 @@ class ShopMenu:
                 panel.width - 40,
             )
 
-    def _options(self, player):
+    def _crop_options(self, player) -> list[CropType]:
         if self.mode == "buy":
-            return list(CropType)
-        if self.mode == "upgrade":
-            options = [("fertilizer", crop_type) for crop_type in self.FERTILIZER_TYPES]
-            unlock = player.next_farm_quadrant_unlock()
-            if unlock is not None:
-                options.insert(0, ("land", unlock))
-            return options
+            return list(self.CROP_TYPES)
         return [
-            crop_type for crop_type in CropType if player.crops.get(crop_type, 0) > 0
+            crop_type
+            for crop_type in self.CROP_TYPES
+            if player.crops.get(crop_type, 0) > 0
         ]
+
+    def _upgrade_options(self, player) -> list[UpgradeOption]:
+        options: list[UpgradeOption] = [
+            FertilizerUpgrade(crop_type) for crop_type in self.FERTILIZER_TYPES
+        ]
+        unlock = player.next_farm_quadrant_unlock()
+        if unlock is not None:
+            quadrant, cost = unlock
+            options.insert(0, LandUpgrade(quadrant, cost))
+        return options
+
+    def _options(self, player) -> Sequence[object]:
+        if self.mode == "upgrade":
+            return self._upgrade_options(player)
+        return self._crop_options(player)
 
     @staticmethod
     def _draw_fitted(surface, font, text, color, position, max_width):

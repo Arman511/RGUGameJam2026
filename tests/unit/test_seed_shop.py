@@ -1,9 +1,8 @@
 import pygame
-
 from elemental_game.game_entities.crops.crops import Crop, CropType
 from elemental_game.game_entities.farm import CropMenu, Farm
-from elemental_game.game_entities.shop import ShopMenu
 from elemental_game.game_entities.player.player import Player
+from elemental_game.game_entities.shop import ShopMenu
 from elemental_game.types.player import PlayerType
 from elemental_game.types.seed import SeedType
 
@@ -151,7 +150,9 @@ def test_planting_without_seeds_shows_market_reminder() -> None:
     farm.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_f}), player)
 
     assert not farm.planting
-    assert farm.notice_message == "Buy seeds in the market first."
+    assert farm.notice_message == (
+        "Buy seeds in the market first. Press M to open the market."
+    )
     assert farm.notice_timer > 0
 
 
