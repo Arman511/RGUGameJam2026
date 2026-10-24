@@ -103,7 +103,10 @@ class CredentialStore:
         if keyring is not None:
             try:
                 keyring.delete_password(self.app_name, "api_token")
-            except keyring.errors.NoKeyringError:
+            except (
+                keyring.errors.NoKeyringError,
+                keyring.errors.PasswordDeleteError,
+            ):
                 pass
         if self.cache_path.exists():
             try:
