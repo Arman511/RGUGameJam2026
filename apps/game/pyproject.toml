@@ -4,14 +4,12 @@ version = "0.1.0"
 description = "Desktop game for Elemental Keep"
 requires-python = ">=3.12,<3.14"
 dependencies = [
-    "game-core",
-    "api-client",
     "pygame>=2.6.0",
+    "alembic>=1.14.0",
+    
+    "sqlalchemy>=2.0.0",
 ]
 
-[tool.uv.sources]
-game-core = { workspace = true }
-api-client = { workspace = true }
 
 [build-system]
 requires = ["hatchling>=1.18.0"]

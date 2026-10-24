@@ -15,8 +15,6 @@ dev = [
 [tool.uv.workspace]
 members = [
     "apps/game",
-    "packages/game_core",
-    "packages/api_client",
     "services/api",
 ]
 
