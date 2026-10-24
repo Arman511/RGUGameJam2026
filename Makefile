@@ -32,9 +32,16 @@ local-serve:
 	docker compose -f docker-compose.local.yml up --build
 
 release:
+	@git fetch origin --tags --force
 	@read -p "Enter release tag (e.g. v1.0.0): " tag; \
 	if [ -z "$$tag" ]; then \
 		echo "Error: tag cannot be empty"; \
 		exit 1; \
 	fi; \
-	git tag "$$tag" && git push origin "$$tag"
+	if git rev-parse -q --verify "refs/tags/$$tag" >/dev/null || \
+	   git ls-remote --exit-code --tags origin "refs/tags/$$tag" >/dev/null 2>&1; then \
+		echo "Error: tag '$$tag' already exists locally or remotely."; \
+		exit 1; \
+	fi; \
+	git tag "$$tag" && \
+	git push origin "$$tag"
