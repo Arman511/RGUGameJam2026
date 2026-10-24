@@ -112,3 +112,18 @@ def test_credentials_fall_back_when_keyring_backend_is_unavailable(
     credentials.clear_token()
 
     assert credentials.load_token() is None
+
+
+def test_expired_credentials_handle_missing_keyring_entry(
+    tmp_path, monkeypatch
+) -> None:
+    import keyring
+    from elemental_game.api_client import auth as auth_module
+
+    def missing_password(*_args: Any) -> None:
+        raise keyring.errors.PasswordDeleteError("elemental-keep")
+
+    monkeypatch.setattr(auth_module.keyring, "delete_password", missing_password)
+    credentials = CredentialStore(cache_path=str(tmp_path / "credentials.json"))
+
+    assert credentials.load_token() is None
