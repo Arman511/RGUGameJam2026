@@ -5,8 +5,8 @@ import pygame
 from elemental_game.api_client import APIClient, AuthClient, CredentialStore
 from elemental_game.api_client.http import APIError, AuthError
 from elemental_game.database import LocalLeaderboardStore
-from elemental_game.game_entities.crops.crops import CropType
 from elemental_game.game_entities.farm import Farm
+from elemental_game.game_entities.player.player import Player
 
 WINDOW_SIZE = (800, 600)
 BACKGROUND = (30, 30, 30)
@@ -56,39 +56,6 @@ class InputField:
         )
 
 
-class CropMenu:
-    """Popup listing the plant types. Opens at the mouse when F is pressed."""
-
-    ITEM_W, ITEM_H = 120, 30
-
-    def __init__(self, tile: tuple[int, int], pos: tuple[int, int]) -> None:
-        self.tile = tile
-        self.options = [
-            (
-                crop_type,
-                pygame.Rect(
-                    pos[0], pos[1] + index * self.ITEM_H, self.ITEM_W, self.ITEM_H
-                ),
-            )
-            for index, crop_type in enumerate(CropType)
-        ]
-
-    def click(self, pos: tuple[int, int]) -> CropType | None:
-        for crop_type, rect in self.options:
-            if rect.collidepoint(pos):
-                return crop_type
-        return None
-
-    def draw(self, surface: pygame.Surface, font: pygame.font.Font) -> None:
-        mouse = pygame.mouse.get_pos()
-        for crop_type, rect in self.options:
-            color = (90, 90, 90) if rect.collidepoint(mouse) else (60, 60, 60)
-            pygame.draw.rect(surface, color, rect)
-            pygame.draw.rect(surface, (200, 200, 200), rect, 1)
-            label = font.render(crop_type.name.title(), True, TEXT)
-            surface.blit(label, label.get_rect(midleft=(rect.x + 8, rect.centery)))
-
-
 class GameApplication:
     def __init__(self) -> None:
         self.screen = pygame.display.set_mode(WINDOW_SIZE)
@@ -96,7 +63,6 @@ class GameApplication:
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont(None, 28)
         self.title_font = pygame.font.SysFont(None, 42)
-
         self.store = LocalLeaderboardStore()
         self.credentials = CredentialStore()
         self.auth = AuthClient(APIClient(), self.credentials)
@@ -126,7 +92,7 @@ class GameApplication:
         self.preferences = self.store.sound_preferences()
         self._apply_sound_preferences()
         self.farm = Farm(rows=4, cols=6, origin=(300, 300))
-        self.crop_menu: CropMenu | None = None
+        self.player = Player(pos=self.farm.tile_rect(1, 2).center)
         self.dragging_slider: str | None = None
         self._check_existing_login()
 
@@ -180,6 +146,7 @@ class GameApplication:
 
             if self.state == "game":
                 self.farm.update(dt)
+                self.player.update(dt)
 
             self._draw()
             pygame.display.flip()
@@ -334,28 +301,15 @@ class GameApplication:
                 self.state = "settings"
 
     def _handle_game_event(self, event: pygame.event.Event) -> None:
-        hovered = self.farm.tile_at_pixel(*pygame.mouse.get_pos())
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                if self.crop_menu is not None:
-                    self.crop_menu = None
-                else:
-                    self.state = "menu"
-            elif self.crop_menu is None and hovered:
-                row, col = hovered
-                if event.key == pygame.K_f and self.farm.is_empty(row, col):
-                    self.crop_menu = CropMenu(hovered, pygame.mouse.get_pos())
-                elif event.key == pygame.K_h:
-                    self.farm.harvest(row, col)
-        elif (
-            event.type == pygame.MOUSEBUTTONDOWN
-            and event.button == 1
-            and self.crop_menu is not None
-        ):
-            crop_type = self.crop_menu.click(event.pos)
-            if crop_type is not None:
-                self.farm.plant(*self.crop_menu.tile, crop_type)
-            self.crop_menu = None
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            if self.farm.menu is not None:
+                self.farm.menu = None
+            else:
+                self.state = "menu"
+            return
+
+        tile = self.farm.tile_at_pixel(*self.player.pos)
+        self.farm.handle_event(event, tile)
 
     def _draw(self) -> None:
         self.screen.fill(BACKGROUND)
@@ -453,14 +407,14 @@ class GameApplication:
         self._draw_button("Cancel", pygame.Rect(410, 340, 140, 48))
 
     def _draw_game(self) -> None:
-        hovered = self.farm.tile_at_pixel(*pygame.mouse.get_pos())
-        self.farm.draw(self.screen, self.font, hovered)
+        tile = self.farm.tile_at_pixel(*self.player.pos)
+        self.farm.draw(self.screen, self.font, tile)
+        self.player.draw(self.screen)
+        self.farm.draw_menu(self.screen, self.font)
         hint = self.font.render(
-            "Hover a tile:  F = plant   H = harvest   Esc = menu", True, TEXT
+            "Arrows = move   F = plant   H = harvest   Esc = menu", True, TEXT
         )
         self.screen.blit(hint, (10, 10))
-        if self.crop_menu is not None:
-            self.crop_menu.draw(self.screen, self.font)
 
     def _draw_title(self, label: str, y: int) -> None:
         text = self.title_font.render(label, True, TEXT)
