@@ -9,6 +9,7 @@ farm.update(dt)      # every frame
 
 import pygame
 from elemental_game.game_entities.crops.crops import Crop, CropType
+from elemental_game.types.seed import SeedType
 from elemental_game.config import IMAGES_DIR
 import os
 
@@ -50,19 +51,21 @@ class Farm:
             return None
         return self.grid[row][col]
 
-    def plant(self, row, col, crop_type):
+    def plant(self, row, col, crop_type, tier=1):
         """Returns the new Crop, or None if the tile is taken or out of bounds."""
         if not self.is_empty(row, col):
             return None
-        crop = Crop(crop_type, (row, col))
+        crop = Crop(crop_type, (row, col), tier)
         self.grid[row][col] = crop
+        return crop
 
     def harvest(self, row, col):
-        """Harvests the crop if it's ready and clears the tile. Returns the crop type or None."""
+        """Harvests a ready crop, clears its tile, and returns the crop or None."""
         crop = self.get_crop(row, col)
         if crop is None or not crop.is_ready():
             return None
         self.grid[row][col] = None
+        return crop
 
     def tile_rect(self, row, col):
         # return the screen area of the tile as x, y, width, height
@@ -122,24 +125,29 @@ class Farm:
 
         # if a player does farm action
         if event.key == pygame.K_f and tile and self.is_empty(*tile):
-            self.menu.move_to(
-                tile, self.tile_rect(*tile).bottomleft
-            )  # position the menu
-            self.planting = True
+            self.menu.move_to(tile, self.tile_rect(*tile).bottomleft, player)
+            self.planting = bool(self.menu.options)
         # if a player does harvest action
-        elif event.key == pygame.K_h and tile:
+        elif event.key == pygame.K_g and tile:
             crop = self.get_crop(*tile)  # determine which crop is on that tile
             if crop is not None and crop.is_ready():
-                self.harvest(*tile)  # player gains some crop
-                player.add_crop(crop.crop_type, crop.CROP_YIELD)
+                harvested = self.harvest(*tile)
+                player.add_crop(harvested.crop_type, harvested.tier)
 
         if self.planting:
-            if event.key == pygame.K_UP:
+            if event.key == pygame.K_ESCAPE:
+                self.planting = False
+            elif event.key == pygame.K_UP:
                 self.menu.move_selection(-1)
             elif event.key == pygame.K_DOWN:
                 self.menu.move_selection(1)
             elif event.key == pygame.K_RETURN:
-                self.plant(*self.menu.tile, self.menu.selected_type())
+                selection = self.menu.selected_crop()
+                if selection is not None:
+                    crop_type, tier = selection
+                    seed_type = SeedType[crop_type.name]
+                    if player.consume_seed(seed_type, tier):
+                        self.plant(*self.menu.tile, crop_type, tier)
                 self.planting = False
 
     def draw_menu(self, surface, font):
@@ -155,28 +163,62 @@ class CropMenu:
     def __init__(self):
         self.tile = None  # tile the menu is currently open for
         self.selected = 0  # index of the highlighted option
-        self.options = [
-            (crop_type, pygame.Rect(0, 0, self.ITEM_W, self.ITEM_H))
-            for crop_type in CropType
-        ]
+        self.options = []
 
-    def move_to(self, tile, pos):
+    def move_to(self, tile, pos, player):
         """Point the menu at a tile, place it at pos and reset the selection."""
         self.tile = tile
         self.selected = 0
-        for i, (_, rect) in enumerate(self.options):
-            rect.topleft = (pos[0], pos[1] + i * self.ITEM_H)
+        self.options = []
+        for crop_type in CropType:
+            seed_type = SeedType[crop_type.name]
+            for tier in (1, 2, 3):
+                count = player.seeds[seed_type][f"tier{tier}"]
+                if count > 0:
+                    rect = pygame.Rect(
+                        pos[0], pos[1] + len(self.options) * self.ITEM_H,
+                        self.ITEM_W, self.ITEM_H
+                    )
+                    self.options.append((crop_type, tier, count, rect))
 
     def move_selection(self, step):
-        self.selected = (self.selected + step) % len(self.options)  # wraps around
+        if self.options:
+            self.selected = (self.selected + step) % len(self.options)
 
-    def selected_type(self):
-        return self.options[self.selected][0]
+    def selected_crop(self):
+        if not self.options:
+            return None
+        crop_type, tier, _, _ = self.options[self.selected]
+        return crop_type, tier
 
     def draw(self, surface, font):
-        for i, (crop_type, rect) in enumerate(self.options):
+        if not self.options:
+            return
+
+        text_surfaces = [
+            font.render(
+                f"{crop_type.name.title()} T{tier} ({count})",
+                True,
+                (255, 255, 255),
+            )
+            for crop_type, tier, count, _ in self.options
+        ]
+        menu_width = min(
+            surface.get_width(),
+            max(self.ITEM_W, max(text.get_width() + 16 for text in text_surfaces)),
+        )
+        row_height = min(
+            self.ITEM_H,
+            max(1, surface.get_height() // len(self.options)),
+        )
+        menu_height = row_height * len(self.options)
+        anchor = self.options[0][3]
+        menu_x = min(max(0, anchor.x), surface.get_width() - menu_width)
+        menu_y = min(max(0, anchor.y), surface.get_height() - menu_height)
+
+        for i, ((_, _, _, rect), text) in enumerate(zip(self.options, text_surfaces)):
+            rect.update(menu_x, menu_y + i * row_height, menu_width, row_height)
             colour = (110, 110, 110) if i == self.selected else (60, 60, 60)
             pygame.draw.rect(surface, colour, rect)
             pygame.draw.rect(surface, (200, 200, 200), rect, 1)
-            text = font.render(crop_type.name.title(), True, (255, 255, 255))
             surface.blit(text, text.get_rect(midleft=(rect.x + 8, rect.centery)))

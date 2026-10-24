@@ -1,25 +1,9 @@
 import os
-from enum import IntEnum
 
+from elemental_game.types.player import PlayerType
+from elemental_game.types.seed import SeedType
 import pygame
 from elemental_game.config import IMAGES_DIR
-
-
-class PlayerType(IntEnum):
-    WATER = 1
-    EARTH = 2
-    LIGHTNING = 3
-    ICE = 4
-    FIRE = 5
-    AIR = 6
-
-    @property
-    def image_path(self) -> str:
-        return f"{self.name.lower()}-player.png"
-
-    @property
-    def full_image_path(self) -> str:
-        return os.path.join(IMAGES_DIR, "players", self.image_path)
 
 
 class Player:
@@ -32,20 +16,19 @@ class Player:
         image = pygame.image.load(player_type.full_image_path).convert_alpha()
         self.image = pygame.transform.scale(image, (self.width, self.height))
         self.pos = pygame.Vector2(pos)  # centre of the player
-        self.water_seed = {"tier1": 0, "tier2": 0, "tier3": 0}
-        self.fire_seed = {"tier1": 0, "tier2": 0, "tier3": 0}
-        self.earth_seed = {"tier1": 0, "tier2": 0, "tier3": 0}
-        self.air_seed = {"tier1": 0, "tier2": 0, "tier3": 0}
-        self.lightning_seed = {"tier1": 0, "tier2": 0, "tier3": 0}
-        self.ice_seed = {"tier1": 0, "tier2": 0, "tier3": 0}
-        self.coins = 0
+        self.seeds = {
+            seed_type: {"tier1": 0, "tier2": 0, "tier3": 0} for seed_type in SeedType
+        }
+        self.coins = 5
         self.crops = {}
 
     def update(self, dt):
         keys = pygame.key.get_pressed()
         move = pygame.Vector2(
-            keys[pygame.K_RIGHT] - keys[pygame.K_LEFT],
-            keys[pygame.K_DOWN] - keys[pygame.K_UP],
+            (keys[pygame.K_RIGHT] or keys[pygame.K_d])
+            - (keys[pygame.K_LEFT] or keys[pygame.K_a]),
+            (keys[pygame.K_DOWN] or keys[pygame.K_s])
+            - (keys[pygame.K_UP] or keys[pygame.K_w]),
         )
         if move.length() > 0:
             self.pos += (
@@ -57,3 +40,45 @@ class Player:
 
     def add_crop(self, crop_type, amount):
         self.crops[crop_type] = self.crops.get(crop_type, 0) + amount
+
+    def add_seed(self, seed_type, tier, amount):
+        if seed_type not in self.seeds:
+            raise ValueError(f"Invalid seed_type: {seed_type}")
+        if tier not in self.seeds[seed_type]:
+            raise ValueError(f"Invalid tier: {tier}")
+        self.seeds[seed_type][tier] += amount
+
+    def buy_seed(self, seed_type, tier):
+        if seed_type not in self.seeds or tier not in (1, 2, 3):
+            return False
+        if self.coins < tier:
+            return False
+
+        self.coins -= tier
+        self.add_seed(seed_type, f"tier{tier}", 1)
+        return True
+
+    def consume_seed(self, seed_type, tier):
+        tier_key = f"tier{tier}"
+        if seed_type not in self.seeds or tier_key not in self.seeds[seed_type]:
+            return False
+        if self.seeds[seed_type][tier_key] <= 0:
+            return False
+
+        self.seeds[seed_type][tier_key] -= 1
+        return True
+
+    def sell_crop(self, crop_type):
+        if self.crops.get(crop_type, 0) <= 0:
+            return False
+
+        self.crops[crop_type] -= 1
+        self.coins += 3
+        return True
+
+    def reset(self):
+        self.seeds = {
+            seed_type: {"tier1": 0, "tier2": 0, "tier3": 0} for seed_type in SeedType
+        }
+        self.coins = 5
+        self.crops = {}

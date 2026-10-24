@@ -1,11 +1,14 @@
-import os
-
 import pygame
+from elemental_game.screen_rendering.edit_confirmation import draw_exit_confirmation
+
+from elemental_game.screen_rendering.hud import draw_inventory_hud
+import os
 
 from elemental_game import config
 from elemental_game.game_entities.farm import Farm, CropMenu
-from elemental_game.game_entities.crops.crops import CropType
-from elemental_game.game_entities.player.player import Player, PlayerType
+from elemental_game.game_entities.player.player import Player
+from elemental_game.types.player import PlayerType
+from elemental_game.game_entities.shop import ShopMenu
 from elemental_game.menus import MenuSystem
 from enum import Enum
 
@@ -41,14 +44,25 @@ PLANTING = True
 
 # login / main menu / leaderboard / settings (menus.py)
 # returns True when they press Play, False if they close the window
+def _create_game(screen, player_type):
+    dimensions = (6, 6)
+    farm = Farm(
+        *dimensions,
+        origin=((screen.get_width() - dimensions[1] * Farm.TILE_SIZE) // 2, 250),
+    )
+    player = Player(player_type=PlayerType(player_type))
+    return farm, player
+
+
 def main():
     menus = MenuSystem(screen)
     running = menus.run()
 
-    dimensions = (6, 6)
-    farm = Farm(*dimensions,
-                origin=((screen.get_width() - dimensions[1] * Farm.TILE_SIZE) // 2, 250))
-    player = Player(player_type=PlayerType(menus.store.player_image_number()))
+    farm, player = _create_game(screen, menus.store.player_image_number())
+    shop = ShopMenu()
+    shop_open = False
+    hud_visible = False
+    confirm_exit = False
 
     while running:
         seconds = clock.tick(60) / 1000  # seconds since last frame
@@ -58,13 +72,40 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False  # close the pygame window
+            elif confirm_exit and event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_y, pygame.K_RETURN):
+                    confirm_exit = False
+                    running = menus.run()
+                    if running:
+                        farm, player = _create_game(
+                            screen, menus.store.player_image_number()
+                        )
+                        shop = ShopMenu()
+                        shop_open = False
+                        hud_visible = False
+                    clock.tick()
+                elif event.key in (pygame.K_n, pygame.K_ESCAPE):
+                    confirm_exit = False
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_h:
+                hud_visible = not hud_visible
+            elif shop_open and event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_ESCAPE, pygame.K_m):
+                    shop_open = False
+                else:
+                    shop.handle_event(event, player)
+            elif event.type == pygame.KEYDOWN and farm.planting:
+                farm.handle_event(event, player)
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                running = menus.run()  # back to the main menu
-                clock.tick()  # discard the time spent in the menus
+                confirm_exit = True
+            elif event.type == pygame.KEYDOWN and not farm.planting:
+                if event.key == pygame.K_m:
+                    shop_open = True
+                else:
+                    farm.handle_event(event, player)
             else:
                 farm.handle_event(event, player)
 
-        if not farm.planting:
+        if not farm.planting and not shop_open and not confirm_exit:
             player.update(seconds)  # update player pos
         farm.update(seconds)  # update crop growth
 
@@ -74,9 +115,17 @@ def main():
         player.draw(screen)
         farm.draw_menu(screen, font)  # after the player so the menu sits on top
         hint = font.render(
-            "Arrows = move   F = plant   H = harvest", True, (255, 255, 255)
+            "Arrows = move   F = plant   G = gather   M = market   H = HUD",
+            True,
+            (255, 255, 255),
         )
         screen.blit(hint, (10, 10))
+        if hud_visible:
+            draw_inventory_hud(screen, font, player)
+        if shop_open:
+            shop.draw(screen, font, player)
+        if confirm_exit:
+            draw_exit_confirmation(screen, font)
         pygame.display.flip()
 
     pygame.quit()

@@ -15,6 +15,7 @@ import subprocess
 import webbrowser
 from typing import Any
 
+from elemental_game.types.player import PlayerType
 import pygame
 
 from elemental_game.api_client import APIClient, AuthClient, CredentialStore
@@ -25,7 +26,6 @@ from elemental_game.audio import (
 )
 from elemental_game.config import IMAGES_DIR
 from elemental_game.database import LocalLeaderboardStore
-from elemental_game.game_entities.player.player import PlayerType
 
 BUTTON = (65, 85, 65)
 BUTTON_HOVER = (85, 110, 85)
