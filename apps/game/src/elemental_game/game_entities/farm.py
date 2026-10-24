@@ -1,0 +1,68 @@
+"""
+Defines the farm grid: where crops are planted, grown and harvested
+
+Usage:
+
+farm.plant(0, 0, CropType.FIRE)
+farm.update(dt)      # every frame
+"""
+
+from crops import Crop, CropType
+
+
+class Farm:
+    TILE_SIZE = 32
+
+    def __init__(self, rows, cols, origin=(0, 0)):
+        self.rows = rows
+        self.cols = cols
+        self.origin = origin            # top-left pixel of the grid
+        self.grid = [[None] * cols for _ in range(rows)]
+
+    def in_bounds(self, row, col):
+        return 0 <= row < self.rows and 0 <= col < self.cols
+
+    def is_empty(self, row, col):
+        return self.in_bounds(row, col) and self.grid[row][col] is None
+
+    def get_crop(self, row, col):
+        if not self.in_bounds(row, col):
+            return None
+        return self.grid[row][col]
+
+    def plant(self, row, col, crop_type):
+        """Returns the new Crop, or None if the tile is taken or out of bounds."""
+        if not self.is_empty(row, col):
+            return None
+        crop = Crop(crop_type, (row, col))
+        self.grid[row][col] = crop
+        return crop
+
+    def harvest(self, row, col):
+        """Harvests the crop if it's ready and clears the tile. Returns the crop type or None."""
+        crop = self.get_crop(row, col)
+        if crop is None or not crop.is_ready():
+            return None
+        self.grid[row][col] = None  
+        return crop.harvest()
+
+    def update(self, dt):
+        for row in self.grid:
+            for crop in row:
+                if crop is not None:
+                    crop.growth_timer += dt
+
+    def tile_at_pixel(self, x, y):
+        """Convert a mouse position to (row, col), or None if outside the grid."""
+        col = int((x - self.origin[0]) // self.TILE_SIZE)
+        row = int((y - self.origin[1]) // self.TILE_SIZE)
+        return (row, col) if self.in_bounds(row, col) else None
+
+    def expand(self, add_rows=0, add_cols=0):
+        """Grow the farm to the right (cols) and/or downwards (rows)."""
+        for row in self.grid:
+            row.extend([None] * add_cols)
+        for _ in range(add_rows):
+            self.grid.append([None] * (self.cols + add_cols))
+        self.rows += add_rows
+        self.cols += add_cols
