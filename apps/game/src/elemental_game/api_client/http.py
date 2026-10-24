@@ -8,9 +8,8 @@ from typing import Any
 
 import httpx
 from pydantic import BaseModel
-from dotenv import load_dotenv
+from elemental_game import config
 
-load_dotenv()
 from .models import (
     LeaderboardResponse,
     LocalRunRecord,
@@ -33,7 +32,7 @@ class ValidationError(APIError):
 
 @dataclass
 class APIClient:
-    base_url: str = os.getenv("ELEMENTAL_KEEP_API_BASE_URL", "http://127.0.0.1:8000")
+    base_url: str = config.ELEMENTAL_KEEP_API_BASE_URL
     timeout: float = 5.0
     token: str | None = None
     token_provider: Callable[[], str | None] | None = None
