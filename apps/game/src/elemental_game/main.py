@@ -1,16 +1,18 @@
-import pygame
-from elemental_game.screen_rendering.edit_confirmation import draw_exit_confirmation
-
-from elemental_game.screen_rendering.hud import draw_inventory_hud
+import argparse
 import os
+from collections.abc import Sequence
+from enum import Enum
+
+import pygame
 
 from elemental_game import config
-from elemental_game.game_entities.farm import Farm, CropMenu
+from elemental_game.game_entities.farm import Farm
 from elemental_game.game_entities.player.player import Player
-from elemental_game.types.player import PlayerType
 from elemental_game.game_entities.shop import ShopMenu
 from elemental_game.menus import MenuSystem
-from enum import Enum
+from elemental_game.screen_rendering.edit_confirmation import draw_exit_confirmation
+from elemental_game.screen_rendering.hud import draw_inventory_hud
+from elemental_game.types.player import PlayerType
 
 # initialise pygame attributes
 pygame.init()
@@ -52,9 +54,22 @@ def _create_game(screen, player_type):
     return farm, player
 
 
-def main():
+def main(argv: Sequence[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description="Play Elemental Keep.")
+    parser.add_argument(
+        "--skip-menu",
+        action="store_true",
+        help="Start the game immediately, using a saved login or playing as a guest.",
+    )
+    args = parser.parse_args(argv)
+
     menus = MenuSystem(screen)
-    running = menus.run()
+    if args.skip_menu:
+        if menus.username is None:
+            menus._continue_as_guest()
+        running = True
+    else:
+        running = menus.run()
 
     farm, player = _create_game(screen, menus.store.player_image_number())
     shop = ShopMenu()
@@ -87,10 +102,13 @@ def main():
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_h:
                 hud_visible = not hud_visible
             elif shop_open and event.type == pygame.KEYDOWN:
-                if event.key in (pygame.K_ESCAPE, pygame.K_m):
+                if (
+                    event.key in (pygame.K_ESCAPE, pygame.K_m)
+                    and not shop.selecting_quadrant
+                ):
                     shop_open = False
                 else:
-                    shop.handle_event(event, player)
+                    shop.handle_event(event, player, farm)
             elif event.type == pygame.KEYDOWN and farm.planting:
                 farm.handle_event(event, player)
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
@@ -109,11 +127,11 @@ def main():
 
         # render screen:
         screen.blit(game_background, (0, 0))
-        farm.draw(screen, font, tile)
+        farm.draw(screen, font, tile, player)
         player.draw(screen)
         farm.draw_menu(screen, font)  # after the player so the menu sits on top
         hint = font.render(
-            "Arrows = move  F = plant  G = gather  M = market  H = Inventory",
+            "Arrows = move  F = interact  M = market  H = Inventory",
             True,
             (0, 0, 0),
         )
@@ -121,7 +139,7 @@ def main():
         if hud_visible:
             draw_inventory_hud(screen, player)
         if shop_open:
-            shop.draw(screen, font, player)
+            shop.draw(screen, font, player, farm)
         if confirm_exit:
             draw_exit_confirmation(screen, font)
         pygame.display.flip()

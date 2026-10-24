@@ -18,6 +18,27 @@ import os
 
 class Farm:
     TILE_SIZE = 50
+    QUADRANTS = (
+        "top_left",
+        "top_right",
+        "bottom_left",
+        "bottom_right",
+    )
+    FERTILIZER_DURATION = 60.0
+    FERTILIZER_COLORS = {
+        CropType.FIRE: (235, 65, 55),
+        CropType.AIR: (245, 245, 245),
+        CropType.EARTH: (70, 190, 80),
+        CropType.WATER: (65, 145, 240),
+        CropType.LIGHTNING: (245, 215, 45),
+    }
+    FERTILIZER_MARKS = {
+        CropType.FIRE: "F",
+        CropType.AIR: "A",
+        CropType.EARTH: "E",
+        CropType.WATER: "W",
+        CropType.LIGHTNING: "L",
+    }
     OPPOSING_ELEMENTS = {
         PlayerType.FIRE: CropType.WATER,
         PlayerType.WATER: CropType.FIRE,
@@ -34,6 +55,8 @@ class Farm:
         self.grid = [[None] * cols for _ in range(rows)]
         self.menu = CropMenu()  # one menu, created once
         self.planting = False  # True = menu is drawn and taking input
+        self.notice_message = ""
+        self.notice_timer = 0.0
 
         soil_img = pygame.image.load(
             os.path.join(IMAGES_DIR, "settings-and-gameplay", "soil.png")
@@ -41,12 +64,19 @@ class Farm:
         seedling_img = pygame.image.load(
             os.path.join(IMAGES_DIR, "settings-and-gameplay", "soil_plant.png")
         ).convert_alpha()
+        locked_soil_img = pygame.image.load(
+            os.path.join(IMAGES_DIR, "settings-and-gameplay", "locked-soil.png")
+        ).convert_alpha()
         self.soil_img = pygame.transform.scale(
             soil_img, (self.TILE_SIZE, self.TILE_SIZE)
         )
         self.seedling_img = pygame.transform.scale(
             seedling_img, (self.TILE_SIZE, self.TILE_SIZE)
         )
+        self.locked_soil_img = pygame.transform.scale(
+            locked_soil_img, (self.TILE_SIZE, self.TILE_SIZE)
+        )
+        self.fertilizers = {}
 
         self.flower_imgs = {
             crop_type: pygame.transform.scale(
@@ -62,14 +92,24 @@ class Farm:
     def is_empty(self, row, col):
         return self.in_bounds(row, col) and self.grid[row][col] is None
 
+    def quadrant_at(self, row, col):
+        if not self.in_bounds(row, col):
+            return None
+        vertical = "bottom" if row >= self.rows // 2 else "top"
+        horizontal = "right" if col >= self.cols // 2 else "left"
+        return f"{vertical}_{horizontal}"
+
     def get_crop(self, row, col):
         if not self.in_bounds(row, col):
             return None
         return self.grid[row][col]
 
-    def plant(self, row, col, crop_type, tier=1):
+    def plant(self, row, col, crop_type, tier=1, player=None):
         """Returns the new Crop, or None if the tile is taken or out of bounds."""
-        if not self.is_empty(row, col):
+        if not self.is_empty(row, col) or (
+            player is not None
+            and self.quadrant_at(row, col) not in player.unlocked_quadrants
+        ):
             return None
         crop = Crop(crop_type, (row, col), tier)
         self.grid[row][col] = crop
@@ -83,6 +123,12 @@ class Farm:
         self.grid[row][col] = None
         return crop
 
+    def apply_fertilizer(self, quadrant, crop_type):
+        if quadrant not in self.QUADRANTS or crop_type not in self.FERTILIZER_COLORS:
+            return False
+        self.fertilizers[quadrant] = (crop_type, self.FERTILIZER_DURATION)
+        return True
+
     def tile_rect(self, row, col):
         # return the screen area of the tile as x, y, width, height
         return pygame.Rect(
@@ -92,13 +138,17 @@ class Farm:
             self.TILE_SIZE,
         )
 
-    def draw(self, surface, font, player_pos):
+    def draw(self, surface, font, player_pos, player=None):
         for row in range(self.rows):
             for col in range(self.cols):
                 rect = self.tile_rect(row, col)
                 crop = self.grid[row][col]
+                quadrant = self.quadrant_at(row, col)
+                unlocked = player is None or quadrant in player.unlocked_quadrants
 
-                if crop is None:
+                if not unlocked:
+                    surface.blit(self.locked_soil_img, rect)
+                elif crop is None:
                     surface.blit(self.soil_img, rect)
                 elif crop.is_ready():
                     surface.blit(self.soil_img, rect)  # ground underneath
@@ -106,16 +156,44 @@ class Farm:
                 else:
                     surface.blit(self.seedling_img, rect)
 
+                fertilizer = self.fertilizers.get(quadrant)
+                if unlocked and fertilizer is not None:
+                    crop_type, remaining = fertilizer
+                    if remaining > 0:
+                        color = self.FERTILIZER_COLORS[crop_type]
+                        marker = pygame.Rect(rect.right - 18, rect.y + 2, 16, 16)
+                        pygame.draw.circle(surface, (30, 30, 30), marker.center, 8)
+                        pygame.draw.circle(surface, color, marker.center, 6)
+                        mark = font.render(
+                            self.FERTILIZER_MARKS[crop_type],
+                            True,
+                            (
+                                (25, 25, 25)
+                                if crop_type is CropType.AIR
+                                else (255, 255, 255)
+                            ),
+                        )
+                        surface.blit(mark, mark.get_rect(center=marker.center))
+
                 if (row, col) == player_pos:
-                    overlay = pygame.Surface(rect.size, pygame.SRCALPHA)
-                    pygame.draw.rect(overlay, (87, 0, 72, 95), overlay.get_rect())
-                    surface.blit(overlay, rect)
+                    if unlocked:
+                        overlay = pygame.Surface(rect.size, pygame.SRCALPHA)
+                        pygame.draw.rect(overlay, (87, 0, 72, 95), overlay.get_rect())
+                        surface.blit(overlay, rect)
 
     def update(self, dt):
         for row in self.grid:
             for crop in row:
                 if crop is not None:
                     crop.growth_timer += dt
+        for quadrant, (crop_type, remaining) in list(self.fertilizers.items()):
+            remaining -= dt
+            if remaining <= 0:
+                del self.fertilizers[quadrant]
+            else:
+                self.fertilizers[quadrant] = (crop_type, remaining)
+        if self.notice_timer > 0:
+            self.notice_timer = max(0.0, self.notice_timer - dt)
 
     def tile_at_pixel(self, x, y):
         """Convert a mouse position to (row, col), or None if outside the grid."""
@@ -138,25 +216,20 @@ class Farm:
             return  # why is there a return statement here do we need this at all
         tile = self.tile_at_pixel(*player.pos)
 
-        # if a player does farm action
-        if event.key == pygame.K_f and tile and self.is_empty(*tile):
-            self.menu.move_to(tile, self.tile_rect(*tile).bottomleft, player)
-            self.planting = bool(self.menu.options)
-        # if a player does harvest action
-        elif event.key == pygame.K_g and tile:
-            crop = self.get_crop(*tile)  # determine which crop is on that tile
+        if event.key == pygame.K_f and tile:
+            crop = self.get_crop(*tile)
             if crop is not None and crop.is_ready():
-                harvested = self.harvest(*tile)
-                yield_amount = harvested.tier
-                if harvested.crop_type.name == player.player_type.name:
-                    if random.random() < 0.25:
-                        yield_amount *= 2
-                elif (
-                    harvested.crop_type is self.OPPOSING_ELEMENTS[player.player_type]
-                    and random.random() < 0.10
-                ):
-                    yield_amount //= 2
-                player.add_crop(harvested.crop_type, yield_amount)
+                self._harvest_for_player(*tile, player)
+            elif crop is None and self.quadrant_at(*tile) in player.unlocked_quadrants:
+                self.menu.move_to(tile, self.tile_rect(*tile).bottomleft, player)
+                self.planting = bool(self.menu.options)
+                if not self.planting:
+                    self.notice_message = (
+                        "Buy seeds in the market first. Press M to open the market."
+                    )
+                    self.notice_timer = 2.5
+        elif event.key == pygame.K_g and tile:
+            self._harvest_for_player(*tile, player)
 
         if self.planting:
             if event.key == pygame.K_ESCAPE:
@@ -167,16 +240,62 @@ class Farm:
                 self.menu.move_selection(1)
             elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
                 selection = self.menu.selected_crop()
-                if selection is not None:
+                menu_tile = self.menu.tile
+                if selection is not None and menu_tile is not None:
                     crop_type, tier = selection
                     seed_type = SeedType[crop_type.name]
                     if player.consume_seed(seed_type, tier):
-                        self.plant(*self.menu.tile, crop_type, tier)
+                        self.plant(
+                            menu_tile[0],
+                            menu_tile[1],
+                            crop_type,
+                            tier,
+                            player,
+                        )
                 self.planting = False
 
+    def _harvest_for_player(self, row, col, player):
+        crop = self.get_crop(row, col)
+        if crop is None or not crop.is_ready():
+            return
+        harvested = self.harvest(row, col)
+        if harvested is None:
+            return
+        yield_amount = harvested.tier
+        if harvested.crop_type.name == player.player_type.name:
+            if random.random() < 0.25:
+                yield_amount *= 2
+        elif (
+            harvested.crop_type is self.OPPOSING_ELEMENTS[player.player_type]
+            and random.random() < 0.10
+        ):
+            yield_amount //= 2
+        fertilizer = self.fertilizers.get(self.quadrant_at(row, col))
+        if (
+            fertilizer is not None
+            and fertilizer[0] is harvested.crop_type
+            and fertilizer[1] > 0
+        ):
+            yield_amount *= 2
+        player.add_crop(harvested.crop_type, yield_amount)
+
     def draw_menu(self, surface, font):
-        if self.planting:  # good
+        if self.planting:
             self.menu.draw(surface, font)
+        elif self.notice_timer > 0:
+            banner = font.render(self.notice_message, True, (255, 245, 180))
+            background = pygame.Surface(
+                (banner.get_width() + 24, banner.get_height() + 16),
+                pygame.SRCALPHA,
+            )
+            background.fill((35, 35, 35, 220))
+            background.blit(banner, (12, 8))
+            surface.blit(
+                background,
+                background.get_rect(
+                    midtop=(surface.get_width() // 2, surface.get_height() - 70)
+                ),
+            )
 
 
 class CropMenu:

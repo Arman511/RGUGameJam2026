@@ -8,6 +8,12 @@ from elemental_game.config import IMAGES_DIR
 
 class Player:
     SPEED = 165
+    STARTING_UNLOCKED_QUADRANTS = frozenset({"top_right"})
+    FARM_QUADRANT_UNLOCKS = (
+        ("top_left", 10),
+        ("bottom_left", 30),
+        ("bottom_right", 60),
+    )
 
     def __init__(self, pos=(150, 150), player_type: PlayerType = PlayerType.WATER):
         self.width = 60
@@ -21,6 +27,7 @@ class Player:
         }
         self.coins = 5
         self.crops = {}
+        self.unlocked_quadrants = set(self.STARTING_UNLOCKED_QUADRANTS)
 
     def update(self, dt):
         keys = pygame.key.get_pressed()
@@ -76,9 +83,33 @@ class Player:
         self.coins += 3
         return True
 
+    def next_farm_quadrant_unlock(self):
+        return next(
+            (
+                (quadrant, cost)
+                for quadrant, cost in self.FARM_QUADRANT_UNLOCKS
+                if quadrant not in self.unlocked_quadrants
+            ),
+            None,
+        )
+
+    def buy_next_farm_quadrant(self):
+        unlock = self.next_farm_quadrant_unlock()
+        if unlock is None:
+            return False
+
+        quadrant, cost = unlock
+        if self.coins < cost:
+            return False
+
+        self.coins -= cost
+        self.unlocked_quadrants.add(quadrant)
+        return True
+
     def reset(self):
         self.seeds = {
             seed_type: {"tier1": 0, "tier2": 0, "tier3": 0} for seed_type in SeedType
         }
         self.coins = 5
         self.crops = {}
+        self.unlocked_quadrants = set(self.STARTING_UNLOCKED_QUADRANTS)
