@@ -234,14 +234,27 @@ def test_leaderboard_page_is_served(client) -> None:
     assert "/static/js/leaderboard.js" in response.text
 
 
+def test_registration_page_is_served(client) -> None:
+    response = client.get("/register")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "Create your account" in response.text
+    assert 'id="register-form"' in response.text
+    assert "/static/js/register.js" in response.text
+
+
 def test_leaderboard_static_assets_are_served(client) -> None:
     stylesheet = client.get("/static/css/leaderboard.css")
     script = client.get("/static/js/leaderboard.js")
+    register_script = client.get("/static/js/register.js")
 
     assert stylesheet.status_code == 200
     assert 'data-bs-theme="light"' in stylesheet.text
     assert script.status_code == 200
     assert "REFRESH_INTERVAL = 7000" in script.text
+    assert register_script.status_code == 200
+    assert "/api/v1/auth/register" in register_script.text
 
 
 @pytest.mark.parametrize(
