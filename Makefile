@@ -39,11 +39,10 @@ release:
 		echo "Error: tag cannot be empty"; \
 		exit 1; \
 	fi; \
-	if [[ "$$tag" == ev* ]]; then \
-		expected_branch="experimental"; \
-	else \
-		expected_branch="main"; \
-	fi; \
+	case "$$tag" in \
+		ev*) expected_branch="experimental" ;; \
+		*) expected_branch="main" ;; \
+	esac; \
 	current_branch=$$(git branch --show-current); \
 	if [ "$$current_branch" != "$$expected_branch" ]; then \
 		echo "Error: tag '$$tag' requires branch '$$expected_branch', but you're on '$$current_branch'."; \
