@@ -613,7 +613,7 @@ def test_multiplayer_game_over_keyboard_dismissal_waits_half_second(
     assert dialog.done
 
 
-def test_multiplayer_defeat_screen_says_you_lost() -> None:
+def test_multiplayer_defeat_screen_says_you_lost(monkeypatch) -> None:
     from elemental_game.screen_rendering.multiplayer_game_over import (
         MultiplayerGameOverDialog,
     )
@@ -625,10 +625,93 @@ def test_multiplayer_defeat_screen_says_you_lost() -> None:
             rendered.append(text)
             return pygame.Surface((1, 1), pygame.SRCALPHA)
 
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 1500)
     dialog = MultiplayerGameOverDialog(pygame.Surface((800, 600)), Font(), "defeat")
     dialog.draw()
 
     assert "You Lost" in rendered
+
+
+def test_single_player_game_over_waits_half_second_before_showing_or_accepting_input(
+    monkeypatch,
+) -> None:
+    from elemental_game.screen_rendering.game_over import GameOverDialog
+
+    class Store:
+        def submit_run(self, *args, **kwargs) -> None:
+            return None
+
+    class Menus:
+        username = "player-one"
+        store = Store()
+
+    ticks = 1000
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: ticks)
+    pygame.font.init()
+    surface = pygame.Surface((800, 600))
+    surface.fill((100, 100, 100))
+    dialog = GameOverDialog(
+        surface,
+        pygame.font.Font(None, 22),
+        Menus(),
+        run_id="run-delay",
+        survival_time=20.0,
+        final_wave=1,
+        enemies_defeated=3,
+    )
+
+    ticks = 1499
+    dialog.draw()
+    dialog.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_ESCAPE}))
+    assert surface.get_at((0, 0)) == (100, 100, 100, 255)
+    assert not dialog.done
+
+    ticks = 1500
+    dialog.draw()
+    assert surface.get_at((0, 0)) != (100, 100, 100, 255)
+    dialog.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_ESCAPE}))
+    assert dialog.done
+
+
+def test_multiplayer_defeat_waits_half_second_before_showing_or_accepting_input(
+    monkeypatch,
+) -> None:
+    from elemental_game.screen_rendering.multiplayer_game_over import (
+        MultiplayerGameOverDialog,
+    )
+
+    ticks = 1000
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: ticks)
+    pygame.font.init()
+    surface = pygame.Surface((800, 600))
+    surface.fill((100, 100, 100))
+    dialog = MultiplayerGameOverDialog(
+        surface,
+        pygame.font.Font(None, 22),
+        "defeat",
+    )
+
+    ticks = 1499
+    dialog.draw()
+    dialog.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONUP,
+            {"button": 1, "pos": dialog._menu_button_rect().center},
+        )
+    )
+    assert surface.get_at((0, 0)) == (100, 100, 100, 255)
+    assert not dialog.done
+
+    ticks = 1500
+    dialog.draw()
+    assert surface.get_at((0, 0)) != (100, 100, 100, 255)
+    dialog.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONUP,
+            {"button": 1, "pos": dialog._menu_button_rect().center},
+        )
+    )
+    assert dialog.done
 
 
 def test_game_over_plays_explosion_for_single_player_and_loser_only(

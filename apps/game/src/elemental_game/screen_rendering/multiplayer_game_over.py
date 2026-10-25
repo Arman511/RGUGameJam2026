@@ -4,6 +4,8 @@ import pygame
 
 from elemental_game.audio import play_sfx
 
+GAME_OVER_DISPLAY_DELAY_MS = 500
+
 
 class MultiplayerGameOverDialog:
     def __init__(
@@ -16,7 +18,9 @@ class MultiplayerGameOverDialog:
         self.font = font
         self.result = result
         self.done = False
-        self.keyboard_dismissal_at = pygame.time.get_ticks() + 500
+        now = pygame.time.get_ticks()
+        self.display_at = now + GAME_OVER_DISPLAY_DELAY_MS if result == "defeat" else now
+        self.keyboard_dismissal_at = now + GAME_OVER_DISPLAY_DELAY_MS
         if result == "defeat":
             play_sfx("explosion")
 
@@ -32,6 +36,8 @@ class MultiplayerGameOverDialog:
         return button
 
     def handle_event(self, event: pygame.event.Event) -> None:
+        if pygame.time.get_ticks() < self.display_at:
+            return
         if (
             event.type == pygame.KEYDOWN
             and event.key in (pygame.K_RETURN, pygame.K_ESCAPE)
@@ -44,6 +50,8 @@ class MultiplayerGameOverDialog:
             self.done = True
 
     def draw(self) -> None:
+        if pygame.time.get_ticks() < self.display_at:
+            return
         overlay = pygame.Surface(self.surface.get_size(), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 190))
         self.surface.blit(overlay, (0, 0))
