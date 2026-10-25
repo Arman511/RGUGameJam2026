@@ -66,7 +66,7 @@ def _create_game(screen, player_type):
             config.FARM_HEIGHT,
         ),
     )
-    player = Player(player_type=PlayerType(player_type), pos=farm.tile_rect(0, 3).center)
+    player = Player(player_type=PlayerType(player_type), pos=farm.tile_rect(0, 5).center)
     return farm, player
 
 
