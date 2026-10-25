@@ -158,7 +158,9 @@ def test_sell_all_option_appears_only_with_crops_and_sells_everything() -> None:
         for index, option in enumerate(options)
         if isinstance(option, SellAllCrops)
     )
-    assert options[sell_all_index].count == 5
+    sell_all_option = options[sell_all_index]
+    assert isinstance(sell_all_option, SellAllCrops)
+    assert sell_all_option.count == 5
 
     shop.selected = sell_all_index
     shop._activate_selection(player, make_farm())
@@ -476,7 +478,7 @@ def test_planting_with_one_crop_and_tier_skips_the_menu() -> None:
 
 def test_area_planting_at_the_farm_edge_only_uses_eligible_slots(monkeypatch) -> None:
     player = make_player()
-    player.unlocked_quadrants = set(Farm.QUADRANTS)
+    player.unlocked_quadrants = {str(quadrant) for quadrant in Farm.QUADRANTS}
     player.plant_radius = 3
     player.plant_radius_active = 3
     player.add_seed(SeedType.FIRE, "tier1", 3)
@@ -496,7 +498,7 @@ def test_area_planting_at_the_farm_edge_only_uses_eligible_slots(monkeypatch) ->
 
 def test_area_harvesting_at_the_farm_edge_uses_all_in_bounds_crops(monkeypatch) -> None:
     player = make_player()
-    player.unlocked_quadrants = set(Farm.QUADRANTS)
+    player.unlocked_quadrants = {str(quadrant) for quadrant in Farm.QUADRANTS}
     player.harvest_size = 2
     player.pos = pygame.Vector2(25, 25)
     crops = [Crop(CropType.FIRE, (row, col)) for row in range(2) for col in range(2)]

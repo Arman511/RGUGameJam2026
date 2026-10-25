@@ -46,7 +46,7 @@ class Farm:
         self.rows = rows
         self.cols = cols
         self.origin = origin  # top-left pixel of the grid
-        self.grid = [[None] * cols for _ in range(rows)]
+        self.grid: list[list[Crop | None]] = [[None] * cols for _ in range(rows)]
         self.menu = CropMenu()  # one menu, created once
         self.planting = False  # True = menu is drawn and taking input
         self.notice_message = ""

@@ -445,7 +445,8 @@ def test_turret_attack_radius_and_range_upgrades_cost_crops_and_take_effect() ->
     system = TurretSystem.__new__(TurretSystem)
     turret = TurretInstance("flame_turret")
     slot = TurretSlot("right", 0, (0, 0), turret)
-    player = type("PlayerState", (), {"crops": {CropType.FIRE: 20}})()
+    player = Player.__new__(Player)
+    player.crops = {CropType.FIRE: 20}
     system.status_message = ""
 
     system.modal_selection = UPGRADE_NAMES.index("Attack radius")

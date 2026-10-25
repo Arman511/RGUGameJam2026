@@ -1,5 +1,31 @@
 # Elemental Keep API
 
+## Run the server
+
+From the repository root, install dependencies and start a development server:
+
+```sh
+uv sync --all-packages --all-groups
+uv run --project services/api uvicorn elemental_api.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+The API is available at `http://127.0.0.1:8000`; check that it is running at
+`http://127.0.0.1:8000/health`. The interactive API docs are available at
+`/docs` when enabled.
+
+You can also run the API in Docker from the repository root with
+`make local-serve`. This builds the local image, publishes port 8000, and keeps
+the database in `./.local/elemental_api_data`. Stop it with Ctrl+C. The
+deployment-oriented `make serve` command uses `docker-compose.yml` and expects
+the external `zoraxy_proxy` Docker network to exist.
+
+To point a game client at this server, set its
+`ELEMENTAL_KEEP_API_BASE_URL` to the server's base URL (for example,
+`http://127.0.0.1:8000`). See the root [README](../../README.md) for configuring
+the game client.
+
+## API overview
+
 The API uses SQLAlchemy ORM models and Alembic migrations. On server startup,
 the API applies all pending migrations to the configured database.
 
