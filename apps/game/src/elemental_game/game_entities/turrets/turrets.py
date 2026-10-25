@@ -314,9 +314,28 @@ class TurretSystem:
     def close_modal(self) -> None:
         self.modal_slot = None
 
-    def handle_event(self, event, player) -> None:
+    def handle_event(self, event, player, surface=None) -> None:
         slot = self.modal_slot
-        if slot is None or event.type != pygame.KEYDOWN:
+        if slot is None:
+            return
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if surface is None:
+                return
+            options = list(DEFINITION_BY_ELEMENT) if slot.turret is None else UPGRADE_NAMES
+            panel = self._modal_panel_rect(surface)
+            for index in range(len(options)):
+                row = pygame.Rect(
+                    panel.x + 12,
+                    panel.y + 80 + index * 38,
+                    panel.width - 24,
+                    38,
+                )
+                if row.collidepoint(event.pos):
+                    self.modal_selection = index
+                    self._confirm_selection(player, slot)
+                    return
+            return
+        if event.type != pygame.KEYDOWN:
             return
         if event.key == pygame.K_ESCAPE:
             self.close_modal()
@@ -329,7 +348,11 @@ class TurretSystem:
             return
         if event.key not in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE):
             return
+        self._confirm_selection(player, slot)
+
+    def _confirm_selection(self, player, slot) -> None:
         if slot.turret is None:
+            options = list(DEFINITION_BY_ELEMENT)
             element = options[self.modal_selection]
             definition = DEFINITION_BY_ELEMENT[element]
             if player.crops.get(element, 0) < definition.resource_cost:
@@ -523,13 +546,7 @@ class TurretSystem:
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 175))
         surface.blit(overlay, (0, 0))
-        panel = pygame.Rect(
-            0,
-            0,
-            min(500, surface.get_width() - 40),
-            min(420, surface.get_height() - 40),
-        )
-        panel.center = surface.get_rect().center
+        panel = self._modal_panel_rect(surface)
         pygame.draw.rect(surface, (44, 48, 57), panel)
         pygame.draw.rect(surface, (230, 230, 230), panel, 2)
         title = (
@@ -573,6 +590,17 @@ class TurretSystem:
                 font.render(self.status_message, True, (255, 200, 130)),
                 (panel.x + 18, panel.bottom - 38),
             )
+
+    @staticmethod
+    def _modal_panel_rect(surface) -> pygame.Rect:
+        panel = pygame.Rect(
+            0,
+            0,
+            min(500, surface.get_width() - 40),
+            min(420, surface.get_height() - 40),
+        )
+        panel.center = surface.get_rect().center
+        return panel
 
 
 class ManualTurret:

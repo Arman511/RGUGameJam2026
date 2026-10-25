@@ -83,7 +83,11 @@ class ShopMenu:
         if self.status_timer == 0:
             self._status_message = ""
 
-    def handle_event(self, event, player, farm, house=None):
+    def handle_event(self, event, player, farm, house=None, surface=None):
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if surface is not None:
+                self._handle_mouse_click(event.pos, player, farm, house, surface)
+            return
         if event.type != pygame.KEYDOWN:
             return
 
@@ -105,34 +109,64 @@ class ShopMenu:
         elif self.mode == "buy" and event.key in (pygame.K_RIGHT, pygame.K_d):
             self.tier = self.tier % 3 + 1
         elif event.key in self.CONFIRM_KEYS:
-            if self.mode == "buy":
-                crop_type = self.CROP_TYPES[self.selected]
-                player.buy_seed(SeedType[crop_type.name], self.tier)
-            elif self.mode == "sell":
-                crop_type = self._crop_options(player)[self.selected]
-                player.sell_crop(crop_type)
-                self.selected = min(
-                    self.selected, len(self._options(player, house)) - 1
-                )
-            elif self.mode == "upgrade":
-                option = self._upgrade_options(player, house)[self.selected]
-                if isinstance(option, LandUpgrade):
-                    if player.buy_next_farm_quadrant():
-                        self.status_message = "Farm quadrant unlocked."
-                    else:
-                        self.status_message = "Not enough coins."
-                elif isinstance(option, TurretSlotUpgrade):
-                    if player.buy_turret_slot():
-                        self.status_message = "Elemental turret plot unlocked."
-                        self.selected = 0
-                    else:
-                        self.status_message = "Not enough coins."
+            self._activate_selection(player, farm, house)
+
+    def _handle_mouse_click(self, position, player, farm, house, surface) -> None:
+        panel = self._panel_rect(surface)
+        options = self._visible_options(player, house)
+        list_y = self._list_y(panel)
+        for index, option in enumerate(options):
+            row = pygame.Rect(
+                panel.x + 16,
+                list_y + index * self.ITEM_H,
+                panel.width - 32,
+                self.ITEM_H,
+            )
+            if not row.collidepoint(position):
+                continue
+            self.selected = index
+            if self.selecting_quadrant:
+                self._purchase_fertilizer(option, player, farm)
+            else:
+                self._activate_selection(player, farm, house)
+            return
+
+    def _activate_selection(self, player, farm, house=None) -> None:
+        options = self._options(player, house)
+        if not options:
+            self.selected = 0
+            if self.mode == "sell":
+                self.status_message = "No crops to sell."
+            return
+        self.selected = min(max(self.selected, 0), len(options) - 1)
+
+        if self.mode == "buy":
+            crop_type = self.CROP_TYPES[self.selected]
+            player.buy_seed(SeedType[crop_type.name], self.tier)
+        elif self.mode == "sell":
+            crop_type = options[self.selected]
+            player.sell_crop(crop_type)
+            self.selected = min(
+                self.selected, max(0, len(self._crop_options(player)) - 1)
+            )
+        elif self.mode == "upgrade":
+            option = options[self.selected]
+            if isinstance(option, LandUpgrade):
+                if player.buy_next_farm_quadrant():
+                    self.status_message = "Farm quadrant unlocked."
                 else:
-                    if isinstance(option, HouseUpgrade):
-                        self._purchase_house_upgrade(option, player, house)
-                    else:
-                        self.pending_fertilizer = option.crop_type
-                        self._begin_fertilizer_purchase(player, farm)
+                    self.status_message = "Not enough coins."
+            elif isinstance(option, TurretSlotUpgrade):
+                if player.buy_turret_slot():
+                    self.status_message = "Elemental turret plot unlocked."
+                    self.selected = 0
+                else:
+                    self.status_message = "Not enough coins."
+            elif isinstance(option, HouseUpgrade):
+                self._purchase_house_upgrade(option, player, house)
+            else:
+                self.pending_fertilizer = option.crop_type
+                self._begin_fertilizer_purchase(player, farm)
 
     def _purchase_house_upgrade(self, option, player, house):
         if house is None:
@@ -182,7 +216,8 @@ class ShopMenu:
         elif event.key == pygame.K_DOWN and quadrants:
             self.selected = (self.selected + 1) % len(quadrants)
         elif event.key in self.CONFIRM_KEYS and quadrants:
-            self._purchase_fertilizer(quadrants[self.selected], player, farm)
+            selected = min(max(self.selected, 0), len(quadrants) - 1)
+            self._purchase_fertilizer(quadrants[selected], player, farm)
 
     def _purchase_fertilizer(self, quadrant, player, farm):
         if self.pending_fertilizer is None:
@@ -205,10 +240,7 @@ class ShopMenu:
         overlay.fill((0, 0, 0, 190))
         surface.blit(overlay, (0, 0))
 
-        panel_width = min(540, surface.get_width() - 40)
-        panel_height = min(550, surface.get_height() - 40)
-        panel = pygame.Rect(0, 0, panel_width, panel_height)
-        panel.center = surface.get_rect().center
+        panel = self._panel_rect(surface)
         pygame.draw.rect(surface, (44, 48, 57), panel)
         pygame.draw.rect(surface, (225, 225, 225), panel, 2)
 
@@ -226,33 +258,38 @@ class ShopMenu:
             panel.width - 40,
         )
         if self.selecting_quadrant:
-            text = "UP/DOWN: Select    ENTER: Buy    ESC: Cancel"
+            self._draw_fitted(
+                surface,
+                font,
+                "UP/DOWN: Select    ENTER: Buy    ESC: Cancel",
+                (220, 220, 220),
+                (panel.x + 20, panel.y + 50),
+                panel.width - 40,
+            )
         else:
-            text = "TAB / SHIFT+TAB: Change section | UP/DOWN: Select | ENTER: Buy"
-        self._draw_fitted(
-            surface,
-            font,
-            text,
-            (220, 220, 220),
-            (panel.x + 20, panel.y + 50),
-            panel.width - 40,
-        )
+            for text, y_offset in (
+                ("TAB / SHIFT+TAB: Change section", 50),
+                ("UP/DOWN: Select    ENTER: Buy", 76),
+            ):
+                self._draw_fitted(
+                    surface,
+                    font,
+                    text,
+                    (220, 220, 220),
+                    (panel.x + 20, panel.y + y_offset),
+                    panel.width - 40,
+                )
         if self.mode == "buy" and not self.selecting_quadrant:
             self._draw_fitted(
                 surface,
                 font,
                 "A/D or LEFT/RIGHT: change seed tier",
                 (220, 220, 220),
-                (panel.x + 20, panel.y + 82),
+                (panel.x + 20, panel.y + 102),
                 panel.width - 40,
             )
 
-        if self.selecting_quadrant:
-            options = self._unlocked_quadrants(player)
-        elif self.mode == "upgrade":
-            options = self._upgrade_options(player, house)
-        else:
-            options = self._crop_options(player)
+        options = self._visible_options(player, house)
         if not options:
             messages = {
                 "buy": "No seeds available",
@@ -264,18 +301,16 @@ class ShopMenu:
                 font,
                 messages[self.mode],
                 (255, 255, 255),
-                (panel.x + 20, panel.y + 125),
+                (
+                    panel.x + 20,
+                    panel.y
+                    + (165 if self.mode == "buy" and not self.selecting_quadrant else 125),
+                ),
                 panel.width - 40,
             )
             return
 
-        list_y = panel.y + (
-            130
-            if self.mode == "buy" and not self.selecting_quadrant
-            else 105
-            if self.selecting_quadrant or self.mode == "upgrade"
-            else 88
-        )
+        list_y = self._list_y(panel)
         for index, option in enumerate(options):
             if isinstance(option, str):
                 quadrant = option
@@ -360,6 +395,33 @@ class ShopMenu:
             if player.crops.get(crop_type, 0) > 0
         ]
 
+    def _visible_options(self, player, house=None):
+        if self.selecting_quadrant:
+            return self._unlocked_quadrants(player)
+        if self.mode == "upgrade":
+            return self._upgrade_options(player, house)
+        return self._crop_options(player)
+
+    @staticmethod
+    def _panel_rect(surface):
+        panel = pygame.Rect(
+            0,
+            0,
+            min(540, surface.get_width() - 40),
+            min(550, surface.get_height() - 40),
+        )
+        panel.center = surface.get_rect().center
+        return panel
+
+    def _list_y(self, panel):
+        return panel.y + (
+            150
+            if self.mode == "buy" and not self.selecting_quadrant
+            else 105
+            if self.selecting_quadrant or self.mode == "upgrade"
+            else 110
+        )
+
     def _upgrade_options(self, player, house=None) -> list[UpgradeOption]:
         options: list[UpgradeOption] = [
             FertilizerUpgrade(crop_type) for crop_type in self.FERTILIZER_TYPES
@@ -394,7 +456,7 @@ class ShopMenu:
             )
         return options
 
-    def _options(self, player, house=None) -> Sequence[object]:
+    def _options(self, player, house=None) -> Sequence[CropType | UpgradeOption]:
         if self.mode == "upgrade":
             return self._upgrade_options(player, house)
         return self._crop_options(player)

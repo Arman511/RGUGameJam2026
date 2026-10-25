@@ -6,6 +6,7 @@ import re
 import subprocess
 import webbrowser
 
+from elemental_game import config
 import pygame
 
 BUTTON = (65, 85, 65)
@@ -45,25 +46,10 @@ LOGIN_USERNAME_RECT = pygame.Rect(250, 205, 300, 44)
 LOGIN_PASSWORD_RECT = pygame.Rect(250, 265, 300, 44)
 MENU_DESIGN_WIDTH = 800
 MENU_DESIGN_HEIGHT = 600
-REGISTER_URL = "https://elemental-keep.armandev.co.uk/register"
-RUDE_USERNAME_WORDS = (
-    "asshole",
-    "bastard",
-    "bitch",
-    "bullshit",
-    "cunt",
-    "dick",
-    "fuck",
-    "fuckface",
-    "fucker",
-    "motherfucker",
-    "shit",
-    "shithead",
-    "slut",
-    "whore",
-)
+REGISTER_URL = f"{config.ELEMENTAL_KEEP_API_BASE_URL}/register"
+
 RUDE_USERNAME_PATTERN = re.compile(
-    rf"\b(?:{'|'.join(re.escape(word) for word in RUDE_USERNAME_WORDS)})\b",
+    rf"\b(?:{'|'.join(re.escape(word) for word in config.RUDE_USERNAME_WORDS)})\b",
     re.IGNORECASE,
 )
 
