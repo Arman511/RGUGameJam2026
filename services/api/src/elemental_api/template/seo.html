@@ -1,0 +1,18 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#10131e">
+<meta name="description" content="{{ page_description }}">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="{{ request.url }}">
+<link rel="icon" href="{{ url_for('static', path='icon.png') }}">
+<title>{{ page_title }}</title>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Elemental Keep">
+<meta property="og:title" content="{{ page_title }}">
+<meta property="og:description" content="{{ page_description }}">
+<meta property="og:url" content="{{ request.url }}">
+<meta property="og:image" content="{{ request.url_for('static', path='icon.png') }}">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="{{ page_title }}">
+<meta name="twitter:description" content="{{ page_description }}">
+<meta name="twitter:image" content="{{ request.url_for('static', path='icon.png') }}">
