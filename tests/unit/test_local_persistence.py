@@ -63,6 +63,23 @@ def test_sound_preferences_persist_and_validate(tmp_path: Path) -> None:
         raise AssertionError("out-of-range sound settings must not be saved")
 
 
+def test_hints_setting_defaults_on_persists_and_validates(tmp_path: Path) -> None:
+    db = LocalLeaderboardStore(path=tmp_path / "leaderboard.db")
+
+    assert db.hints_enabled() is True
+    db.save_hints_enabled(False)
+    assert LocalLeaderboardStore(path=db.path).hints_enabled() is False
+    db.save_hints_enabled(True)
+    assert LocalLeaderboardStore(path=db.path).hints_enabled() is True
+
+    try:
+        db.save_hints_enabled(1)  # type: ignore[arg-type]
+    except ValueError as error:
+        assert str(error) == "hints_enabled must be a boolean"
+    else:
+        raise AssertionError("non-boolean hints settings must not be saved")
+
+
 def test_player_image_number_persists_and_validates(tmp_path: Path) -> None:
     db = LocalLeaderboardStore(path=tmp_path / "leaderboard.db")
 

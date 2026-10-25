@@ -8,6 +8,7 @@ from .common import (
     CANCEL_CONFIRM_BUTTON,
     CLEAR_CONFIRM_BUTTON,
     CLEAR_LEADERBOARD_BUTTON,
+    HINTS_TOGGLE_BUTTON,
     MUSIC_SLIDER,
     MUTED_TEXT,
     PLAYER_NEXT_BUTTON,
@@ -32,6 +33,9 @@ class SettingsMenuMixin(MenuContext):
                 return
             if self.layout.rect(PLAYER_NEXT_BUTTON).collidepoint(event.pos):
                 self._change_player_type(1)
+                return
+            if self.layout.rect(HINTS_TOGGLE_BUTTON).collidepoint(event.pos):
+                self.hints_enabled = not self.hints_enabled
                 return
             if self.layout.rect(MUSIC_SLIDER.inflate(0, 18)).collidepoint(event.pos):
                 self.dragging_slider = "music_volume"
@@ -77,8 +81,8 @@ class SettingsMenuMixin(MenuContext):
 
     def _draw_settings(self) -> None:
         self._draw_panel(pygame.Rect(115, 30, 570, 65))
-        self._draw_panel(pygame.Rect(115, 115, 570, 175))
-        self._draw_panel(pygame.Rect(115, 305, 570, 140))
+        self._draw_panel(pygame.Rect(115, 115, 570, 195))
+        self._draw_panel(pygame.Rect(115, 320, 570, 120))
         self._draw_title("Settings", 65)
         self._draw_text("Audio", 145, 132, center=False)
         self._draw_text("Music volume", 150, 160, center=False)
@@ -86,14 +90,18 @@ class SettingsMenuMixin(MenuContext):
 
         self._draw_text("SFX volume", 150, 225, center=False)
         self._draw_slider(SFX_SLIDER, self.preferences["sfx_volume"])
+        self._draw_text("Gameplay hints", 150, 276, center=False)
+        self._draw_button(
+            "On" if self.hints_enabled else "Off", HINTS_TOGGLE_BUTTON
+        )
 
-        self._draw_text("Player", 145, 322, center=False)
+        self._draw_text("Player", 145, 337, center=False)
         self._draw_button("<", PLAYER_PREVIOUS_BUTTON)
         preview = self.player_previews[self.player_type]
         self.screen.blit(
-            preview, preview.get_rect(center=self.layout.point((370, 378)))
+            preview, preview.get_rect(center=self.layout.point((389, 380)))
         )
-        self._draw_text(self.player_type.name.title(), 555, 378)
+        self._draw_text(self.player_type.name.title(), 555, 380)
         self._draw_button(">", PLAYER_NEXT_BUTTON)
         self._draw_button("Clear local leaderboard", CLEAR_LEADERBOARD_BUTTON)
         if self.notice_message:

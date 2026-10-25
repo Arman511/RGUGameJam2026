@@ -5,6 +5,7 @@ from unittest.mock import Mock
 import pygame
 from elemental_game import menus
 from elemental_game.api_client.http import APIError
+from elemental_game.menus.common import HINTS_TOGGLE_BUTTON
 
 
 def test_register_page_uses_windows_browser_from_wsl(monkeypatch) -> None:
@@ -127,6 +128,22 @@ def test_menu_layout_scales_and_centers_for_configured_window() -> None:
     assert layout.scale == 1.25
     assert layout.offset == (0, 25)
     assert layout.rect(menus.PLAY_BUTTON).center == layout.point((265, 234))
+
+
+def test_settings_toggle_gameplay_hints() -> None:
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.layout = menus.MenuLayout(800, 600)
+    app.hints_enabled = True
+    click_event = pygame.event.Event(
+        pygame.MOUSEBUTTONDOWN,
+        {"button": 1, "pos": HINTS_TOGGLE_BUTTON.center},
+    )
+
+    app._handle_settings_event(click_event)
+    assert app.hints_enabled is False
+
+    app._handle_settings_event(click_event)
+    assert app.hints_enabled is True
 
 
 def test_host_fetches_server_timeout_before_creating_room(monkeypatch) -> None:

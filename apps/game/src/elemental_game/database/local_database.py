@@ -141,6 +141,32 @@ class LocalLeaderboardStore:
             )
             connection.commit()
 
+    def hints_enabled(self) -> bool:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT setting_value
+                FROM game_settings
+                WHERE setting_key = 'hints_enabled'
+                """
+            ).fetchone()
+        return row is None or row["setting_value"] == 1.0
+
+    def save_hints_enabled(self, enabled: bool) -> None:
+        if type(enabled) is not bool:
+            raise ValueError("hints_enabled must be a boolean")
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO game_settings(setting_key, setting_value)
+                VALUES ('hints_enabled', ?)
+                ON CONFLICT(setting_key) DO UPDATE SET
+                    setting_value = excluded.setting_value
+                """,
+                (float(enabled),),
+            )
+            connection.commit()
+
     def player_image_number(self) -> int:
         with self._connect() as connection:
             row = connection.execute(

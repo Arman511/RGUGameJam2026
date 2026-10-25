@@ -102,6 +102,7 @@ class MenuSystem(
             scale=self.layout.scale,
         )
         self.preferences = self.store.sound_preferences()
+        self.hints_enabled = self.store.hints_enabled()
         self.player_type = PlayerType(self.store.player_image_number())
         backgrounds_dir = os.path.join(IMAGES_DIR, "backgrounds")
         self.menu_background = pygame.transform.smoothscale(
@@ -110,7 +111,7 @@ class MenuSystem(
             ).convert(),
             self.screen.get_size(),
         )
-        preview_size = max(1, round(64 * self.layout.scale))
+        preview_size = max(1, round(48 * self.layout.scale))
         self.player_previews = {
             player_type: pygame.transform.smoothscale(
                 pygame.image.load(player_type.full_image_path).convert_alpha(),
@@ -137,6 +138,7 @@ class MenuSystem(
             music_volume=self.preferences["music_volume"],
             sfx_volume=self.preferences["sfx_volume"],
         )
+        self.store.save_hints_enabled(self.hints_enabled)
         self.store.save_player_image_number(int(self.player_type))
         self._apply_sound_preferences()
 
