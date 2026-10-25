@@ -159,6 +159,9 @@ class GameScreenRenderer:
     ) -> None:
         self.surface = surface
         self.font = font
+        self.hint_font = pygame.font.Font(
+            os.path.join(config.ASSETS_DIR, "font", "pixelfont.ttf"), 24
+        )
         self.game_background = pygame.transform.smoothscale(
             pygame.image.load(
                 os.path.join(config.IMAGES_DIR, "backgrounds", "background.png")
@@ -316,9 +319,6 @@ class GameScreenRenderer:
 
         buffer = 48 if multiplayer else 0
         if hints_enabled:
-            hint_font = pygame.font.Font(
-                os.path.join(config.ASSETS_DIR, "font", "pixelfont.ttf"), 24
-            )
             if controlling_house_turret and not planting_phase:
                 label_text = "Shoot enemies with SPACE!"
             elif planting_phase:
@@ -339,7 +339,7 @@ class GameScreenRenderer:
             if house.state == HouseState.BROKEN:
                 label_text = "QUICK! Repair house in the market!"
 
-            instruction_label = hint_font.render(label_text, True, (0, 0, 0))
+            instruction_label = self.hint_font.render(label_text, True, (0, 0, 0))
             surface.blit(
                 instruction_label,
                 instruction_label.get_rect(
