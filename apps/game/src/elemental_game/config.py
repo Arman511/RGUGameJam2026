@@ -19,9 +19,6 @@ ENEMY_WAVE_DURATION = 30.0
 TURRET_SLOT_UNLOCK_COSTS = (10, 20, 30, 40)
 ELEMENTAL_TURRET_RANGE = 220.0
 ENEMY_SEED_DROP_MULTIPLIER = 1.0
-
-import os
-
 ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 IMAGES_DIR = os.path.join(ASSETS_DIR, "imgs")
 ELEMENTAL_KEEP_API_BASE_URL = os.environ.get(
