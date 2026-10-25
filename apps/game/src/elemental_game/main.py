@@ -342,15 +342,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             break
 
         game_paused = (
-            (
-                multiplayer is None
-                and (
-                    game.shop_open
-                    or game.confirm_exit
-                    or game.farm.planting
-                    or game.turrets.modal_slot is not None
-                )
-            )
+            (multiplayer is None and game.single_player_menu_paused)
             or game.seed_tier_reward is not None
             or game.house.health <= 0
             or game_over_dialog is not None

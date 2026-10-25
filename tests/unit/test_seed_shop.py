@@ -982,6 +982,23 @@ def test_game_only_advances_crop_growth_during_planting_phase(monkeypatch) -> No
     assert growth_settings == [False, True]
 
 
+def test_open_planting_menu_only_pauses_during_planting_phase() -> None:
+    from types import SimpleNamespace
+
+    game = GameSession.__new__(GameSession)
+    game.shop_open = False
+    game.confirm_exit = False
+    game.farm = SimpleNamespace(planting=True)
+    game.waves = SimpleNamespace(planting_phase=False)
+    game.turrets = SimpleNamespace(modal_slot=None)
+
+    assert not game.single_player_menu_paused
+
+    game.waves.planting_phase = True
+
+    assert game.single_player_menu_paused
+
+
 def test_paused_game_does_not_advance_fertilizer_timers() -> None:
     from types import SimpleNamespace
 

@@ -51,6 +51,15 @@ class GameSession:
         return self.waves.planting_phase
 
     @property
+    def single_player_menu_paused(self) -> bool:
+        return (
+            self.shop_open
+            or self.confirm_exit
+            or (self.farm.planting and self.planting_phase)
+            or self.turrets.modal_slot is not None
+        )
+
+    @property
     def phase_remaining(self) -> float:
         return self.waves.phase_remaining
 
