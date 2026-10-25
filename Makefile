@@ -31,11 +31,22 @@ serve:
 local-serve:
 	docker compose -f docker-compose.local.yml up --build
 
+
 release:
 	@git fetch origin --tags --force
-	@read -p "Enter release tag (e.g. v1.0.0): " tag; \
+	@read -p "Enter release tag (e.g. v1.0.0 or ev1.0.0): " tag; \
 	if [ -z "$$tag" ]; then \
 		echo "Error: tag cannot be empty"; \
+		exit 1; \
+	fi; \
+	if [[ "$$tag" == ev* ]]; then \
+		expected_branch="experimental"; \
+	else \
+		expected_branch="main"; \
+	fi; \
+	current_branch=$$(git branch --show-current); \
+	if [ "$$current_branch" != "$$expected_branch" ]; then \
+		echo "Error: tag '$$tag' requires branch '$$expected_branch', but you're on '$$current_branch'."; \
 		exit 1; \
 	fi; \
 	if git rev-parse -q --verify "refs/tags/$$tag" >/dev/null || \
