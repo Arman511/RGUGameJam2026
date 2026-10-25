@@ -13,7 +13,7 @@ class Player:
         ("bottom_right", 60),
     )
 
-    def __init__(self, pos=(150, 150), player_type: PlayerType = PlayerType.WATER):
+    def __init__(self, pos, player_type: PlayerType = PlayerType.WATER):
         self.width = 70
         self.height = 70
         self.player_type = player_type

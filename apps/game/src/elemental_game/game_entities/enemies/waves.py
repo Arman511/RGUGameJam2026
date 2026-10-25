@@ -117,15 +117,21 @@ class Waves:
     def crop_type(self) -> CropType:
         return WEATHER_CROP_TYPES[self.state]
 
-    def draw_weather(self, surface):
+    def draw_weather(self, surface, font):
         y = 72
-        x = (WINDOW_WIDTH - self.dimensions[0]) - 40
+        x = (WINDOW_WIDTH - self.dimensions[0]) - 28
         image = self.weather_images[self.state]
         image_rect = image.get_rect(topleft=(x, y))
         background_rect = image_rect.inflate(12, 12)
         pygame.draw.rect(surface, (28, 34, 46), background_rect, border_radius=8)
         pygame.draw.rect(surface, (210, 220, 235), background_rect, 1, border_radius=8)
         surface.blit(image, image_rect)
+
+        label = font.render("Weather Forecast", True, (0, 0, 0))
+        surface.blit(
+            label,
+            label.get_rect(midright=(background_rect.left - 10, background_rect.centery)),
+        )
 
     def new_wave(self):
         self.state = self.get_weather()
