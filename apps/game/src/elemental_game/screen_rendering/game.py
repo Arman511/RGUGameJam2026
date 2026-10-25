@@ -39,20 +39,20 @@ def _draw_quick_action_button(
     background = (
         (92, 112, 66)
         if enabled and active
-        else background_color
-        if enabled and background_color is not None
-        else disabled_background_color
-        if not enabled and disabled_background_color is not None
-        else (67, 86, 69)
-        if enabled
-        else (65, 65, 65)
+        else (
+            background_color
+            if enabled and background_color is not None
+            else (
+                disabled_background_color
+                if not enabled and disabled_background_color is not None
+                else (67, 86, 69) if enabled else (65, 65, 65)
+            )
+        )
     )
     border = (
         border_color
         if border_color is not None
-        else (245, 225, 125)
-        if active or (enabled and hovered)
-        else (145, 150, 145)
+        else (245, 225, 125) if active or (enabled and hovered) else (145, 150, 145)
     )
     pygame.draw.rect(surface, background, rect, border_radius=9)
     pygame.draw.rect(surface, border, rect, border_width, border_radius=9)
@@ -196,7 +196,6 @@ class GameScreenRenderer:
                 "settings-and-gameplay", "store-icon.png"
             ),
             "hud": self._load_quick_action_icon("settings-and-gameplay", "hud.png"),
-            "turret": self._load_quick_action_icon("turrets", "standard-turret.png"),
             "attack": self._load_quick_action_icon(
                 "settings-and-gameplay", "attack.png"
             ),
@@ -204,6 +203,12 @@ class GameScreenRenderer:
                 "settings-and-gameplay", "soil_plant.png"
             ),
             "radar": self._load_quick_action_icon("settings-and-gameplay", "radar.png"),
+        }
+        self.turret_icons = {
+            player_type: self._load_quick_action_icon(
+                "turrets", f"{player_type.name.lower()}-turret.png"
+            )
+            for player_type in PlayerType
         }
         self.phase_icons = {
             "planting": pygame.transform.smoothscale(
@@ -406,10 +411,15 @@ class GameScreenRenderer:
             hovered = rect.collidepoint(mouse_position)
             if hovered:
                 hovered_action = action
+            icon = (
+                self.turret_icons[player.player_type]
+                if action == "turret"
+                else self.quick_action_icons[action]
+            )
             _draw_quick_action_button(
                 surface,
                 rect,
-                self.quick_action_icons[action],
+                icon,
                 enabled=quick_action_availability[action],
                 hovered=hovered,
                 active=(action == "plant_radius" and player.plant_radius_active > 1)
