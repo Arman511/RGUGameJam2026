@@ -7,9 +7,7 @@ import pygame
 
 from elemental_game import config
 from elemental_game.audio import play_background_music
-from elemental_game.game_entities.enemies.enemies import (
-    EnemyController,
-)
+from elemental_game.game_entities.enemies.enemies import EnemyController
 from elemental_game.game_entities.enemies.waves import Waves
 from elemental_game.game_entities.farm import Farm
 from elemental_game.game_entities.house import House
@@ -29,34 +27,22 @@ class GameSession:
         self.input = GameInputHandler(self)
 
     def reset(self, player_type: int) -> None:
+        farm_width = config.FARM_DIMENSIONS[1] * config.TILE_SIZE
         self.farm = Farm(
             *config.FARM_DIMENSIONS,
-            origin=(
-                (
-                    self.screen.get_width()
-                    - config.FARM_DIMENSIONS[1] * config.TILE_SIZE
-                )
-                // 2,
-                config.FARM_HEIGHT,
-            ),
+            origin=((self.screen.get_width() - farm_width) // 2, config.FARM_HEIGHT),
         )
         self.player = Player(
             player_type=PlayerType(player_type),
             pos=self.farm.tile_rect(0, 5).center,
         )
-        self.shop = ShopMenu()
-        self.house = House(self.screen)
-        self.turrets = TurretSystem(self.farm)
-        self.waves = Waves(self.house)
+        self.shop, self.house = ShopMenu(), House(self.screen)
+        self.turrets, self.waves = TurretSystem(self.farm), Waves(self.house)
         self.farm.weather_crop_type = self.waves.crop_type
         self.enemies = []
-        self.shop_open = False
-        self.hud_visible = False
-        self.confirm_exit = False
+        self.shop_open = self.hud_visible = self.confirm_exit = False
         self.controlling_house_turret = False
-        self.run_id = uuid4().hex
-        self.run_elapsed = 0.0
-        self.enemies_defeated = 0
+        self.run_id, self.run_elapsed, self.enemies_defeated = uuid4().hex, 0.0, 0
 
     @property
     def planting_phase(self) -> bool:
@@ -98,39 +84,29 @@ class GameSession:
             self.player.update(seconds)
         self.farm.update(seconds)
         self.shop.update(seconds)
-
         if paused:
             return
 
-        wave_update = self.waves.update(
-            seconds,
-            self.screen,
-            self.house,
-            len(self.enemies),
+        update = self.waves.update(
+            seconds, self.screen, self.house, len(self.enemies),
             extra_enemies=pending_extra_enemies,
             health_multiplier=pending_health_multiplier,
             elemental_biases=pending_elemental_bias,
             weather=pending_weather,
         )
-        self.enemies.extend(wave_update.spawned_enemies)
+        self.enemies.extend(update.spawned_enemies)
         self.farm.weather_crop_type = self.waves.crop_type
-        if wave_update.started_wave is not None:
+
+        if update.started_wave is not None:
             if on_wave_started is not None:
-                on_wave_started(wave_update.started_wave)
-            play_background_music(
-                "boss" if wave_update.started_wave % 3 == 0 else "enemies",
-                volume=music_volume,
-            )
-        elif wave_update.completed:
+                on_wave_started(update.started_wave)
+            track = "boss" if update.started_wave % 3 == 0 else "enemies"
+            play_background_music(track, volume=music_volume)
+        elif update.completed:
             play_background_music(volume=music_volume)
 
         self.enemies, defeated = EnemyController.update(
-            seconds,
-            self.enemies,
-            self.house,
-            self.turrets,
-            self.player,
-            self.screen,
-            self.controlling_house_turret,
+            seconds, self.enemies, self.house, self.turrets, self.player,
+            self.screen, self.controlling_house_turret,
         )
         self.enemies_defeated += defeated
