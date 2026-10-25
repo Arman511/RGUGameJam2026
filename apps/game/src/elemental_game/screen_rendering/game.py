@@ -4,6 +4,7 @@ from collections.abc import Sequence
 import pygame
 
 from elemental_game import config
+from elemental_game.game_entities.crops.crops import Crop
 from elemental_game.game_entities.farm import Farm
 from elemental_game.game_entities.house import HouseState
 from elemental_game.screen_rendering.exit_confirmation import draw_exit_confirmation
@@ -211,27 +212,28 @@ class GameScreenRenderer:
             for player_type in PlayerType
         }
         self.phase_icons = {
-            "planting": pygame.transform.smoothscale(
-                pygame.image.load(
-                    os.path.join(
-                        config.IMAGES_DIR, "settings-and-gameplay", "soil_plant.png"
-                    )
-                ).convert_alpha(),
-                (48, 48),
-            ),
+            "planting": {
+                player_type: pygame.transform.smoothscale(
+                    pygame.image.load(
+                        Crop.CROP_APPEARANCE[CropType[player_type.name]]
+                    ).convert_alpha(),
+                    (48, 48),
+                )
+                for player_type in PlayerType
+            },
             "enemy": pygame.transform.smoothscale(enemy_images["swarmer"], (48, 48)),
         }
-        self.enemy_marker_background = pygame.Surface((60, 60), pygame.SRCALPHA)
+        self.phase_icon_background = pygame.Surface((60, 60), pygame.SRCALPHA)
         pygame.draw.rect(
-            self.enemy_marker_background,
+            self.phase_icon_background,
             (24, 32, 46, 185),
-            self.enemy_marker_background.get_rect(),
+            self.phase_icon_background.get_rect(),
             border_radius=9,
         )
         pygame.draw.rect(
-            self.enemy_marker_background,
+            self.phase_icon_background,
             (145, 165, 190, 190),
-            self.enemy_marker_background.get_rect(),
+            self.phase_icon_background.get_rect(),
             1,
             border_radius=9,
         )
@@ -300,9 +302,12 @@ class GameScreenRenderer:
                     multiplayer_status[:75], True, (255, 225, 125)
                 )
                 surface.blit(status_text, (78, 34))
-        if not planting_phase:
-            surface.blit(self.enemy_marker_background, (14, 6))
-        phase_icon = self.phase_icons["planting" if planting_phase else "enemy"]
+        surface.blit(self.phase_icon_background, (14, 6))
+        phase_icon = (
+            self.phase_icons["planting"][player.player_type]
+            if planting_phase
+            else self.phase_icons["enemy"]
+        )
         phase_icon_rect = phase_icon.get_rect(topleft=phase_icon_position)
         surface.blit(phase_icon, phase_icon_rect)
 
