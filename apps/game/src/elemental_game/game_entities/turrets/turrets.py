@@ -226,6 +226,15 @@ class ManualProjectile:
         return bounds is not None and not bounds.collidepoint(self.position)
 
 
+def _orient_projectile_image(
+    image: pygame.Surface, direction: pygame.Vector2
+) -> pygame.Surface:
+    if not direction.length_squared():
+        return image
+    direction_angle = math.degrees(math.atan2(direction.y, direction.x))
+    return pygame.transform.rotate(image, -direction_angle - 90)
+
+
 class TurretSystem:
     INTERACTION_RADIUS = 76
     CLOSE_RANGE = 74
@@ -544,9 +553,11 @@ class TurretSystem:
                 ),
             )
         for projectile in self.projectiles:
+            direction = pygame.Vector2(projectile.target.pos) - projectile.position
+            image = _orient_projectile_image(projectile.image, direction)
             surface.blit(
-                projectile.image,
-                projectile.image.get_rect(center=projectile.position),
+                image,
+                image.get_rect(center=projectile.position),
             )
 
     def draw_modal(self, surface, font, player) -> None:
@@ -748,7 +759,10 @@ class ManualTurret:
 
     def draw_projectiles(self, surface) -> None:
         for projectile in self.projectiles:
+            image = _orient_projectile_image(
+                projectile.image, projectile.direction
+            )
             surface.blit(
-                projectile.image,
-                projectile.image.get_rect(center=projectile.position),
+                image,
+                image.get_rect(center=projectile.position),
             )
