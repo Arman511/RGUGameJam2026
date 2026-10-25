@@ -13,8 +13,8 @@ from elemental_game.game_entities.shop import (
 )
 from elemental_game.game_entities.shop.renderer import ShopRenderer
 from elemental_game.game_entities.turrets.turrets import ManualTurret
-from elemental_game.gameplay import GameSession
 from elemental_game.game_input import GameInputHandler
+from elemental_game.gameplay import GameSession
 from elemental_game.types.player import PlayerType
 from elemental_game.types.seed import SeedType
 
@@ -121,6 +121,7 @@ def test_open_market_receives_mouse_wheel_events() -> None:
     game.farm = make_farm()
     game.house = House.__new__(House)
     game.screen = pygame.Surface((1, 1))
+    game.input = GameInputHandler(game)
 
     event = pygame.event.Event(pygame.MOUSEWHEEL, {"y": -1})
     game.handle_event(event)
@@ -777,6 +778,74 @@ def test_farm_plays_sfx_only_after_successful_planting_and_harvesting(
         ("sound", "harvesting", crop),
         ("delay", 250, crop),
     ]
+
+
+def test_enemy_phase_pauses_crop_growth_but_counts_down_fertilizer() -> None:
+    crop = Crop(CropType.FIRE, (0, 0))
+    farm = make_farm(crop)
+    farm.fertilizers["top_left"] = (CropType.FIRE, 60.0)
+
+    farm.update(5.0, grow_crops=False)
+
+    assert crop.growth_timer == 0
+    assert farm.fertilizers["top_left"] == (CropType.FIRE, 55.0)
+
+
+def test_game_only_advances_crop_growth_during_planting_phase(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    from elemental_game import gameplay as gameplay_module
+
+    growth_settings = []
+    update_result = SimpleNamespace(
+        spawned_enemies=[], started_wave=None, completed=False
+    )
+    game = GameSession.__new__(GameSession)
+    game.house = SimpleNamespace(health=100)
+    game.player = SimpleNamespace(update=lambda _seconds: None)
+    game.farm = SimpleNamespace(
+        update=lambda _seconds, *, grow_crops: growth_settings.append(grow_crops),
+        weather_crop_type=None,
+    )
+    game.shop = SimpleNamespace(update=lambda _seconds: None)
+    game.waves = SimpleNamespace(
+        planting_phase=False,
+        crop_type=CropType.FIRE,
+        update=lambda *_args, **_kwargs: update_result,
+    )
+    game.screen = pygame.Surface((1, 1))
+    game.enemies = []
+    game.turrets = object()
+    game.controlling_house_turret = False
+    game.run_elapsed = 0.0
+    game.enemies_defeated = 0
+    monkeypatch.setattr(
+        gameplay_module.EnemyController,
+        "update",
+        lambda *_args: ([], 0),
+    )
+
+    game.update(1.0, paused=False, music_volume=1.0)
+    game.waves.planting_phase = True
+    game.update(1.0, paused=False, music_volume=1.0)
+
+    assert growth_settings == [False, True]
+
+
+def test_paused_game_does_not_advance_fertilizer_timers() -> None:
+    from types import SimpleNamespace
+
+    game = GameSession.__new__(GameSession)
+    game.house = SimpleNamespace(health=100)
+    game.player = make_player()
+    game.farm = make_farm()
+    game.farm.fertilizers["top_left"] = (CropType.FIRE, 60.0)
+    game.shop = ShopMenu()
+    game.controlling_house_turret = False
+
+    game.update(5.0, paused=True, music_volume=1.0)
+
+    assert game.farm.fertilizers["top_left"] == (CropType.FIRE, 60.0)
 
 
 def test_harvest_yield_matches_crop_tier() -> None:

@@ -177,11 +177,12 @@ class Farm:
                         pygame.draw.rect(overlay, (87, 0, 72, 95), overlay.get_rect())
                         surface.blit(overlay, rect)
 
-    def update(self, dt):
-        for row in self.grid:
-            for crop in row:
-                if crop is not None:
-                    crop.growth_timer += dt
+    def update(self, dt, *, grow_crops=True):
+        if grow_crops:
+            for row in self.grid:
+                for crop in row:
+                    if crop is not None:
+                        crop.growth_timer += dt
         for quadrant, (crop_type, remaining) in list(self.fertilizers.items()):
             remaining -= dt
             if remaining <= 0:
