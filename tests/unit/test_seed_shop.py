@@ -806,6 +806,32 @@ def test_selling_crop_adds_three_coins_and_removes_one_crop() -> None:
     assert player.crops[CropType.WATER] == 1
 
 
+def test_selling_crop_rejects_batch_larger_than_inventory() -> None:
+    player = make_player()
+    player.coins = 1
+    player.add_crop(CropType.WATER, 4)
+
+    assert player.sell_crop(CropType.WATER, 10) == 0
+    assert player.coins == 1
+    assert player.crops[CropType.WATER] == 4
+
+
+def test_shop_rejects_selected_quantity_larger_than_inventory() -> None:
+    player = make_player()
+    player.coins = 1
+    player.add_crop(CropType.WATER, 4)
+    shop = ShopMenu()
+    shop.mode = "sell"
+    shop.sell_quantity = 10
+    shop.selected = 0
+
+    shop._activate_selection(player, make_farm())
+
+    assert player.coins == 1
+    assert player.crops[CropType.WATER] == 4
+    assert shop.status_message == "Not enough Water crops (4 available)."
+
+
 def test_lightning_planting_option_fits_inside_the_screen() -> None:
     player = make_player()
     player.add_seed(SeedType.LIGHTNING, "tier3", 2)

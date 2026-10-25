@@ -77,13 +77,14 @@ class Player:
         self.seeds[seed_type][tier_key] -= 1
         return True
 
-    def sell_crop(self, crop_type):
-        if self.crops.get(crop_type, 0) <= 0:
-            return False
+    def sell_crop(self, crop_type, amount=1) -> int:
+        available = self.crops.get(crop_type, 0)
+        if available < amount or amount <= 0:
+            return 0
 
-        self.crops[crop_type] -= 1
-        self.coins += 3
-        return True
+        self.crops[crop_type] -= amount
+        self.coins += amount * 3
+        return amount
 
     def sell_all_crops(self) -> int:
         sold_count = sum(self.crops.values())

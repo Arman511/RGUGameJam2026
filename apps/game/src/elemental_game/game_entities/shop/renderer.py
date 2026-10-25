@@ -42,10 +42,11 @@ class ShopRenderer:
                 ("ENTER/SPACE/F: Apply    ESC: Cancel", 76),
             )
         else:
+            action = "Sell" if menu.mode == "sell" else "Buy"
             instructions = (
                 ("TAB / SHIFT+TAB: Change section", 50),
                 ("W/S or UP/DOWN/SCROLL: Select", 76),
-                ("ENTER/SPACE/F: Buy", 100),
+                (f"ENTER/SPACE/F: {action}", 100),
             )
         for text, y_offset in instructions:
             ShopRenderer._draw_fitted(
@@ -61,6 +62,15 @@ class ShopRenderer:
                 surface,
                 font,
                 "A/D or LEFT/RIGHT: change seed tier",
+                (220, 220, 220),
+                (panel.x + 20, panel.y + 123),
+                panel.width - 40,
+            )
+        elif menu.mode == "sell" and not menu.selecting_quadrant:
+            ShopRenderer._draw_fitted(
+                surface,
+                font,
+                f"A/D or LEFT/RIGHT: change sell quantity",
                 (220, 220, 220),
                 (panel.x + 20, panel.y + 123),
                 panel.width - 40,
@@ -84,6 +94,8 @@ class ShopRenderer:
                     + (
                         165
                         if menu.mode == "buy" and not menu.selecting_quadrant
+                        else 160
+                        if menu.mode == "sell" and not menu.selecting_quadrant
                         else 125
                     ),
                 ),
@@ -136,11 +148,15 @@ class ShopRenderer:
                 )
             elif isinstance(option, CropType) and menu.mode == "sell":
                 crop_type = option
-                count = player.crops.get(crop_type, 0)
-                label = f"{crop_type.name.title()} crop x{count} - sell 1 for 3 coins"
+                inventory_count = player.crops.get(crop_type, 0)
+                label = (
+                    f"{crop_type.name.title()} Crop    {menu.sell_quantity}x    "
+                    f"{menu.sell_quantity * 3} coins    ({inventory_count})"
+                )
             elif isinstance(option, SellAllCrops):
                 label = (
-                    f"Sell all crops x{option.count} - earn {option.count * 3} coins"
+                    f"Sell All Crops    {option.count}x    "
+                    f"{option.count * 3} coins"
                 )
             else:
                 raise ValueError(f"Unsupported market option: {option!r}")
@@ -205,9 +221,11 @@ class ShopRenderer:
 
     @staticmethod
     def _list_y(menu, panel):
-        return panel.y + (
-            150 if menu.mode == "buy" and not menu.selecting_quadrant else 130
-        )
+        if menu.mode == "buy" and not menu.selecting_quadrant:
+            return panel.y + 150
+        if menu.mode == "sell" and not menu.selecting_quadrant:
+            return panel.y + 160
+        return panel.y + 130
 
     @staticmethod
     def _draw_fitted(surface, font, text, color, position, max_width):

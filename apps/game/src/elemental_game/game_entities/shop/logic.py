@@ -27,6 +27,7 @@ class ShopMenu:
     MAX_VISIBLE_UPGRADES = 11
     CONFIRM_KEYS = (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE, pygame.K_f)
     MODES = ("buy", "upgrade", "sell")
+    SELL_QUANTITIES = (1, 10, 100)
     CROP_TYPES = (
         CropType.FIRE,
         CropType.WATER,
@@ -40,6 +41,7 @@ class ShopMenu:
         self.mode = "buy"
         self.selected = 0
         self.tier = 1
+        self.sell_quantity = 1
         self.selecting_quadrant = False
         self.pending_fertilizer = None
         self._status_message = ""
@@ -103,6 +105,12 @@ class ShopMenu:
             self.tier = (self.tier - 2) % 3 + 1
         elif self.mode == "buy" and event.key in (pygame.K_RIGHT, pygame.K_d):
             self.tier = self.tier % 3 + 1
+        elif self.mode == "sell" and event.key in (pygame.K_LEFT, pygame.K_a):
+            index = self.SELL_QUANTITIES.index(self.sell_quantity)
+            self.sell_quantity = self.SELL_QUANTITIES[(index - 1) % len(self.SELL_QUANTITIES)]
+        elif self.mode == "sell" and event.key in (pygame.K_RIGHT, pygame.K_d):
+            index = self.SELL_QUANTITIES.index(self.sell_quantity)
+            self.sell_quantity = self.SELL_QUANTITIES[(index + 1) % len(self.SELL_QUANTITIES)]
         elif event.key in self.CONFIRM_KEYS:
             self._activate_selection(player, farm, house)
 
@@ -154,7 +162,18 @@ class ShopMenu:
                     f"Sold {sold_count} crops for {sold_count * 3} coins."
                 )
             else:
-                player.sell_crop(crop_type)
+                available = player.crops.get(crop_type, 0)
+                if available < self.sell_quantity:
+                    self.status_message = (
+                        f"Not enough {crop_type.name.title()} crops "
+                        f"({available} available)."
+                    )
+                else:
+                    sold_count = player.sell_crop(crop_type, self.sell_quantity)
+                    self.status_message = (
+                        f"Sold {sold_count} {crop_type.name.title()} crop(s) "
+                        f"for {sold_count * 3} coins."
+                    )
             self.selected = min(
                 self.selected,
                 max(0, len(self._crop_options(player)) - 1),
