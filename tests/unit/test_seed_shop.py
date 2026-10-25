@@ -208,6 +208,36 @@ def test_boss_reward_unlocks_the_selected_element_only() -> None:
     assert player.max_unlocked_seed_tier(SeedType.FIRE) == 1
 
 
+def test_boss_reward_waits_for_manual_turret_exit() -> None:
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    reward = Mock()
+    game = SimpleNamespace(
+        seed_tier_reward=reward,
+        controlling_house_turret=True,
+        turrets=SimpleNamespace(modal_slot=None),
+        shop_open=False,
+        farm=SimpleNamespace(planting=False),
+        player=object(),
+        screen=pygame.Surface((1, 1)),
+    )
+    handler = GameInputHandler(game)
+
+    handler.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_ESCAPE})
+    )
+
+    reward.handle_event.assert_not_called()
+    assert not game.controlling_house_turret
+
+    handler.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_SPACE})
+    )
+
+    reward.handle_event.assert_called_once()
+
+
 def test_boss_reward_modal_draws_element_choices(pygame_display) -> None:
     from elemental_game.types.seed import SeedType
 

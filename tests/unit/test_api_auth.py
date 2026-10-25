@@ -343,6 +343,8 @@ def test_login_unexpected_error_is_logged_without_exposing_details(client) -> No
     assert response.json() == {"detail": "Internal server error"}
     assert "database connection failed" not in response.text
     assert "Unhandled exception while handling API request" in log_output.getvalue()
+    assert "client_ip=testclient" in log_output.getvalue()
+    assert "user_agent='testclient'" in log_output.getvalue()
     assert "RuntimeError: database connection failed" in log_output.getvalue()
 
 
@@ -353,7 +355,14 @@ def test_api_request_logs_method_path_and_status(client) -> None:
     api_logger.addHandler(log_handler)
 
     try:
-        response = client.get("/api/v1/leaderboard")
+        with TestClient(
+            client.app,
+            client=("203.0.113.24", 4567),
+        ) as identified_client:
+            response = identified_client.get(
+                "/api/v1/leaderboard",
+                headers={"User-Agent": "ElementalKeep/1.2"},
+            )
     finally:
         api_logger.removeHandler(log_handler)
 
@@ -362,6 +371,8 @@ def test_api_request_logs_method_path_and_status(client) -> None:
         "API request completed method=GET path=/api/v1/leaderboard status=200"
         in log_output.getvalue()
     )
+    assert "client_ip=203.0.113.24" in log_output.getvalue()
+    assert "user_agent='ElementalKeep/1.2'" in log_output.getvalue()
 
 
 def test_login_prunes_expired_and_revoked_tokens(client) -> None:

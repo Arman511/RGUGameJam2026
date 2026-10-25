@@ -589,5 +589,20 @@ class GameScreenRenderer:
             draw_exit_confirmation(surface, font)
         if game_over_dialog is not None:
             game_over_dialog.draw()
-        if seed_tier_reward is not None:
+        if seed_tier_reward is not None and controlling_house_turret:
+            message = "Exit the turret (F or ESC) to claim your seed tier reward."
+            banner = font.render(message, True, (255, 245, 180))
+            background = pygame.Surface(
+                (banner.get_width() + 24, banner.get_height() + 16),
+                pygame.SRCALPHA,
+            )
+            background.fill((35, 35, 35, 220))
+            background.blit(banner, (12, 8))
+            surface.blit(
+                background,
+                background.get_rect(
+                    midtop=(surface.get_width() // 2, surface.get_height() - 70)
+                ),
+            )
+        elif seed_tier_reward is not None:
             seed_tier_reward.draw(surface, font, player)

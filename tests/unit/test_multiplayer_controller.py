@@ -1,6 +1,9 @@
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pygame
+import pytest
+from elemental_game.application.game_loop import GameLoop
 from elemental_game.application.multiplayer import MultiplayerController
 
 
@@ -74,3 +77,33 @@ def test_attack_button_toggles_panel_and_mouse_attack_can_be_clicked() -> None:
 
     controller.handle_mouse_result(click, "attack", game)
     assert not controller.panel_open
+
+
+@pytest.mark.parametrize(
+    ("seed_tier_reward", "shop_open"),
+    [(object(), False), (None, True)],
+)
+def test_foreground_modals_receive_clicks_before_attack_panel(
+    seed_tier_reward, shop_open
+) -> None:
+    loop = GameLoop.__new__(GameLoop)
+    game = SimpleNamespace(
+        seed_tier_reward=seed_tier_reward,
+        shop_open=shop_open,
+        handle_mouse_event=Mock(return_value="handled"),
+    )
+    loop.game = game
+    loop.multiplayer = SimpleNamespace(
+        handle_panel_click=Mock(return_value=True),
+        handle_mouse_result=Mock(),
+    )
+    loop.renderer = SimpleNamespace(quick_action_buttons={})
+    click = pygame.event.Event(pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": (0, 0)})
+
+    loop._handle_mouse_click(click)
+
+    loop.multiplayer.handle_panel_click.assert_not_called()
+    game.handle_mouse_event.assert_called_once_with(click, {})
+    loop.multiplayer.handle_mouse_result.assert_called_once_with(
+        click, "handled", game
+    )

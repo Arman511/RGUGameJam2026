@@ -245,6 +245,19 @@ def test_settings_save_updates_persisted_api_url_and_turret_sensitivity(tmp_path
     )
     app.api_base_url = "https://elemental-keep.armandev.co.uk"
     app.api_base_url_input.value = "https://staging.example.com"
+    app.login_username = menus.InputField(
+        menus.LOGIN_USERNAME_RECT,
+        placeholder="Username",
+        max_length=32,
+    )
+    app.login_username.value = "alice"
+    app.login_password = menus.InputField(
+        menus.LOGIN_PASSWORD_RECT,
+        placeholder="Password",
+        max_length=128,
+        secret=True,
+    )
+    app.login_password.value = "S3cretpass!"
     app.auth = SimpleNamespace(client=SimpleNamespace(base_url="old"))
     app.credentials = Mock()
     app.username = "alice"
@@ -262,6 +275,8 @@ def test_settings_save_updates_persisted_api_url_and_turret_sensitivity(tmp_path
     assert app.state == "menu"
     assert app.credentials.clear_token.called
     assert app.username is None
+    assert app.login_username.value == ""
+    assert app.login_password.value == ""
     assert "Sign in again" in app.error_message
 
 

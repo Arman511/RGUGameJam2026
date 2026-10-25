@@ -85,6 +85,8 @@ class SettingsMenuMixin(MenuContext):
         if server_changed:
             self.credentials.clear_token()
             self.username = None
+            self.login_username.value = ""
+            self.login_password.value = ""
             self.error_message = "API server changed. Sign in again on the new server."
         self._save_sound_preferences()
         self.store.save_manual_turret_sensitivity(self.manual_turret_sensitivity)

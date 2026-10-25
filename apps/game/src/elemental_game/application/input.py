@@ -6,6 +6,7 @@ import pygame
 
 if TYPE_CHECKING:
     from elemental_game.application.session import GameSession
+    from elemental_game.game_entities.seed_tier_reward import SeedTierReward
 
 
 class GameInputHandler:
@@ -16,10 +17,14 @@ class GameInputHandler:
 
     def handle_event(self, event: pygame.event.Event) -> None:
         game = self.game
-        if getattr(game, "seed_tier_reward", None) is not None:
-            seed_type = game.seed_tier_reward.handle_event(
-                event, game.player, game.screen
-            )
+        seed_tier_reward: SeedTierReward | None = getattr(
+            game, "seed_tier_reward", None
+        )
+        if (
+            seed_tier_reward is not None
+            and not game.controlling_house_turret
+        ):
+            seed_type = seed_tier_reward.handle_event(event, game.player, game.screen)
             if seed_type is not None:
                 game.seed_tier_reward = None
             return
@@ -74,10 +79,14 @@ class GameInputHandler:
         quick_action_buttons: dict[str, pygame.Rect],
     ) -> str | None:
         game = self.game
-        if getattr(game, "seed_tier_reward", None) is not None:
-            seed_type = game.seed_tier_reward.handle_event(
-                event, game.player, game.screen
-            )
+        seed_tier_reward: SeedTierReward | None = getattr(
+            game, "seed_tier_reward", None
+        )
+        if (
+            seed_tier_reward is not None
+            and not game.controlling_house_turret
+        ):
+            seed_type = seed_tier_reward.handle_event(event, game.player, game.screen)
             if seed_type is not None:
                 game.seed_tier_reward = None
             return "handled"

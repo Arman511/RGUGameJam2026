@@ -83,5 +83,11 @@ The leaderboard API also supports server-side search by player or run ID,
 sorting, and offset-based pagination so the web page loads only the current
 result page.
 
+Completed `/api/` requests and unhandled request errors are logged with the
+client IP address and `User-Agent` header. Behind a reverse proxy, the IP
+reflects the address Uvicorn accepts as the request client; configure trusted
+proxy forwarding in the deployment if logs should identify the originating
+player rather than the proxy.
+
 Successful logins remove expired and revoked authentication tokens. Database
 indexes support token cleanup, per-user token lookups, and leaderboard ranking.

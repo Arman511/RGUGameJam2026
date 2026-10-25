@@ -101,7 +101,11 @@ class GameLoop:
             self.game.handle_event(event)
 
     def _handle_mouse_click(self, event: pygame.event.Event) -> None:
-        if self.multiplayer.handle_panel_click(event, self.game):
+        if (
+            self.game.seed_tier_reward is None
+            and not self.game.shop_open
+            and self.multiplayer.handle_panel_click(event, self.game)
+        ):
             return
         result = self.game.handle_mouse_event(
             event, self.renderer.quick_action_buttons
