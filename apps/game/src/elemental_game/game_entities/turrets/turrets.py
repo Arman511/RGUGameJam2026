@@ -248,7 +248,7 @@ class TurretSystem:
         self.modal_slot: TurretSlot | None = None
         self.modal_selection = 0
         self.status_message = ""
-        self.show_ranges = False
+        self.show_ranges = True
         self._soil = pygame.transform.scale(
             pygame.image.load(
                 os.path.join(IMAGES_DIR, "settings-and-gameplay", "soil.png")

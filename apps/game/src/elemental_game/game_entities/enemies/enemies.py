@@ -214,6 +214,8 @@ class EnemyState:
         return self.health > 0
 
     def take_damage(self, damage: float, element: CropType | None = None) -> None:
+        if element is not None and self.definition.element is element:
+            return
         multiplier = 1.0
         if element is not None and self.resistance < 1:
             multiplier = self.resistance

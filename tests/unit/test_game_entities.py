@@ -207,6 +207,14 @@ def test_elemental_damage_matchups_and_neutral_slimes() -> None:
     assert slime.health == 90
 
 
+def test_turret_does_no_damage_to_same_element_enemies() -> None:
+    enemy = EnemyState.create("elite_fire", (0, 0))
+
+    enemy.take_damage(8, CropType.FIRE)
+
+    assert enemy.health == enemy.max_health
+
+
 def test_elites_are_resistant_and_bosses_appear_every_third_wave() -> None:
     elite = EnemyState.create("elite_fire", (0, 0))
     boss = EnemyState.create("boss", (0, 0))
@@ -400,6 +408,27 @@ def test_elemental_turret_projectile_uses_its_element_sprite_and_hits_on_arrival
     system.update(1, [])
     assert enemy.health < enemy.max_health
     assert not system.projectiles
+
+
+def test_same_element_turret_projectile_does_no_damage_to_matching_elite() -> None:
+    system = TurretSystem.__new__(TurretSystem)
+    system.projectiles = []
+    system._projectile_images = {
+        crop: pygame.Surface((18, 18)) for crop in PROJECTILE_ASSETS
+    }
+    system.slots = [TurretSlot("left", 0, (0, 0), TurretInstance("flame_turret"))]
+    enemy = EnemyState.create("elite_fire", (-100, 0))
+
+    system.update(0.01, [enemy])
+    system.update(1.0, [])
+
+    assert enemy.health == enemy.max_health
+
+
+def test_turret_ranges_are_enabled_by_default(pygame_display) -> None:
+    system = TurretSystem(None)
+
+    assert system.show_ranges
 
 
 def test_elemental_projectile_applies_slow_and_knockback_on_impact() -> None:
