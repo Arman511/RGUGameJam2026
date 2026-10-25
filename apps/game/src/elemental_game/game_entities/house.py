@@ -34,6 +34,7 @@ class House:
 
     def __init__(self, surface):
         self.max_hp = 100
+        self.health = self.max_hp
         self.state = HouseState.FIXED
         self.dimensions = (250, 200)
         self.surface = surface
@@ -119,4 +120,4 @@ class House:
         )
 
     def get_hp(self):
-        return self.max_hp
+        return self.health
