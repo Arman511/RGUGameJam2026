@@ -174,8 +174,6 @@ def main(argv: Sequence[str] | None = None) -> None:
                 enemies_defeated=enemies_defeated,
             )
         seconds = clock.tick(60) / 1000  # seconds since last frame
-        if isinstance(game_over_dialog, MultiplayerGameOverDialog):
-            game_over_dialog.update(seconds)
         if multiplayer is not None:
             try:
                 for message in multiplayer.poll():
@@ -594,6 +592,19 @@ def main(argv: Sequence[str] | None = None) -> None:
         turrets.draw_modal(screen, font, player)
         phase_label = "PLANTING" if planting_phase else f"WAVE {wave_number}"
         phase_icon_position = (20, 12)
+        if multiplayer is not None:
+            room_code = multiplayer.room_code or "------"
+            opponent_text = font.render(
+                f"VS {multiplayer.opponent_name}  |  Room {room_code}  |  V: attacks",
+                True,
+                (255, 255, 255),
+            )
+            screen.blit(opponent_text, (78, 6))
+            if multiplayer_status:
+                status_text = font.render(
+                    multiplayer_status[:75], True, (255, 225, 125)
+                )
+                screen.blit(status_text, (78, 34))
         if not planting_phase:
             screen.blit(enemy_marker_background, (14, 6))
         screen.blit(
@@ -605,52 +616,40 @@ def main(argv: Sequence[str] | None = None) -> None:
             True,
             (255, 255, 255),
         )
+        phase_text_position = (78, 18) if multiplayer is not None else (78, 5)
         screen.blit(
             timer,
-            (screen.get_width() - timer.get_width() - 20, 5),
+            (screen.get_width() - timer.get_width() - 20, phase_text_position[1]),
         )
         if hud_visible:
             draw_inventory_hud(screen, player, wave_number, enemies_defeated)
-        if multiplayer is not None:
-            room_code = multiplayer.room_code or "------"
-            opponent_text = font.render(
-                f"VS {multiplayer.opponent_name}  |  Room {room_code}  |  V: attacks",
-                True,
-                (255, 255, 255),
+        if multiplayer is not None and multiplayer_panel_open:
+            panel = pygame.Rect(665, 170, 470, 300)
+            pygame.draw.rect(screen, (35, 40, 50), panel, border_radius=10)
+            pygame.draw.rect(screen, (215, 220, 230), panel, 2, border_radius=10)
+            crop_count = (
+                player.crops.get(selected_attack_element, 0)
+                if selected_attack_element is not None
+                else 0
             )
-            screen.blit(opponent_text, (20, 75))
-            if multiplayer_status:
-                status_text = font.render(
-                    multiplayer_status[:75], True, (255, 225, 125)
+            selected_crop_name = (
+                selected_attack_element.name.title()
+                if selected_attack_element is not None
+                else "none"
+            )
+            attack_lines = (
+                "VS ATTACKS  (V / ESC to close)",
+                f"Coins: {player.coins}    Crop: {selected_crop_name} x{crop_count} (Q/E)",
+                "1  Send 4 extra enemies  -  6 coins",
+                "2  Toughen next wave     -  8 coins",
+                "3  Raise elemental odds  -  1 crop",
+                "4  Change enemy weather  -  1 crop",
+            )
+            for index, line in enumerate(attack_lines):
+                text = font.render(
+                    line, True, (255, 230, 150) if index == 0 else (245, 245, 245)
                 )
-                screen.blit(status_text, (20, 105))
-            if multiplayer_panel_open:
-                panel = pygame.Rect(665, 170, 470, 300)
-                pygame.draw.rect(screen, (35, 40, 50), panel, border_radius=10)
-                pygame.draw.rect(screen, (215, 220, 230), panel, 2, border_radius=10)
-                crop_count = (
-                    player.crops.get(selected_attack_element, 0)
-                    if selected_attack_element is not None
-                    else 0
-                )
-                selected_crop_name = (
-                    selected_attack_element.name.title()
-                    if selected_attack_element is not None
-                    else "none"
-                )
-                attack_lines = (
-                    "VS ATTACKS  (V / ESC to close)",
-                    f"Coins: {player.coins}    Crop: {selected_crop_name} x{crop_count} (Q/E)",
-                    "1  Send 4 extra enemies  -  6 coins",
-                    "2  Toughen next wave     -  8 coins",
-                    "3  Raise elemental odds  -  1 crop",
-                    "4  Change enemy weather  -  1 crop",
-                )
-                for index, line in enumerate(attack_lines):
-                    text = font.render(
-                        line, True, (255, 230, 150) if index == 0 else (245, 245, 245)
-                    )
-                    screen.blit(text, (panel.x + 18, panel.y + 25 + index * 42))
+                screen.blit(text, (panel.x + 18, panel.y + 25 + index * 42))
         if shop_open:
             shop.draw(screen, font, player, farm, house)
         if confirm_exit:

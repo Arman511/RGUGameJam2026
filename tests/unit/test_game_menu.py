@@ -299,6 +299,32 @@ def test_successful_publish_completes_game_over_dialog_immediately() -> None:
     assert dialog.done
 
 
+def test_multiplayer_game_over_requires_local_menu_button_click() -> None:
+    from elemental_game.screen_rendering.multiplayer_game_over import (
+        MultiplayerGameOverDialog,
+    )
+
+    pygame.font.init()
+    dialog = MultiplayerGameOverDialog(
+        pygame.Surface((800, 600)),
+        pygame.font.Font(None, 22),
+        "victory",
+    )
+
+    for key in (pygame.K_RETURN, pygame.K_SPACE, pygame.K_ESCAPE):
+        dialog.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": key}))
+        assert not dialog.done
+
+    dialog.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            {"button": 1, "pos": dialog._menu_button_rect().center},
+        )
+    )
+
+    assert dialog.done
+
+
 def test_exit_button_closes_menu_without_starting_game() -> None:
     app = menus.MenuSystem.__new__(menus.MenuSystem)
     app.layout = menus.MenuLayout(1000, 800)

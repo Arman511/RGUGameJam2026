@@ -4,8 +4,6 @@ import pygame
 
 
 class MultiplayerGameOverDialog:
-    DISPLAY_DURATION = 5.0
-
     def __init__(
         self,
         surface: pygame.Surface,
@@ -15,19 +13,24 @@ class MultiplayerGameOverDialog:
         self.surface = surface
         self.font = font
         self.result = result
-        self.remaining = self.DISPLAY_DURATION
         self.done = False
 
-    def update(self, seconds: float) -> None:
-        self.remaining = max(0.0, self.remaining - seconds)
-        if self.remaining == 0:
-            self.done = True
+    def _panel_rect(self) -> pygame.Rect:
+        panel = pygame.Rect(0, 0, min(560, self.surface.get_width() - 40), 230)
+        panel.center = self.surface.get_rect().center
+        return panel
+
+    def _menu_button_rect(self) -> pygame.Rect:
+        panel = self._panel_rect()
+        button = pygame.Rect(0, 0, min(300, panel.width - 40), 48)
+        button.center = (panel.centerx, panel.y + 184)
+        return button
 
     def handle_event(self, event: pygame.event.Event) -> None:
-        if event.type == pygame.KEYDOWN and event.key in (
-            pygame.K_RETURN,
-            pygame.K_SPACE,
-            pygame.K_ESCAPE,
+        if (
+            event.type == pygame.MOUSEBUTTONDOWN
+            and event.button == 1
+            and self._menu_button_rect().collidepoint(event.pos)
         ):
             self.done = True
 
@@ -36,8 +39,7 @@ class MultiplayerGameOverDialog:
         overlay.fill((0, 0, 0, 190))
         self.surface.blit(overlay, (0, 0))
 
-        panel = pygame.Rect(0, 0, min(560, self.surface.get_width() - 40), 230)
-        panel.center = self.surface.get_rect().center
+        panel = self._panel_rect()
         pygame.draw.rect(self.surface, (44, 48, 57), panel, border_radius=12)
         pygame.draw.rect(self.surface, (225, 225, 225), panel, 2, border_radius=12)
         title = "Congratulations, you won!" if self.result == "victory" else "Game over"
@@ -45,14 +47,17 @@ class MultiplayerGameOverDialog:
         self.surface.blit(
             title_surface, title_surface.get_rect(center=(panel.centerx, panel.y + 70))
         )
-        message = "Returning to the main menu..."
+        message = "The match has ended."
         message_surface = self.font.render(message, True, (240, 240, 240))
         self.surface.blit(
             message_surface,
-            message_surface.get_rect(center=(panel.centerx, panel.y + 125)),
+            message_surface.get_rect(center=(panel.centerx, panel.y + 118)),
         )
-        prompt = self.font.render("Press ENTER to continue", True, (190, 200, 210))
+        button = self._menu_button_rect()
+        pygame.draw.rect(self.surface, (65, 85, 65), button, border_radius=6)
+        pygame.draw.rect(self.surface, (190, 210, 190), button, 2, border_radius=6)
+        prompt = self.font.render("Return to main menu", True, (255, 255, 255))
         self.surface.blit(
             prompt,
-            prompt.get_rect(center=(panel.centerx, panel.y + 175)),
+            prompt.get_rect(center=button.center),
         )
