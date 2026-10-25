@@ -4,6 +4,7 @@ services:
     restart: unless-stopped
     environment:
       ELEMENTAL_API_DB_PATH: /data/elemental_api.db
+      ELEMENTAL_API_ADMIN_TOKEN: ${ELEMENTAL_API_ADMIN_TOKEN:-}
       ELEMENTAL_MATCH_LIMIT: ${ELEMENTAL_MATCH_LIMIT:-100}
       ELEMENTAL_MATCH_JOIN_TIMEOUT_SECONDS: ${ELEMENTAL_MATCH_JOIN_TIMEOUT_SECONDS:-120}
     volumes:

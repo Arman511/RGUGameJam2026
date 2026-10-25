@@ -1073,24 +1073,53 @@ def test_open_planting_menu_only_pauses_during_planting_phase() -> None:
     assert game.single_player_menu_paused
 
 
-def test_player_can_move_with_plant_selector_open_during_enemy_phase() -> None:
+def test_player_does_not_move_with_plant_selector_open_during_enemy_phase(
+    monkeypatch,
+) -> None:
     from types import SimpleNamespace
     from unittest.mock import Mock
 
+    from elemental_game import gameplay as gameplay_module
+
+    update_result = SimpleNamespace(
+        spawned_enemies=[], started_wave=None, completed=False
+    )
     game = GameSession.__new__(GameSession)
     game.house = SimpleNamespace(health=100)
     game.player = Mock()
-    game.farm = SimpleNamespace(planting=True)
-    game.waves = SimpleNamespace(planting_phase=False)
+    game.farm = SimpleNamespace(
+        planting=True,
+        update=lambda *_args, **_kwargs: None,
+        weather_crop_type=None,
+    )
+    game.waves = SimpleNamespace(
+        planting_phase=False,
+        update=lambda *_args, **_kwargs: update_result,
+        crop_type=CropType.FIRE,
+    )
     game.shop_open = False
+    game.shop = SimpleNamespace(update=lambda *_args: None)
     game.confirm_exit = False
     game.turrets = SimpleNamespace(modal_slot=None)
     game.seed_tier_reward = None
     game.controlling_house_turret = False
+    game.run_elapsed = 0.0
+    game.enemies = []
+    game.enemies_defeated = 0
+    game.screen = pygame.Surface((1, 1))
+    monkeypatch.setattr(
+        gameplay_module.EnemyController,
+        "update",
+        lambda *_args: ([], 0),
+    )
 
-    game.update(0.1, paused=True, music_volume=1.0)
+    game.update(
+        0.1,
+        paused=False,
+        music_volume=1.0,
+    )
 
-    game.player.update.assert_called_once_with(0.1)
+    game.player.update.assert_not_called()
 
 
 def test_paused_game_does_not_advance_fertilizer_timers() -> None:

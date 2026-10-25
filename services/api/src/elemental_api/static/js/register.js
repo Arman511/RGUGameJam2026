@@ -45,7 +45,9 @@ form.addEventListener("submit", async (event) => {
     }
 
     form.reset();
-    showMessage("Your account is ready. Your realm awaits.");
+    showMessage(
+      "The stars have opened your path. Return to the game and sign in to enter your realm.",
+    );
   } catch (error) {
     console.error("Registration request failed.", error);
     showMessage("Registration could not be completed. Please try again.", true);

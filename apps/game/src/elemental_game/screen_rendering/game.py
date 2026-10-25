@@ -437,6 +437,19 @@ class GameScreenRenderer:
             )
             for index, (label, action, resource) in enumerate(attack_rows):
                 y = panel.y + 109 + index * 42
+                pygame.draw.rect(
+                    surface,
+                    (48, 55, 67),
+                    pygame.Rect(panel.x + 10, y - 5, panel.width - 20, 36),
+                    border_radius=5,
+                )
+                pygame.draw.rect(
+                    surface,
+                    (105, 115, 130),
+                    pygame.Rect(panel.x + 10, y - 5, panel.width - 20, 36),
+                    width=1,
+                    border_radius=5,
+                )
                 rendered_label = font.render(label, True, text_color)
                 surface.blit(rendered_label, (panel.x + 18, y))
                 resource_icon = (

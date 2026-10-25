@@ -33,10 +33,92 @@ def client(tmp_path, monkeypatch):
 
 def test_registration_succeeds(client) -> None:
     response = client.post(
-        "/api/v1/auth/register", json={"username": "alice", "password": "secretpass"}
+        "/api/v1/auth/register", json={"username": "alice", "password": "S3cretpass!"}
     )
     assert response.status_code == 200
     assert response.json()["user"]["username"] == "alice"
+
+
+@pytest.mark.parametrize(
+    "password",
+    ["lowercase1!", "UPPERCASE1!", "NoDigits!!", "NoSymbol123"],
+)
+def test_registration_rejects_passwords_missing_complexity(password, client) -> None:
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"username": "alice", "password": password},
+    )
+
+    assert response.status_code == 422
+
+
+def test_admin_routes_require_a_configured_token(client, monkeypatch) -> None:
+    monkeypatch.delenv("ELEMENTAL_API_ADMIN_TOKEN", raising=False)
+
+    response = client.get("/api/v1/admin/users")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Admin endpoints are not configured"
+
+
+def test_admin_routes_list_users_and_delete_user_records(client, monkeypatch) -> None:
+    from elemental_api.database.connection import get_engine
+    from elemental_api.database.models import AuthToken, RunRecord, User
+
+    admin_token = "long-random-admin-token"
+    monkeypatch.setenv("ELEMENTAL_API_ADMIN_TOKEN", admin_token)
+    admin_headers = {"X-Admin-Token": admin_token}
+    bad_auth = client.get(
+        "/api/v1/admin/users",
+        headers={"X-Admin-Token": "wrong-token"},
+    )
+    assert bad_auth.status_code == 401
+
+    for username in ("alice", "bob"):
+        registered = client.post(
+            "/api/v1/auth/register",
+            json={"username": username, "password": "S3cretpass!"},
+        )
+        assert registered.status_code == 200
+
+    login = client.post(
+        "/api/v1/auth/login",
+        json={"username": "alice", "password": "S3cretpass!"},
+    )
+    bearer_headers = {"Authorization": f"Bearer {login.json()['token']}"}
+    submitted = client.post(
+        "/api/v1/scores",
+        headers=bearer_headers,
+        json={
+            "run_id": "alice-run",
+            "time_survived": 64.2,
+            "wave_number": 5,
+            "enemies_defeated": 14,
+        },
+    )
+    assert submitted.status_code == 200
+
+    users = client.get("/api/v1/admin/users", headers=admin_headers)
+    assert users.status_code == 200
+    assert [user["username"] for user in users.json()] == ["alice", "bob"]
+    assert "password_hash" not in users.json()[0]
+
+    alice_id = users.json()[0]["id"]
+    deleted = client.delete(
+        f"/api/v1/admin/users/{alice_id}",
+        headers=admin_headers,
+    )
+    assert deleted.status_code == 200
+
+    assert client.get("/api/v1/auth/me", headers=bearer_headers).status_code == 401
+    assert client.get("/api/v1/leaderboard").json()["scores"] == []
+    remaining_users = client.get("/api/v1/admin/users", headers=admin_headers)
+    assert [user["username"] for user in remaining_users.json()] == ["bob"]
+
+    with Session(get_engine()) as session:
+        assert session.scalar(select(User).where(User.username == "alice")) is None
+        assert session.scalars(select(AuthToken)).all() == []
+        assert session.scalars(select(RunRecord)).all() == []
 
 
 def test_pages_link_to_download_page(client) -> None:
@@ -202,20 +284,20 @@ def test_host_room_expires_if_player_two_does_not_join(client) -> None:
 
 def test_duplicate_username_is_rejected(client) -> None:
     client.post(
-        "/api/v1/auth/register", json={"username": "alice", "password": "secretpass"}
+        "/api/v1/auth/register", json={"username": "alice", "password": "S3cretpass!"}
     )
     response = client.post(
-        "/api/v1/auth/register", json={"username": "alice", "password": "secretpass"}
+        "/api/v1/auth/register", json={"username": "alice", "password": "S3cretpass!"}
     )
     assert response.status_code == 409
 
 
 def test_login_succeeds_and_returns_token(client) -> None:
     client.post(
-        "/api/v1/auth/register", json={"username": "alice", "password": "secretpass"}
+        "/api/v1/auth/register", json={"username": "alice", "password": "S3cretpass!"}
     )
     response = client.post(
-        "/api/v1/auth/login", json={"username": "alice", "password": "secretpass"}
+        "/api/v1/auth/login", json={"username": "alice", "password": "S3cretpass!"}
     )
     assert response.status_code == 200
     payload = response.json()
@@ -224,7 +306,7 @@ def test_login_succeeds_and_returns_token(client) -> None:
 
 def test_login_with_wrong_password_returns_unauthorized(client) -> None:
     client.post(
-        "/api/v1/auth/register", json={"username": "alice", "password": "secretpass"}
+        "/api/v1/auth/register", json={"username": "alice", "password": "S3cretpass!"}
     )
 
     response = client.post(
@@ -252,7 +334,7 @@ def test_login_unexpected_error_is_logged_without_exposing_details(client) -> No
     try:
         response = TestClient(client.app, raise_server_exceptions=False).post(
             "/api/v1/auth/login",
-            json={"username": "alice", "password": "secretpass"},
+            json={"username": "alice", "password": "S3cretpass!"},
         )
     finally:
         api_logger.removeHandler(log_handler)
@@ -287,7 +369,7 @@ def test_login_prunes_expired_and_revoked_tokens(client) -> None:
     from elemental_api.database.models import AuthToken, User
 
     client.post(
-        "/api/v1/auth/register", json={"username": "alice", "password": "secretpass"}
+        "/api/v1/auth/register", json={"username": "alice", "password": "S3cretpass!"}
     )
     now = datetime.now(UTC).replace(tzinfo=None)
     with Session(get_engine()) as session:
@@ -316,7 +398,7 @@ def test_login_prunes_expired_and_revoked_tokens(client) -> None:
         session.commit()
 
     response = client.post(
-        "/api/v1/auth/login", json={"username": "alice", "password": "secretpass"}
+        "/api/v1/auth/login", json={"username": "alice", "password": "S3cretpass!"}
     )
     assert response.status_code == 200
 
@@ -336,11 +418,11 @@ def test_protected_routes_require_authentication(client) -> None:
 def test_authenticated_score_submission_saves_time_and_wave(client) -> None:
     client.post(
         "/api/v1/auth/register",
-        json={"username": "alice", "password": "secretpass"},
+        json={"username": "alice", "password": "S3cretpass!"},
     )
     login = client.post(
         "/api/v1/auth/login",
-        json={"username": "alice", "password": "secretpass"},
+        json={"username": "alice", "password": "S3cretpass!"},
     )
     headers = {"Authorization": f"Bearer {login.json()['token']}"}
 
@@ -510,6 +592,7 @@ def test_leaderboard_static_assets_are_served(client) -> None:
     assert "REFRESH_INTERVAL = 7000" in script.text
     assert register_script.status_code == 200
     assert "/api/v1/auth/register" in register_script.text
+    assert "Return to the game and sign in" in register_script.text
 
 
 @pytest.mark.parametrize(

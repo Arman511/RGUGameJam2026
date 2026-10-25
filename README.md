@@ -57,7 +57,8 @@ The game also has a **Help / Controls** screen in its main menu. Main controls:
 - A/D or arrow keys: choose a seed tier in the shop
 - O: show or hide turret ranges
 - At the house turret, F to take control, A/D to aim, and Space to fire
-- In two-player mode, V opens attacks, Q/E selects a crop, and 1-4 sends an attack
+- In two-player mode, V opens/closes attacks, Q/E selects a crop, and 1-4 or a
+  click on an attack option sends it; Escape closes the panel
 - Escape: cancel or go back
 
 Press `H` to toggle the inventory HUD.
@@ -83,9 +84,15 @@ ELEMENTAL_KEEP_API_BASE_URL=http://127.0.0.1:8000
 ```
 
 You can instead set `ELEMENTAL_KEEP_API_BASE_URL` in the environment before
-launching the game; an environment variable takes precedence over the `.env`
-value. Set it to the base URL of your API server, without an API route suffix.
-For a downloaded game build, set the environment variable before launching it.
+launching the game; when no Settings-menu override has been saved, the
+environment variable takes precedence over the `.env` value. Set it to the
+base URL of your API server, without an API route suffix. You can also change
+the API server in the game's Settings menu; that choice is persisted in the
+local game database and applies to account, leaderboard, registration, and
+multiplayer features. Changing servers signs the player out to avoid reusing
+credentials with a different server. The Settings menu also lets you adjust
+manual house-turret movement sensitivity. For a downloaded game build, set the
+environment variable before launching it to choose the initial default.
 
 ## Run the API server locally
 
@@ -105,6 +112,7 @@ server's online services.
 For deployment with the production Docker Compose configuration, see
 [services/api/README.md](services/api/README.md).
 
+Set the ELEMENTAL_API_ADMIN_TOKEN usig to .env openssl rand -hex 32
 ## Local database and credentials
 Local leaderboard data is stored in the OS app-data directory, not in the repository. The API database defaults to `./.local/elemental_api.db` when `ELEMENTAL_API_DB_PATH` is not set. Credential storage uses `keyring` when available; otherwise the client falls back to a private per-user file.
 

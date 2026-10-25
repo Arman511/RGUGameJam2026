@@ -6,7 +6,7 @@ import pygame
 
 from elemental_game.api_client import AuthClient, CredentialStore
 from elemental_game.database import LocalLeaderboardStore
-from elemental_game.multiplayer import MultiplayerClient
+from elemental_game.networking.client import MultiplayerClient
 from elemental_game.types.player import PlayerType
 
 from .common import InputField, MenuLayout
@@ -14,6 +14,8 @@ from .common import InputField, MenuLayout
 
 class MenuContext(Protocol):
     auth: AuthClient
+    api_base_url: str
+    api_base_url_input: InputField
     credentials: CredentialStore
     error_message: str
     font: pygame.font.Font
@@ -25,6 +27,7 @@ class MenuContext(Protocol):
     leaderboard_filter: InputField
     leaderboard_rows: list[dict[str, Any]]
     leaderboard_scroll: int
+    manual_turret_sensitivity: float
     login_password: InputField
     login_username: InputField
     multiplayer_client: MultiplayerClient | None
@@ -47,6 +50,8 @@ class MenuContext(Protocol):
     def _change_player_type(self, step: int) -> None: ...
 
     def _close_settings(self) -> None: ...
+
+    def _draw_api_url_input(self) -> None: ...
 
     def _continue_as_guest(self) -> None: ...
 

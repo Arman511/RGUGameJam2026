@@ -664,6 +664,35 @@ def test_manual_turret_can_hit_targets_at_unlimited_range() -> None:
     assert enemy.health < enemy.max_health
 
 
+def test_manual_turret_rotation_speed_controls_movement_sensitivity() -> None:
+    turret = ManualTurret.__new__(ManualTurret)
+    turret.angle = 0.0
+    turret.rotation_speed = 90.0
+    turret.cooldown = 1.0
+    turret.projectiles = []
+
+    turret.update(0.5, [], (0, 0), 1, False)
+
+    assert turret.angle == 45.0
+
+
+def test_game_loop_applies_saved_manual_turret_sensitivity() -> None:
+    from types import SimpleNamespace
+
+    from elemental_game.application.game_loop import GameLoop
+
+    game_loop = GameLoop.__new__(GameLoop)
+    turret = SimpleNamespace(rotation_speed=ManualTurret.ROTATION_SPEED)
+    game_loop.game = SimpleNamespace(house=SimpleNamespace(turret=turret))
+    game_loop.menus = SimpleNamespace(
+        store=SimpleNamespace(manual_turret_sensitivity=lambda: 0.75)
+    )
+
+    game_loop._apply_manual_turret_sensitivity()
+
+    assert turret.rotation_speed == 210.0
+
+
 def test_manual_turret_laser_sight_marks_aim_direction() -> None:
     turret = ManualTurret.__new__(ManualTurret)
     turret.angle = 0

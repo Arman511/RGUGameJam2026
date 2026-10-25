@@ -1,6 +1,8 @@
 import sqlite3
 from pathlib import Path
 
+import pytest
+from elemental_game.config import ELEMENTAL_KEEP_API_BASE_URL
 from elemental_game.database.local_database import LocalLeaderboardStore
 
 
@@ -61,6 +63,40 @@ def test_sound_preferences_persist_and_validate(tmp_path: Path) -> None:
         assert str(error) == "sound volumes must be between 0.0 and 1.0"
     else:
         raise AssertionError("out-of-range sound settings must not be saved")
+
+
+def test_manual_turret_sensitivity_defaults_persists_and_validates(
+    tmp_path: Path,
+) -> None:
+    db = LocalLeaderboardStore(path=tmp_path / "leaderboard.db")
+
+    assert db.manual_turret_sensitivity() == 0.5
+    db.save_manual_turret_sensitivity(0.75)
+    assert LocalLeaderboardStore(path=db.path).manual_turret_sensitivity() == 0.75
+
+    with pytest.raises(ValueError, match="manual turret sensitivity"):
+        db.save_manual_turret_sensitivity(1.1)
+
+
+def test_api_server_url_defaults_persists_and_validates(tmp_path: Path) -> None:
+    db = LocalLeaderboardStore(path=tmp_path / "leaderboard.db")
+
+    assert db.api_base_url() == ELEMENTAL_KEEP_API_BASE_URL
+    db.save_api_base_url("https://staging.example.com/")
+    assert LocalLeaderboardStore(path=db.path).api_base_url() == (
+        "https://staging.example.com"
+    )
+
+    for invalid_url in (
+        "",
+        "staging.example.com",
+        "ftp://staging.example.com",
+        "https://example.com/path",
+        "https://user:secret@example.com",
+        "https://example.com?debug=1",
+    ):
+        with pytest.raises(ValueError, match="server URL"):
+            db.save_api_base_url(invalid_url)
 
 
 def test_hints_setting_defaults_on_persists_and_validates(tmp_path: Path) -> None:
@@ -143,7 +179,7 @@ def test_legacy_local_leaderboard_migrates_without_score(tmp_path: Path) -> None
         columns = {
             row[1] for row in connection.execute("PRAGMA table_info(leaderboard)")
         }
-    assert revision == "0006_player_selection"
+    assert revision == "0007_api_base_url"
     assert "score" not in columns
 
 

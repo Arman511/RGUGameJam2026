@@ -27,6 +27,20 @@ def test_register_page_uses_windows_browser_from_wsl(monkeypatch) -> None:
     ]
 
 
+def test_register_page_uses_the_selected_api_server(monkeypatch) -> None:
+    monkeypatch.setenv("WSL_DISTRO_NAME", "Ubuntu")
+    commands = []
+    monkeypatch.setattr(
+        menus.subprocess,
+        "run",
+        lambda command, **kwargs: commands.append((command, kwargs)),
+    )
+
+    assert menus.open_registration_page("https://staging.example.com/")
+
+    assert commands[0][0][-1] == "https://staging.example.com/register"
+
+
 def test_register_button_opens_registration_page(monkeypatch) -> None:
     app = menus.MenuSystem.__new__(menus.MenuSystem)
     app.login_username = menus.InputField(
@@ -151,6 +165,11 @@ def test_leaderboard_filter_is_horizontally_centered() -> None:
 def test_settings_toggle_gameplay_hints() -> None:
     app = menus.MenuSystem.__new__(menus.MenuSystem)
     app.layout = menus.MenuLayout(800, 600)
+    app.api_base_url_input = menus.InputField(
+        menus.API_BASE_URL_INPUT,
+        placeholder="https://example.com",
+        max_length=255,
+    )
     app.hints_enabled = True
     click_event = pygame.event.Event(
         pygame.MOUSEBUTTONDOWN,
@@ -164,10 +183,86 @@ def test_settings_toggle_gameplay_hints() -> None:
     assert app.hints_enabled is True
 
 
+def test_settings_api_input_accepts_text_without_triggering_gameplay_actions() -> None:
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.layout = menus.MenuLayout(800, 600)
+    app.api_base_url_input = menus.InputField(
+        menus.API_BASE_URL_INPUT,
+        placeholder="https://example.com",
+        max_length=255,
+    )
+    app.dragging_slider = None
+    app.hints_enabled = True
+    app.api_base_url_input.value = ""
+
+    app._handle_settings_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            {"button": 1, "pos": menus.API_BASE_URL_INPUT.center},
+        )
+    )
+    app._handle_settings_event(
+        pygame.event.Event(
+            pygame.KEYDOWN,
+            {"key": pygame.K_h, "unicode": "h"},
+        )
+    )
+
+    assert app.api_base_url_input.value == "h"
+    assert app.api_base_url_input.focused
+    assert app.hints_enabled
+
+
 def test_settings_player_selector_is_aligned_and_separated_from_clear_button() -> None:
     assert menus.PLAYER_PREVIOUS_BUTTON.centery == menus.PLAYER_SELECT_PANEL.centery
     assert menus.PLAYER_NEXT_BUTTON.centery == menus.PLAYER_SELECT_PANEL.centery
     assert menus.CLEAR_LEADERBOARD_BUTTON.top - menus.PLAYER_SELECT_PANEL.bottom >= 10
+
+
+def test_settings_slider_updates_manual_turret_sensitivity() -> None:
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.layout = menus.MenuLayout(800, 600)
+    app.dragging_slider = "manual_turret_sensitivity"
+    app.manual_turret_sensitivity = 0.5
+
+    app._update_slider(menus.TURRET_SENSITIVITY_SLIDER.right)
+
+    assert app.manual_turret_sensitivity == 1.0
+
+
+def test_settings_save_updates_persisted_api_url_and_turret_sensitivity(tmp_path) -> None:
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    from elemental_game.database.local_database import LocalLeaderboardStore
+
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.store = LocalLeaderboardStore(path=tmp_path / "settings.db")
+    app.api_base_url_input = menus.InputField(
+        menus.API_BASE_URL_INPUT,
+        placeholder="https://example.com",
+        max_length=255,
+    )
+    app.api_base_url = "https://elemental-keep.armandev.co.uk"
+    app.api_base_url_input.value = "https://staging.example.com"
+    app.auth = SimpleNamespace(client=SimpleNamespace(base_url="old"))
+    app.credentials = Mock()
+    app.username = "alice"
+    app.error_message = ""
+    app._save_sound_preferences = Mock()
+    app.manual_turret_sensitivity = 0.8
+    app.state = "settings"
+
+    app._close_settings()
+
+    assert app.api_base_url == "https://staging.example.com"
+    assert app.auth.client.base_url == "https://staging.example.com"
+    assert app.store.api_base_url() == "https://staging.example.com"
+    assert app.store.manual_turret_sensitivity() == 0.8
+    assert app.state == "menu"
+    assert app.credentials.clear_token.called
+    assert app.username is None
+    assert "Sign in again" in app.error_message
 
 
 def test_host_fetches_server_timeout_before_creating_room(monkeypatch) -> None:
@@ -184,8 +279,17 @@ def test_host_fetches_server_timeout_before_creating_room(monkeypatch) -> None:
     app.username = "alice"
     app.error_message = ""
     app.state = "online_select"
+    app.api_base_url = "https://staging.example.com"
     client = SimpleNamespace(room_code="ABC123")
-    monkeypatch.setattr(menus.MultiplayerClient, "host", lambda _: client)
+    used_endpoints = []
+    monkeypatch.setattr(
+        menus.MultiplayerClient,
+        "host",
+        lambda _username, *, base_url: (
+            used_endpoints.append(base_url),
+            client,
+        )[1],
+    )
     monkeypatch.setattr(pygame.time, "get_ticks", lambda: 1000)
 
     app._host_multiplayer_game()
@@ -194,6 +298,7 @@ def test_host_fetches_server_timeout_before_creating_room(monkeypatch) -> None:
     assert app.host_join_timeout_ms == 45250
     assert app.host_join_deadline_ms == 46250
     assert app.state == "hosting"
+    assert used_endpoints == ["https://staging.example.com"]
 
 
 def test_queued_host_starts_countdown_when_room_is_created(monkeypatch) -> None:
@@ -253,7 +358,7 @@ def test_help_instructions_and_expired_room_message_fit_their_panel() -> None:
     assert menus.MENU_FRAME_PANEL == pygame.Rect(5, 60, 775, 475)
     assert menus.MENU_FRAME_PANEL.width > menus.MENU_FRAME_PANEL.height
     assert menus.MENU_FRAME_PANEL.contains(menus.HELP_BACK_BUTTON)
-    assert menus.MENU_FRAME_PANEL.contains(menus.SAVE_SETTINGS_BUTTON)
+    assert menus.SETTINGS_PANEL.contains(menus.SAVE_SETTINGS_BUTTON)
     assert menus.MENU_FRAME_PANEL.contains(pygame.Rect(115, 70, 570, 45))
     instruction_calls = app._draw_text.call_args_list
     assert instruction_calls
@@ -450,8 +555,11 @@ def test_leaderboard_scroll_hint_does_not_overlap_visible_records() -> None:
     assert max(call.args[2] + app.font.get_linesize() for call in row_calls) <= hint_top
 
 
-def test_game_over_saves_guest_run_locally_and_requests_username() -> None:
+def test_game_over_saves_guest_or_local_alias_and_finishes(monkeypatch) -> None:
     from elemental_game.screen_rendering.game_over import GameOverDialog
+
+    ticks = 1000
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: ticks)
 
     class Store:
         def __init__(self) -> None:
@@ -477,19 +585,24 @@ def test_game_over_saves_guest_run_locally_and_requests_username() -> None:
 
     assert dialog.state == "username"
     assert dialog.local_saved
-    dialog.draw()
     assert Menus.store.saved_runs[0] == (
         ("run-guest", 61.5, 2, 9),
         {"username": "Guest"},
     )
+    ticks = 1500
     dialog.handle_event(pygame.event.Event(pygame.TEXTINPUT, {"text": "player-one"}))
     dialog.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_RETURN}))
-    assert dialog.state == "publish"
+    assert dialog.done
+    assert dialog.state == "username"
+    assert dialog.username == "player-one"
     assert Menus.store.saved_runs[-1][1] == {"username": "player-one"}
 
 
-def test_guest_can_finish_game_over_without_entering_a_username() -> None:
+def test_guest_can_finish_game_over_without_entering_a_username(monkeypatch) -> None:
     from elemental_game.screen_rendering.game_over import GameOverDialog
+
+    ticks = 1000
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: ticks)
 
     class Store:
         def __init__(self) -> None:
@@ -513,6 +626,7 @@ def test_guest_can_finish_game_over_without_entering_a_username() -> None:
         enemies_defeated=2,
     )
 
+    ticks = 1500
     dialog.handle_event(
         pygame.event.Event(
             pygame.MOUSEBUTTONUP,

@@ -14,10 +14,11 @@ from elemental_game.audio import (
 )
 from elemental_game.config import ASSETS_DIR, IMAGES_DIR
 from elemental_game.database import LocalLeaderboardStore
-from elemental_game.multiplayer import MultiplayerClient
+from elemental_game.networking.client import MultiplayerClient
 from elemental_game.types.player import PlayerType
 
 from .common import (
+    API_BASE_URL_INPUT,
     BUTTON,
     BUTTON_HOVER,
     JOIN_CODE_RECT,
@@ -63,7 +64,10 @@ class MenuSystem(
         )
         self.store = LocalLeaderboardStore()
         self.credentials = CredentialStore()
-        self.auth = AuthClient(APIClient(), self.credentials)
+        self.api_base_url = self.store.api_base_url()
+        self.auth = AuthClient(
+            APIClient(base_url=self.api_base_url), self.credentials
+        )
         self.username: str | None = None
         self.state = "login"
         self.running = True
@@ -103,6 +107,13 @@ class MenuSystem(
             scale=self.layout.scale,
         )
         self.preferences = self.store.sound_preferences()
+        self.manual_turret_sensitivity = self.store.manual_turret_sensitivity()
+        self.api_base_url_input = InputField(
+            self.layout.rect(API_BASE_URL_INPUT),
+            placeholder="https://example.com",
+            max_length=255,
+        )
+        self.api_base_url_input.value = self.api_base_url
         self.hints_enabled = self.store.hints_enabled()
         self.player_type = PlayerType(self.store.player_image_number())
         backgrounds_dir = os.path.join(IMAGES_DIR, "backgrounds")
@@ -157,7 +168,7 @@ class MenuSystem(
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     if self.state == "settings":
-                        self._save_sound_preferences()
+                        self._close_settings()
                     multiplayer_client = getattr(self, "multiplayer_client", None)
                     if multiplayer_client is not None:
                         multiplayer_client.close()

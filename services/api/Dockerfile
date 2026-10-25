@@ -24,6 +24,8 @@ RUN uv sync --frozen --no-dev
 
 FROM python:3.12-alpine AS runtime
 
+RUN apk add --no-cache openssl
+
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH="/app/src" \
     PYTHONDONTWRITEBYTECODE=1 \

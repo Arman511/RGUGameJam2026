@@ -15,6 +15,7 @@ from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from elemental_api.admin import router as admin_router
 from elemental_api.auth.routes import router as auth_router
 from elemental_api.database.connection import initialize_database
 from elemental_api.leaderboard.routes import router as leaderboard_router
@@ -114,8 +115,8 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_origin_regex=LOCAL_ORIGIN_PATTERN,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_methods=["DELETE", "GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Admin-Token"],
 )
 app.add_middleware(
     WebSocketOriginMiddleware,
@@ -128,6 +129,7 @@ app.mount(
     name="static",
 )
 app.include_router(auth_router)
+app.include_router(admin_router)
 app.include_router(leaderboard_router)
 app.include_router(matches_router)
 

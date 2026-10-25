@@ -15,14 +15,17 @@ BUTTON_HOVER = (85, 110, 85)
 TEXT = (245, 245, 245)
 MUTED_TEXT = (180, 180, 180)
 ERROR_TEXT = (255, 130, 130)
-MUSIC_SLIDER = pygame.Rect(175, 185, 450, 14)
-SFX_SLIDER = pygame.Rect(175, 250, 450, 14)
-HINTS_TOGGLE_BUTTON = pygame.Rect(520, 270, 110, 36)
-PLAYER_SELECT_PANEL = pygame.Rect(115, 315, 570, 74)
+MUSIC_SLIDER = pygame.Rect(175, 160, 450, 14)
+SFX_SLIDER = pygame.Rect(175, 210, 450, 14)
+TURRET_SENSITIVITY_SLIDER = pygame.Rect(175, 305, 450, 14)
+API_BASE_URL_INPUT = pygame.Rect(145, 365, 510, 38)
+HINTS_TOGGLE_BUTTON = pygame.Rect(520, 238, 110, 36)
+PLAYER_SELECT_PANEL = pygame.Rect(115, 425, 570, 65)
 PLAYER_PREVIOUS_BUTTON = pygame.Rect(285, PLAYER_SELECT_PANEL.centery - 21, 48, 42)
 PLAYER_NEXT_BUTTON = pygame.Rect(445, PLAYER_SELECT_PANEL.centery - 21, 48, 42)
-CLEAR_LEADERBOARD_BUTTON = pygame.Rect(170, 399, 460, 44)
-SAVE_SETTINGS_BUTTON = pygame.Rect(330, 485, 140, 44)
+CLEAR_LEADERBOARD_BUTTON = pygame.Rect(170, 500, 460, 40)
+SAVE_SETTINGS_BUTTON = pygame.Rect(330, 545, 140, 40)
+SETTINGS_PANEL = pygame.Rect(15, 45, 770, 545)
 LOGIN_BUTTON = pygame.Rect(205, 340, 120, 48)
 REGISTER_BUTTON = pygame.Rect(340, 340, 120, 48)
 GUEST_BUTTON = pygame.Rect(475, 340, 120, 48)
@@ -88,17 +91,20 @@ class MenuLayout:
         return pygame.Rect(x, y, right - x, bottom - y)
 
 
-def open_registration_page() -> bool:
+def open_registration_page(base_url: str | None = None) -> bool:
+    register_url = (
+        f"{(base_url or config.ELEMENTAL_KEEP_API_BASE_URL).rstrip('/')}/register"
+    )
     is_wsl = (
         bool(os.environ.get("WSL_DISTRO_NAME") or os.environ.get("WSL_INTEROP"))
         or "microsoft" in platform.release().casefold()
     )
     if not is_wsl:
-        return webbrowser.open(REGISTER_URL)
+        return webbrowser.open(register_url)
 
     try:
         subprocess.run(
-            ["cmd.exe", "/c", "start", "", REGISTER_URL],
+            ["cmd.exe", "/c", "start", "", register_url],
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -136,7 +142,7 @@ class InputField:
                 self.value = self.value[:-1]
             elif (
                 not self.text_input
-                and event.unicode.isprintable()
+                and getattr(event, "unicode", "").isprintable()
                 and len(self.value) < self.max_length
             ):
                 self.value += event.unicode

@@ -1,5 +1,16 @@
 # Game Core
 
+## Package layout
+
+`application` contains the frame loop, game session, input handling, and the
+multiplayer match controller. `networking` owns the online client and attack
+rules. Under `game_entities`, enemy definitions, state, and combat control are
+separate, as are turret data, projectile behavior, and manual-turret behavior.
+Shared enums stay in `types`, menus and drawing remain in their own packages,
+and local persistence and remote API access are separated into `database` and
+`api_client`. The previous top-level game-flow and multiplayer module paths
+remain available as compatibility exports.
+
 The local leaderboard schema is managed by Alembic. `LocalLeaderboardStore`
 automatically applies pending migrations to its database file when opened.
 Pass a username to `submit_run` when saving a run. Use
@@ -41,4 +52,7 @@ to `/api/v1/matches` on the configured API server.
 The main menu also provides Leaderboard and Settings, plus a Sign in or Sign
 out action depending on the current account state. Settings changes are applied
 while adjusting the sliders and saved to the local database when Save is
-selected or settings are closed.
+selected or settings are closed. Settings include manual house-turret movement
+sensitivity and the backend API server URL. The URL defaults to the configured
+Elemental Keep server and is used for account, leaderboard, registration, and
+multiplayer connections.

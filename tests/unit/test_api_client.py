@@ -44,6 +44,34 @@ def test_submit_local_run_maps_local_database_fields(monkeypatch) -> None:
     }
 
 
+def test_multiplayer_client_connects_to_configured_api_server(monkeypatch) -> None:
+    import json
+
+    from elemental_game.networking import client as networking_module
+
+    captured: dict[str, Any] = {}
+
+    class FakeConnection:
+        def send(self, message: str) -> None:
+            captured["message"] = message
+
+    def fake_connect(uri: str, **_kwargs: Any) -> FakeConnection:
+        captured["uri"] = uri
+        return FakeConnection()
+
+    monkeypatch.setattr(networking_module, "connect", fake_connect)
+
+    networking_module.MultiplayerClient._open(
+        "alice",
+        "host",
+        {},
+        base_url="https://staging.example.com:8443",
+    )
+
+    assert captured["uri"] == "wss://staging.example.com:8443/api/v1/matches"
+    assert json.loads(captured["message"])["payload"]["player_name"] == "alice"
+
+
 def test_auth_client_uses_active_username_and_guest_name(tmp_path, monkeypatch) -> None:
     from elemental_game.api_client import auth as auth_module
 
