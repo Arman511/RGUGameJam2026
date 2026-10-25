@@ -1,10 +1,13 @@
+import math
 import os
 import random
+from dataclasses import dataclass
 from typing import ClassVar
 
 import pygame
+from elemental_game import config
 from elemental_game.config import IMAGES_DIR, WINDOW_WIDTH
-from elemental_game.game_entities.enemies.enemies import OPPOSING_ELEMENTS
+from elemental_game.game_entities.enemies.enemies import OPPOSING_ELEMENTS, EnemyState
 from elemental_game.types.crop import CropType
 from elemental_game.types.weather import WeatherTypes
 
@@ -24,6 +27,13 @@ ENEMY_KEYS_BY_ELEMENT = {
     CropType.ICE: "ice",
     CropType.AIR: "runner",
 }
+
+
+@dataclass(frozen=True)
+class WaveUpdate:
+    started_wave: int | None = None
+    spawned_enemies: tuple[EnemyState, ...] = ()
+    completed: bool = False
 
 
 def build_wave_sequence(
@@ -100,6 +110,13 @@ class Waves:
     def __init__(self, house):
         self.state = self.get_weather()
         self.alive = house.get_hp() > 0
+        self.planting_phase = True
+        self.phase_remaining = config.PLANTING_PHASE_DURATION
+        self.wave_number = 0
+        self.wave_sequence: list[str] = []
+        self.wave_spawned = 0
+        self.wave_elapsed = 0.0
+        self.active_health_multiplier = 1.0
 
         self.dimensions = (55, 55)
         self.weather_images = {
@@ -137,3 +154,95 @@ class Waves:
 
     def new_wave(self):
         self.state = self.get_weather()
+
+    def update(
+        self,
+        seconds: float,
+        screen: pygame.Surface,
+        house,
+        enemy_count: int,
+        *,
+        extra_enemies: int = 0,
+        health_multiplier: float = 1.0,
+        elemental_biases: dict[CropType, int] | None = None,
+        weather: WeatherTypes | None = None,
+    ) -> WaveUpdate:
+        self.phase_remaining -= seconds
+        if self.planting_phase:
+            return self._start_wave(
+                extra_enemies,
+                health_multiplier,
+                elemental_biases,
+                weather,
+            )
+
+        spawned_enemies = self._spawn_due_enemies(seconds, screen, house)
+        completed = self.phase_remaining <= 0 and enemy_count + len(spawned_enemies) == 0
+        if completed:
+            self.planting_phase = True
+            self.phase_remaining = config.PLANTING_PHASE_DURATION
+        return WaveUpdate(spawned_enemies=tuple(spawned_enemies), completed=completed)
+
+    def _start_wave(
+        self,
+        extra_enemies: int,
+        health_multiplier: float,
+        elemental_biases: dict[CropType, int] | None,
+        weather: WeatherTypes | None,
+    ) -> WaveUpdate:
+        if self.phase_remaining > 0:
+            return WaveUpdate()
+
+        self.planting_phase = False
+        self.wave_number += 1
+        self.new_wave()
+        if weather is not None:
+            self.state = weather
+        self.active_health_multiplier = health_multiplier
+        self.wave_sequence = build_wave_sequence(
+            self.wave_number,
+            self.state,
+            extra_enemies=extra_enemies,
+            elemental_biases=elemental_biases,
+        )
+        self.wave_spawned = 0
+        self.wave_elapsed = 0.0
+        self.phase_remaining = config.ENEMY_WAVE_DURATION
+        return WaveUpdate(started_wave=self.wave_number)
+
+    def _spawn_due_enemies(
+        self,
+        seconds: float,
+        screen: pygame.Surface,
+        house,
+    ) -> list[EnemyState]:
+        self.wave_elapsed += seconds
+        target_spawn_count = min(
+            len(self.wave_sequence),
+            int(self.wave_elapsed / config.ENEMY_WAVE_DURATION * len(self.wave_sequence))
+            + 1,
+        )
+        house_center_y = house.return_rect().centery
+        spawned_enemies = []
+        while self.wave_spawned < target_spawn_count:
+            spawn_y = min(
+                screen.get_height() - 55,
+                max(80, house_center_y + (self.wave_spawned % 5 - 2) * 65),
+            )
+            spawn_x = (
+                -30
+                if self.wave_spawned % 2 == 0
+                else screen.get_width() + 30
+            )
+            enemy = EnemyState.create(
+                self.wave_sequence[self.wave_spawned],
+                (spawn_x, spawn_y),
+            )
+            if self.active_health_multiplier > 1:
+                enemy.max_health = math.ceil(
+                    enemy.max_health * self.active_health_multiplier
+                )
+                enemy.health = enemy.max_health
+            spawned_enemies.append(enemy)
+            self.wave_spawned += 1
+        return spawned_enemies

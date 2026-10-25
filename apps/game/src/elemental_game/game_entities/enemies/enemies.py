@@ -6,6 +6,7 @@ import random
 from dataclasses import dataclass, field
 
 import pygame
+from elemental_game import config
 from elemental_game.config import IMAGES_DIR
 from elemental_game.game_entities.crops.crops import CropType
 from elemental_game.types.seed import SeedType
@@ -294,6 +295,76 @@ def roll_enemy_seed_drop(enemy: EnemyState) -> tuple[SeedType, str]:
     )
     tier = random.choices(SEED_TIERS, weights=weights, k=1)[0]
     return SeedType[element.name], tier
+
+
+class EnemyController:
+    @staticmethod
+    def update(
+        seconds: float,
+        enemies: list[EnemyState],
+        house,
+        turrets,
+        player,
+        screen: pygame.Surface,
+        controlling_house_turret: bool,
+    ) -> tuple[list[EnemyState], int]:
+        turrets.update(seconds, enemies)
+        keys = pygame.key.get_pressed()
+        rotate_direction = (
+            int(keys[pygame.K_RIGHT] or keys[pygame.K_d])
+            - int(keys[pygame.K_LEFT] or keys[pygame.K_a])
+            if controlling_house_turret
+            else 0
+        )
+        house_rect = house.return_rect()
+        house.turret.update(
+            seconds,
+            enemies,
+            (house_rect.centerx, house_rect.y + 24),
+            rotate_direction,
+            controlling_house_turret and keys[pygame.K_SPACE],
+            screen.get_rect(),
+        )
+
+        for enemy in enemies:
+            if enemy.health <= 0:
+                continue
+            enemy.update_status_effects(seconds)
+            enemy.attack_cooldown = max(0.0, enemy.attack_cooldown - seconds)
+            destination = pygame.Vector2(house_rect.center)
+            boss_slot = (
+                turrets.boss_target(enemy.pos, destination)
+                if enemy.is_boss
+                else None
+            )
+            if boss_slot is not None:
+                destination = pygame.Vector2(boss_slot.center)
+                if enemy.pos.distance_to(destination) <= 44:
+                    if enemy.attack_cooldown <= 0:
+                        turrets.damage_slot(boss_slot, enemy.damage * 2)
+                        enemy.attack_cooldown = 1.0
+                else:
+                    enemy.move_towards(destination, seconds)
+                continue
+            if enemy.pos.distance_to(destination) > 55:
+                enemy.move_towards(destination, seconds)
+            elif enemy.attack_cooldown <= 0:
+                house.take_damage(enemy.damage)
+                enemy.attack_cooldown = 1.0
+
+        survivors = []
+        defeated = 0
+        for enemy in enemies:
+            if enemy.health <= 0:
+                player.coins += enemy.reward
+                defeated += 1
+                seed_amount = math.ceil(config.ENEMY_SEED_DROP_MULTIPLIER)
+                if seed_amount > 0:
+                    seed_type, seed_tier = roll_enemy_seed_drop(enemy)
+                    player.add_seed(seed_type, seed_tier, seed_amount)
+            else:
+                survivors.append(enemy)
+        return survivors, defeated
 
 
 def load_enemy_images() -> dict[str, pygame.Surface]:
