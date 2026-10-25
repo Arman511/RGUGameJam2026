@@ -1,9 +1,10 @@
-import random
-from enum import Enum
 import os
-from elemental_game.types.weather import WeatherTypes
+import random
+from typing import ClassVar
+
 import pygame
-from elemental_game.config import IMAGES_DIR, WINDOW_HEIGHT, WINDOW_WIDTH
+from elemental_game.config import IMAGES_DIR, WINDOW_WIDTH
+from elemental_game.types.weather import WeatherTypes
 
 
 def build_wave_sequence(wave_number: int) -> list[str]:
@@ -38,8 +39,7 @@ def build_wave_sequence(wave_number: int) -> list[str]:
 
 
 class Waves:
-
-    WEATHER = {
+    WEATHER: ClassVar[dict[WeatherTypes, str]] = {
         WeatherTypes.FIRE: os.path.join(IMAGES_DIR, "weather", "weather-fire.png"),
         WeatherTypes.EARTH: os.path.join(IMAGES_DIR, "weather", "weather-earth.png"),
         WeatherTypes.ICE: os.path.join(IMAGES_DIR, "weather", "weather-ice.png"),

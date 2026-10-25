@@ -1,3 +1,4 @@
+import pygame
 from elemental_game.game_entities.enemies.enemies import ENEMY_DEFS, EnemyState
 from elemental_game.game_entities.enemies.waves import build_wave_sequence
 from elemental_game.game_entities.house import House
@@ -5,8 +6,11 @@ from elemental_game.game_entities.player.player import Player, PlayerType
 from elemental_game.game_entities.turrets.turrets import (
     DEFINITION_BY_ELEMENT,
     ELEMENTAL_TURRET_RANGE,
+    PROJECTILE_ASSETS,
     TURRET_DEFS,
     ManualTurret,
+    TurretInstance,
+    TurretSlot,
     TurretSystem,
 )
 from elemental_game.types.crop import CropType
@@ -157,11 +161,41 @@ def test_manual_turret_can_hit_targets_at_unlimited_range() -> None:
     turret.cooldown = 0
     turret.damage_level = 0
     turret.fire_rate_level = 0
+    turret.projectiles = []
+    turret.projectile_image = pygame.Surface((18, 18))
     enemy = EnemyState.create("swarmer", (5000, 0))
 
     turret.update(0.01, [enemy], (0, 0), 0, True)
 
+    assert enemy.health == enemy.max_health
+    assert len(turret.projectiles) == 1
+    assert turret.projectiles[0].image is turret.projectile_image
+    turret.update(10, [], (0, 0), 0, False)
     assert enemy.health < enemy.max_health
+
+
+def test_elemental_turret_projectile_uses_its_element_sprite_and_hits_on_arrival() -> None:
+    import pygame
+
+    element = CropType.FIRE
+    system = TurretSystem.__new__(TurretSystem)
+    system.projectiles = []
+    system._projectile_images = {
+        crop: pygame.Surface((18, 18)) for crop in PROJECTILE_ASSETS
+    }
+    system.slots = [
+        TurretSlot("left", 0, (0, 0), TurretInstance("flame_turret"))
+    ]
+    enemy = EnemyState.create("swarmer", (-100, 0))
+
+    system.update(0.01, [enemy])
+
+    assert enemy.health == enemy.max_health
+    assert system.projectiles[0].image is system._projectile_images[element]
+    assert PROJECTILE_ASSETS[element] == "fire-pellet.png"
+    system.update(1, [])
+    assert enemy.health < enemy.max_health
+    assert not system.projectiles
 
 
 def test_house_roof_includes_the_mounted_turret_standing_area() -> None:

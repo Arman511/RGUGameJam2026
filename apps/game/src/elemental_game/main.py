@@ -9,7 +9,7 @@ import pygame
 
 from elemental_game import config
 from elemental_game.game_entities.enemies.enemies import EnemyState, load_enemy_images
-from elemental_game.game_entities.enemies.waves import build_wave_sequence
+from elemental_game.game_entities.enemies.waves import Waves, build_wave_sequence
 from elemental_game.game_entities.farm import Farm
 from elemental_game.game_entities.house import House
 from elemental_game.game_entities.player.player import Player
@@ -21,8 +21,6 @@ from elemental_game.screen_rendering.game_over import GameOverDialog
 from elemental_game.screen_rendering.hud import draw_inventory_hud
 from elemental_game.types.player import PlayerType
 from elemental_game.types.seed import SeedType
-from elemental_game.game_entities.house import House
-from elemental_game.game_entities.enemies.waves import Waves
 
 # initialise pygame attributes
 pygame.init()
@@ -74,6 +72,17 @@ def main(argv: Sequence[str] | None = None) -> None:
     house = House(screen)
     turrets = TurretSystem(farm)
     enemy_images = load_enemy_images()
+    phase_icons = {
+        "planting": pygame.transform.smoothscale(
+            pygame.image.load(
+                os.path.join(
+                    config.IMAGES_DIR, "settings-and-gameplay", "soil_plant.png"
+                )
+            ).convert_alpha(),
+            (48, 48),
+        ),
+        "enemy": pygame.transform.smoothscale(enemy_images["swarmer"], (48, 48)),
+    }
     waves = Waves(house)
     shop_open = False
     hud_visible = False
@@ -239,6 +248,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                     planting_phase = False
                     wave_number += 1
                     wave_sequence = build_wave_sequence(wave_number)
+                    waves.new_wave()
                     wave_spawned = 0
                     wave_elapsed = 0.0
                     phase_remaining = config.ENEMY_WAVE_DURATION
@@ -267,18 +277,20 @@ def main(argv: Sequence[str] | None = None) -> None:
 
             turrets.update(seconds, enemies)
             house_turret = house.turret
+            keys = pygame.key.get_pressed()
             if controlling_house_turret:
-                keys = pygame.key.get_pressed()
                 rotate_direction = int(keys[pygame.K_RIGHT] or keys[pygame.K_d]) - int(
                     keys[pygame.K_LEFT] or keys[pygame.K_a]
                 )
-                house_turret.update(
-                    seconds,
-                    enemies,
-                    (house.return_rect().centerx, house.return_rect().y + 24),
-                    rotate_direction,
-                    pygame.key.get_pressed()[pygame.K_SPACE],
-                )
+            else:
+                rotate_direction = 0
+            house_turret.update(
+                seconds,
+                enemies,
+                (house.return_rect().centerx, house.return_rect().y + 24),
+                rotate_direction,
+                controlling_house_turret and keys[pygame.K_SPACE],
+            )
 
             for enemy in enemies:
                 if enemy.health <= 0:
@@ -321,60 +333,32 @@ def main(argv: Sequence[str] | None = None) -> None:
         for enemy in enemies:
             enemy.draw(screen, enemy_images)
         turrets.draw(screen, font, player)
+        house.turret.draw_projectiles(screen)
         if not controlling_house_turret:
             player.draw(screen)
         farm.draw_menu(screen, font)
         turrets.draw_modal(screen, font, player)
         house.turret.draw_upgrade_menu(screen, font, player)
         phase_label = "PLANTING" if planting_phase else f"WAVE {wave_number}"
+        screen.blit(
+            phase_icons["planting" if planting_phase else "enemy"],
+            (20, 12),
+        )
         timer = font.render(
-            f"{phase_label}  {max(0, phase_remaining):.0f}s  |  House {house.health}/{house.max_hp}",
+            f"{phase_label}  {max(0, phase_remaining):.0f}s",
             True,
             (255, 255, 255),
         )
-        screen.blit(timer, (10, 42))
-        hint = font.render(
-            "Arrows/WASD move  F interact/control  M market  H inventory",
-            True,
-            (0, 0, 0),
+        screen.blit(
+            timer,
+            (screen.get_width() - timer.get_width() - 20, 5),
         )
-        screen.blit(hint, (10, 10))
-        if controlling_house_turret:
-            control_hint = font.render(
-                "HOUSE TURRET: LEFT/RIGHT or A/D aim  SPACE fire  E upgrades  F exit",
-                True,
-                (255, 240, 170),
-            )
-            screen.blit(control_hint, (10, 74))
-        elif planting_phase:
-            plant_hint = font.render(
-                f"Prepare for wave {wave_number + 1}",
-                True,
-                (255, 240, 170),
-            )
-            screen.blit(plant_hint, (10, 74))
-        else:
-            wave_hint = font.render(
-                f"Enemies remaining: {len(enemies)}",
-                True,
-                (255, 240, 170),
-            )
-            screen.blit(wave_hint, (10, 74))
-        range_hint = font.render(
-            "O: hide turret ranges" if turrets.show_ranges else "O: show turret ranges",
-            True,
-            (220, 230, 255),
-        )
-        screen.blit(range_hint, (10, 106))
         if hud_visible:
             draw_inventory_hud(screen, player)
         if shop_open:
             shop.draw(screen, font, player, farm)
         if confirm_exit:
             draw_exit_confirmation(screen, font)
-        if house.health <= 0:
-            defeat = font.render("THE FARMHOUSE HAS FALLEN", True, (255, 90, 80))
-            screen.blit(defeat, defeat.get_rect(center=(screen.get_width() // 2, 100)))
         if game_over_dialog is not None:
             game_over_dialog.draw()
         pygame.display.flip()

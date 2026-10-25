@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import os
 from dataclasses import dataclass
+from typing import Protocol
 
 import pygame
 from elemental_game.config import ELEMENTAL_TURRET_RANGE, IMAGES_DIR, TILE_SIZE
@@ -110,6 +111,14 @@ TURRET_DEFS: dict[str, TurretDefinition] = {
 DEFINITION_BY_ELEMENT = {
     definition.element: definition for definition in TURRET_DEFS.values()
 }
+PROJECTILE_ASSETS = {
+    CropType.FIRE: "fire-pellet.png",
+    CropType.WATER: "water-pellet.png",
+    CropType.EARTH: "earth-pellet.png",
+    CropType.AIR: "air-pellet.png",
+    CropType.ICE: "ice-pellet.png",
+    CropType.LIGHTNING: "lightning-pellet.png",
+}
 UPGRADE_NAMES = ("Fire rate", "Damage", "Slowdown", "Knockback", "Destroy turret")
 
 
@@ -119,6 +128,48 @@ class TurretSlot:
     index: int
     center: tuple[int, int]
     turret: TurretInstance | None = None
+
+
+class ProjectileTarget(Protocol):
+    health: int
+    pos: pygame.Vector2
+
+    def take_damage(self, damage: int, element: CropType | None = None) -> None: ...
+
+    def apply_slow(self, amount: float) -> None: ...
+
+
+@dataclass
+class TurretProjectile:
+    position: pygame.Vector2
+    target: ProjectileTarget
+    image: pygame.Surface
+    damage: int
+    element: CropType | None
+    slow: float = 0.0
+    knockback: float = 0.0
+    direction: pygame.Vector2 | None = None
+    speed: float = 500.0
+
+    def update(self, dt: float) -> bool:
+        if self.target.health <= 0:
+            return True
+        offset = pygame.Vector2(self.target.pos) - self.position
+        distance = offset.length()
+        travel = self.speed * dt
+        if distance <= travel:
+            self.position = pygame.Vector2(self.target.pos)
+            self.target.take_damage(self.damage, self.element)
+            self.target.apply_slow(self.slow)
+            if self.knockback and self.direction is not None:
+                self.target.pos = (
+                    pygame.Vector2(self.target.pos)
+                    + self.direction * self.knockback
+                )
+            return True
+        if distance:
+            self.position += offset * (travel / distance)
+        return False
 
 
 class TurretSystem:
@@ -141,12 +192,21 @@ class TurretSystem:
             (TILE_SIZE, TILE_SIZE),
         )
         self._images = {}
+        self._projectile_images = {}
         for definition in TURRET_DEFS.values():
             path = os.path.join(IMAGES_DIR, "turrets", definition.image)
             image = pygame.image.load(path).convert_alpha()
             self._images[definition.key] = pygame.transform.smoothscale(
                 image, (TILE_SIZE, TILE_SIZE)
             )
+            projectile_path = os.path.join(
+                IMAGES_DIR, "turrets", PROJECTILE_ASSETS[definition.element]
+            )
+            projectile = pygame.image.load(projectile_path).convert_alpha()
+            self._projectile_images[definition.element] = pygame.transform.scale(
+                projectile, (18, 18)
+            )
+        self.projectiles: list[TurretProjectile] = []
 
     @staticmethod
     def available_slot_count(player) -> tuple[int, int]:
@@ -256,6 +316,11 @@ class TurretSystem:
         self.status_message = f"{UPGRADE_NAMES[upgrade_index]} upgraded (cost {cost})."
 
     def update(self, dt: float, enemies) -> None:
+        self.projectiles = [
+            projectile
+            for projectile in self.projectiles
+            if not projectile.update(dt)
+        ]
         for slot in self.slots:
             turret = slot.turret
             if turret is None or turret.health <= 0:
@@ -284,15 +349,25 @@ class TurretSystem:
                 continue
             _, target = min(targets, key=lambda candidate: candidate[0])
             damage = definition.damage + turret.damage_level * 3
-            target.take_damage(damage, definition.element)
-            target.apply_slow(definition.slow + turret.slow_level * 0.12)
             knockback = definition.knockback + turret.knockback_level * 12
-            if knockback:
-                direction = pygame.Vector2(target.pos) - position
-                if direction.length_squared():
-                    target.pos = (
-                        pygame.Vector2(target.pos) + direction.normalize() * knockback
-                    )
+            direction = pygame.Vector2(target.pos) - position
+            if direction.length_squared():
+                direction = direction.normalize()
+            else:
+                direction = facing
+            projectile_origin = position + facing * (TILE_SIZE / 2)
+            self.projectiles.append(
+                TurretProjectile(
+                    position=projectile_origin,
+                    target=target,
+                    image=self._projectile_images[definition.element],
+                    damage=damage,
+                    element=definition.element,
+                    slow=definition.slow + turret.slow_level * 0.12,
+                    knockback=knockback,
+                    direction=direction,
+                )
+            )
             turret.cooldown = max(
                 0.12, definition.fire_rate * (0.8**turret.fire_rate_level)
             )
@@ -345,6 +420,11 @@ class TurretSystem:
                     health_width * max(0, slot.turret.health) / 100,
                     4,
                 ),
+            )
+        for projectile in self.projectiles:
+            surface.blit(
+                projectile.image,
+                projectile.image.get_rect(center=projectile.position),
             )
 
     def draw_modal(self, surface, font, player) -> None:
@@ -438,12 +518,18 @@ class TurretSystem:
 class ManualTurret:
     UPGRADE_BASE_COST = 10
     FIRE_COOLDOWN = 0.45
+    PROJECTILE_SPEED = 800.0
 
     def __init__(self):
         image = pygame.image.load(
             os.path.join(IMAGES_DIR, "turrets", "standard-turret.png")
         ).convert_alpha()
         self.image = pygame.transform.smoothscale(image, (54, 54))
+        projectile = pygame.image.load(
+            os.path.join(IMAGES_DIR, "turrets", "standard-pellot.png")
+        ).convert_alpha()
+        self.projectile_image = pygame.transform.scale(projectile, (18, 18))
+        self.projectiles: list[TurretProjectile] = []
         self.angle = -90.0
         self.cooldown = 0.0
         self.damage_level = 0
@@ -456,6 +542,11 @@ class ManualTurret:
         self, dt: float, enemies, origin, rotate_direction: int, firing: bool
     ) -> None:
         self.angle = (self.angle + rotate_direction * 150 * dt) % 360
+        self.projectiles = [
+            projectile
+            for projectile in self.projectiles
+            if not projectile.update(dt)
+        ]
         self.cooldown = max(0.0, self.cooldown - dt)
         if not firing or self.cooldown > 0:
             return
@@ -474,7 +565,21 @@ class ManualTurret:
                 candidates.append((distance, enemy))
         if candidates:
             _, target = min(candidates, key=lambda candidate: candidate[0])
-            target.take_damage(10 + 5 * self.damage_level)
+            direction = pygame.Vector2(
+                math.cos(math.radians(self.angle)),
+                math.sin(math.radians(self.angle)),
+            )
+            self.projectiles.append(
+                TurretProjectile(
+                    position=pygame.Vector2(origin) + direction * 27,
+                    target=target,
+                    image=self.projectile_image,
+                    damage=10 + 5 * self.damage_level,
+                    element=None,
+                    direction=direction,
+                    speed=self.PROJECTILE_SPEED,
+                )
+            )
             self.cooldown = max(0.12, self.FIRE_COOLDOWN * (0.82**self.fire_rate_level))
 
     def upgrade(self, player) -> bool:
@@ -498,6 +603,13 @@ class ManualTurret:
     def draw(self, surface, center) -> None:
         rotated = pygame.transform.rotate(self.image, -self.angle - 90)
         surface.blit(rotated, rotated.get_rect(center=center))
+
+    def draw_projectiles(self, surface) -> None:
+        for projectile in self.projectiles:
+            surface.blit(
+                projectile.image,
+                projectile.image.get_rect(center=projectile.position),
+            )
 
     def draw_upgrade_menu(self, surface, font, player) -> None:
         if not self.upgrade_menu_open:

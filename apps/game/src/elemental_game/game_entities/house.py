@@ -17,29 +17,21 @@ class House:
     MAX_HP = 100
     BAR_SIZE = (250, 24)
     BAR_MARGIN = 20
+    BAR_TOP = 32
 
     APPEARANCE: ClassVar[dict[HouseState, str]] = {
         HouseState.FIXED: os.path.join(IMAGES_DIR, "house", "house.png"),
         HouseState.BROKEN: os.path.join(IMAGES_DIR, "house", "broken-house.png"),
         HouseState.DESTROYED: os.path.join(IMAGES_DIR, "house", "fire-house.png"),
     }
-    BAR_SIZE = (250, 24)
-    BAR_MARGIN = 20
 
-    APPEARANCE = {
-        HouseState.FIXED: os.path.join(IMAGES_DIR, "house", "house.png"),
-        HouseState.BROKEN: os.path.join(IMAGES_DIR, "house", "broken-house.png"),
-        HouseState.DESTROYED: os.path.join(IMAGES_DIR, "house", "fire-house.png"),
-    }
-
-    def __init__(self, surface):
-        self.max_hp = 100
+    def __init__(self, surface: pygame.Surface | None = None):
+        self.max_hp = self.MAX_HP
         self.health = self.max_hp
         self.state = HouseState.FIXED
         self.dimensions = (250, 200)
         self.surface = surface
         self.turret = ManualTurret()
-        self.surface = surface
 
         self.house_images = {
             house_state: pygame.transform.scale(
@@ -53,7 +45,7 @@ class House:
     def hp(self) -> int:
         return self.health
 
-    def update(self):
+    def update(self) -> None:
         health = self.hp / self.max_hp * 100
         match health:
             case x if x > 50:
@@ -62,7 +54,6 @@ class House:
                 self.state = HouseState.BROKEN
             case _:
                 self.state = HouseState.DESTROYED
-        self.draw(self.surface)
 
     @hp.setter
     def hp(self, value: int) -> None:
@@ -78,8 +69,8 @@ class House:
 
     def draw_health_bar(self, surface: pygame.Surface) -> None:
         width, height = self.BAR_SIZE
-        x = WINDOW_WIDTH - width - self.BAR_MARGIN
-        y = self.BAR_MARGIN
+        x = surface.get_width() - width - self.BAR_MARGIN
+        y = self.BAR_TOP
         ratio = self.health / self.max_hp
         if ratio > 0.5:
             color = (80, 200, 80)
