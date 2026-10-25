@@ -326,7 +326,6 @@ def main(argv: Sequence[str] | None = None) -> None:
             player.draw(screen)
         farm.draw_menu(screen, font)
         turrets.draw_modal(screen, font, player)
-        house.turret.draw_upgrade_menu(screen, font, player)
         phase_label = "PLANTING" if planting_phase else f"WAVE {wave_number}"
         screen.blit(
             phase_icons["planting" if planting_phase else "enemy"],
