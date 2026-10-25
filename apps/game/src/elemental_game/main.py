@@ -33,6 +33,7 @@ from elemental_game.screen_rendering.multiplayer_game_over import (
 from elemental_game.types.crop import CropType
 from elemental_game.types.player import PlayerType
 from elemental_game.types.weather import WeatherTypes
+from elemental_game.game_entities.house import HouseState
 
 MULTIPLAYER_COIN_COSTS = {"extra_enemies": 6, "tougher_enemies": 8}
 _game_instance_lock = GameInstanceLock()
@@ -71,11 +72,7 @@ def _create_game(screen, player_type):
             config.FARM_HEIGHT,
         ),
     )
-    player = Player(player_type=PlayerType(player_type))
-    player.pos = pygame.Vector2(
-        farm.origin[0] + farm.cols * config.TILE_SIZE / 2,
-        farm.origin[1] - player.height / 2,
-    )
+    player = Player(player_type=PlayerType(player_type), pos=farm.tile_rect(0, 3).center)
     return farm, player
 
 
@@ -770,7 +767,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         # Render the world and the current phase.
         screen.blit(game_background, (0, 0))
         house.draw(screen)
-        waves.draw_weather(screen)
+        waves.draw_weather(screen, font)
         farm.draw(screen, font, tile, player)
         turrets.draw(screen, font, player)
         for enemy in enemies:
@@ -803,9 +800,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         )
         buffer = 0
         if multiplayer:
-            buffer = 20
+            buffer = 40
+        hint_font = pygame.font.Font(os.path.join(config.ASSETS_DIR, "font", "pixelfont.ttf"), 24)
 
-        if controlling_house_turret:
+
+        if controlling_house_turret and not planting_phase:
             label_text = "Shoot enemies with SPACE!"
         elif planting_phase:
             crop = farm.get_crop(*tile) if tile else None
@@ -815,13 +814,17 @@ def main(argv: Sequence[str] | None = None) -> None:
                 and (crop is None or crop.is_ready())
             )
             if turrets.can_interact(player):
-                label_text = "Upgrade turrets with plants!"
+                label_text = "Press F to upgrade turrets"
             elif can_farm:
-                label_text = "Press F to plant or harvest!"
+                label_text = "Press F to plant or harvest"
             else:
-                label_text = "Buy seeds in the shop!"
+                label_text = "Plant seeds on unlocked plot!"
+        else:
+            label_text = "Enter house with F!"
+        if house.state == HouseState.BROKEN:
+            label_text = "QUICK! Repair house in the market!"
 
-        instruction_label = font.render(label_text, True, (0, 0, 0))
+        instruction_label = hint_font.render(label_text, True, (0, 0, 0))
         screen.blit(
             instruction_label,
             instruction_label.get_rect(midtop=(screen.get_width() // 2 + buffer, config.TEXT_Y)),
