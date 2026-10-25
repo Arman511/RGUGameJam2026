@@ -93,6 +93,91 @@ def test_shift_tab_moves_to_previous_shop_section() -> None:
     assert shop.mode == "sell"
 
 
+def test_market_enter_on_empty_sell_page_does_not_crash() -> None:
+    player = make_player()
+    shop = ShopMenu()
+    shop.mode = "sell"
+
+    shop.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_RETURN}),
+        player,
+        make_farm(),
+    )
+
+    assert shop.selected == 0
+    assert shop.status_message == "No crops to sell."
+
+
+def test_market_enter_after_selling_last_crop_does_not_crash() -> None:
+    player = make_player()
+    player.crops[CropType.FIRE] = 1
+    shop = ShopMenu()
+    shop.mode = "sell"
+
+    shop.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_RETURN}),
+        player,
+        make_farm(),
+    )
+
+    assert player.crops[CropType.FIRE] == 0
+    assert player.coins == 8
+    assert shop.selected == 0
+
+    shop.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_RETURN}),
+        player,
+        make_farm(),
+    )
+
+    assert shop.selected == 0
+    assert shop.status_message == "No crops to sell."
+
+
+def test_market_enter_clamps_stale_upgrade_selection() -> None:
+    player = make_player()
+    player.next_farm_quadrant_unlock = lambda: None
+    player.next_turret_slot_cost = lambda: None
+    shop = ShopMenu()
+    shop.mode = "upgrade"
+    shop.selected = 99
+
+    shop.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_RETURN}),
+        player,
+        make_farm(),
+    )
+
+    assert shop.selecting_quadrant
+    assert shop.pending_fertilizer == CropType.LIGHTNING
+
+
+def test_fertilizer_enter_clamps_stale_quadrant_selection() -> None:
+    player = make_player()
+    player.coins = 20
+    farm = make_farm()
+    applied_quadrants = []
+    farm.apply_fertilizer = lambda quadrant, crop_type: applied_quadrants.append(
+        quadrant
+    ) or True
+    shop = ShopMenu()
+    shop.mode = "upgrade"
+    shop.selecting_quadrant = True
+    shop.pending_fertilizer = CropType.FIRE
+    shop.selected = 99
+    last_quadrant = ShopMenu()._unlocked_quadrants(player)[-1]
+
+    shop.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_RETURN}),
+        player,
+        farm,
+    )
+
+    assert applied_quadrants == [last_quadrant]
+    assert player.coins == 10
+    assert not shop.selecting_quadrant
+
+
 def test_farm_quadrants_unlock_in_order_and_reset_to_top_right() -> None:
     player = make_player()
     player.unlocked_quadrants = {"top_right"}

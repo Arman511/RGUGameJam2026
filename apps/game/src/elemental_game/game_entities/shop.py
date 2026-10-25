@@ -105,17 +105,25 @@ class ShopMenu:
         elif self.mode == "buy" and event.key in (pygame.K_RIGHT, pygame.K_d):
             self.tier = self.tier % 3 + 1
         elif event.key in self.CONFIRM_KEYS:
+            options = self._options(player, house)
+            if not options:
+                self.selected = 0
+                if self.mode == "sell":
+                    self.status_message = "No crops to sell."
+                return
+            self.selected = min(max(self.selected, 0), len(options) - 1)
+
             if self.mode == "buy":
                 crop_type = self.CROP_TYPES[self.selected]
                 player.buy_seed(SeedType[crop_type.name], self.tier)
             elif self.mode == "sell":
-                crop_type = self._crop_options(player)[self.selected]
+                crop_type = options[self.selected]
                 player.sell_crop(crop_type)
                 self.selected = min(
-                    self.selected, len(self._options(player, house)) - 1
+                    self.selected, max(0, len(self._crop_options(player)) - 1)
                 )
             elif self.mode == "upgrade":
-                option = self._upgrade_options(player, house)[self.selected]
+                option = options[self.selected]
                 if isinstance(option, LandUpgrade):
                     if player.buy_next_farm_quadrant():
                         self.status_message = "Farm quadrant unlocked."
@@ -182,7 +190,8 @@ class ShopMenu:
         elif event.key == pygame.K_DOWN and quadrants:
             self.selected = (self.selected + 1) % len(quadrants)
         elif event.key in self.CONFIRM_KEYS and quadrants:
-            self._purchase_fertilizer(quadrants[self.selected], player, farm)
+            selected = min(max(self.selected, 0), len(quadrants) - 1)
+            self._purchase_fertilizer(quadrants[selected], player, farm)
 
     def _purchase_fertilizer(self, quadrant, player, farm):
         if self.pending_fertilizer is None:
@@ -394,7 +403,7 @@ class ShopMenu:
             )
         return options
 
-    def _options(self, player, house=None) -> Sequence[object]:
+    def _options(self, player, house=None) -> Sequence[CropType | UpgradeOption]:
         if self.mode == "upgrade":
             return self._upgrade_options(player, house)
         return self._crop_options(player)
