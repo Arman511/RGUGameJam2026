@@ -66,14 +66,13 @@ continue logging in with their current password.
 
 The admin API provides `GET /api/v1/admin/users` (paginated with `offset` and
 `limit`) and `DELETE /api/v1/admin/users/{user_id}`. Both require the
-`X-Admin-Token` header. Compose generates a fresh 256-bit admin token with
-OpenSSL whenever the API container starts unless `ELEMENTAL_API_ADMIN_TOKEN` is
-set explicitly. Retrieve the current token with
-`docker compose exec elemental-api printenv ELEMENTAL_API_ADMIN_TOKEN` (add
-`-f docker-compose.local.yml` when using the local Compose file). A container
-restart rotates the generated token; configure `ELEMENTAL_API_ADMIN_TOKEN` in
-the server environment to keep it stable. Deleting a user also removes their
-submitted scores and authentication tokens.
+`X-Admin-Token` header. Generate a 256-bit token with `openssl rand -hex 32`
+and set `ELEMENTAL_API_ADMIN_TOKEN` to that value in `.env` or the server
+environment before starting Compose. Leaving it unset or empty disables the
+admin endpoints, which then return HTTP 503. The configured token remains
+unchanged across container restarts until you replace it and recreate the
+container. Deleting a user also removes their submitted scores and
+authentication tokens.
 
 Score submissions use `time_survived` (seconds) and `wave_number`. The game
 client maps its existing local leaderboard fields, `survival_time` and
