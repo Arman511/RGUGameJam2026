@@ -257,6 +257,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
     multiplayer_result_sent = False
 
+    clock.tick()
     while running:
         if house.health <= 0 and game_over_dialog is None and multiplayer is None:
             game_over_dialog = GameOverDialog(
