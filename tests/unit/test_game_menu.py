@@ -38,7 +38,7 @@ def test_register_button_opens_registration_page(monkeypatch) -> None:
     opened_urls: list[str] = []
     monkeypatch.setattr(
         menus.login,
-        "_open_registration_page",
+        "open_registration_page",
         lambda: (opened_urls.append(menus.REGISTER_URL), True)[1],
     )
 
@@ -59,7 +59,7 @@ def test_register_button_reports_browser_failure(monkeypatch) -> None:
         pygame.Rect(250, 265, 300, 44), placeholder="Password", max_length=128
     )
     app.error_message = ""
-    monkeypatch.setattr(menus.login, "_open_registration_page", lambda: False)
+    monkeypatch.setattr(menus.login, "open_registration_page", lambda: False)
 
     app._handle_login_event(
         pygame.event.Event(pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": (400, 364)})
@@ -313,6 +313,32 @@ def test_local_leaderboard_censors_rude_username_until_clicked() -> None:
     )
 
     assert "run-1" in app.revealed_usernames
+
+
+def test_local_leaderboard_scroll_uses_visible_row_count() -> None:
+    class Filter:
+        value = ""
+
+        def handle_event(self, event) -> None:
+            return None
+
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.layout = menus.MenuLayout(800, 600)
+    app.leaderboard_filter = Filter()
+    app.leaderboard_rows = [
+        {
+            "run_id": f"run-{index}",
+            "username": f"player-{index}",
+            "final_wave": index,
+            "survival_time": index,
+            "enemies_defeated": index,
+        }
+        for index in range(15)
+    ]
+    app.leaderboard_scroll = 0
+    app._handle_leaderboard_event(pygame.event.Event(pygame.MOUSEWHEEL, {"y": -99}))
+
+    assert app.leaderboard_scroll == 5
 
 
 def test_game_over_saves_guest_run_locally_and_requests_username() -> None:
