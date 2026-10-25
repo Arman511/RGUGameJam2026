@@ -19,7 +19,6 @@ class TurretDefinition:
     range: float
     fire_rate: float
     damage: int
-    cost: dict[str, int]
     slow: float = 0.0
     knockback: float = 0.0
 
@@ -51,7 +50,6 @@ TURRET_DEFS: dict[str, TurretDefinition] = {
         ELEMENTAL_TURRET_RANGE,
         0.8,
         8,
-        {"ember": 6, "droplets": 2},
         slow=0.1,
     ),
     "water_cannon": TurretDefinition(
@@ -62,7 +60,6 @@ TURRET_DEFS: dict[str, TurretDefinition] = {
         ELEMENTAL_TURRET_RANGE,
         0.7,
         7,
-        {"droplets": 6, "stone": 2},
         slow=0.15,
     ),
     "earth_cannon": TurretDefinition(
@@ -73,7 +70,6 @@ TURRET_DEFS: dict[str, TurretDefinition] = {
         ELEMENTAL_TURRET_RANGE,
         1.1,
         12,
-        {"stone": 8, "ember": 3},
         knockback=30.0,
     ),
     "wind_turbine": TurretDefinition(
@@ -84,7 +80,6 @@ TURRET_DEFS: dict[str, TurretDefinition] = {
         ELEMENTAL_TURRET_RANGE,
         1.2,
         6,
-        {"gale": 6, "droplets": 1},
         slow=0.25,
     ),
     "ice_spire": TurretDefinition(
@@ -95,7 +90,6 @@ TURRET_DEFS: dict[str, TurretDefinition] = {
         ELEMENTAL_TURRET_RANGE,
         0.9,
         5,
-        {"frost": 7, "gale": 2},
         slow=0.35,
     ),
     "storm_rod": TurretDefinition(
@@ -106,7 +100,6 @@ TURRET_DEFS: dict[str, TurretDefinition] = {
         ELEMENTAL_TURRET_RANGE,
         0.6,
         15,
-        {"charge": 8, "frost": 2},
     ),
 }
 

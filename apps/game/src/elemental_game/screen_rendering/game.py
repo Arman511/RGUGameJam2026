@@ -4,6 +4,7 @@ from collections.abc import Sequence
 import pygame
 
 from elemental_game import config
+from elemental_game.game_entities.crops.crops import Crop
 from elemental_game.game_entities.farm import Farm
 from elemental_game.game_entities.house import HouseState
 from elemental_game.screen_rendering.exit_confirmation import draw_exit_confirmation
@@ -39,20 +40,20 @@ def _draw_quick_action_button(
     background = (
         (92, 112, 66)
         if enabled and active
-        else background_color
-        if enabled and background_color is not None
-        else disabled_background_color
-        if not enabled and disabled_background_color is not None
-        else (67, 86, 69)
-        if enabled
-        else (65, 65, 65)
+        else (
+            background_color
+            if enabled and background_color is not None
+            else (
+                disabled_background_color
+                if not enabled and disabled_background_color is not None
+                else (67, 86, 69) if enabled else (65, 65, 65)
+            )
+        )
     )
     border = (
         border_color
         if border_color is not None
-        else (245, 225, 125)
-        if active or (enabled and hovered)
-        else (145, 150, 145)
+        else (245, 225, 125) if active or (enabled and hovered) else (145, 150, 145)
     )
     pygame.draw.rect(surface, background, rect, border_radius=9)
     pygame.draw.rect(surface, border, rect, border_width, border_radius=9)
@@ -196,7 +197,6 @@ class GameScreenRenderer:
                 "settings-and-gameplay", "store-icon.png"
             ),
             "hud": self._load_quick_action_icon("settings-and-gameplay", "hud.png"),
-            "turret": self._load_quick_action_icon("turrets", "standard-turret.png"),
             "attack": self._load_quick_action_icon(
                 "settings-and-gameplay", "attack.png"
             ),
@@ -205,28 +205,35 @@ class GameScreenRenderer:
             ),
             "radar": self._load_quick_action_icon("settings-and-gameplay", "radar.png"),
         }
+        self.turret_icons = {
+            player_type: self._load_quick_action_icon(
+                "turrets", f"{player_type.name.lower()}-turret.png"
+            )
+            for player_type in PlayerType
+        }
         self.phase_icons = {
-            "planting": pygame.transform.smoothscale(
-                pygame.image.load(
-                    os.path.join(
-                        config.IMAGES_DIR, "settings-and-gameplay", "soil_plant.png"
-                    )
-                ).convert_alpha(),
-                (48, 48),
-            ),
+            "planting": {
+                player_type: pygame.transform.smoothscale(
+                    pygame.image.load(
+                        Crop.CROP_APPEARANCE[CropType[player_type.name]]
+                    ).convert_alpha(),
+                    (48, 48),
+                )
+                for player_type in PlayerType
+            },
             "enemy": pygame.transform.smoothscale(enemy_images["swarmer"], (48, 48)),
         }
-        self.enemy_marker_background = pygame.Surface((60, 60), pygame.SRCALPHA)
+        self.phase_icon_background = pygame.Surface((60, 60), pygame.SRCALPHA)
         pygame.draw.rect(
-            self.enemy_marker_background,
+            self.phase_icon_background,
             (24, 32, 46, 185),
-            self.enemy_marker_background.get_rect(),
+            self.phase_icon_background.get_rect(),
             border_radius=9,
         )
         pygame.draw.rect(
-            self.enemy_marker_background,
+            self.phase_icon_background,
             (145, 165, 190, 190),
-            self.enemy_marker_background.get_rect(),
+            self.phase_icon_background.get_rect(),
             1,
             border_radius=9,
         )
@@ -295,9 +302,12 @@ class GameScreenRenderer:
                     multiplayer_status[:75], True, (255, 225, 125)
                 )
                 surface.blit(status_text, (78, 34))
-        if not planting_phase:
-            surface.blit(self.enemy_marker_background, (14, 6))
-        phase_icon = self.phase_icons["planting" if planting_phase else "enemy"]
+        surface.blit(self.phase_icon_background, (14, 6))
+        phase_icon = (
+            self.phase_icons["planting"][player.player_type]
+            if planting_phase
+            else self.phase_icons["enemy"]
+        )
         phase_icon_rect = phase_icon.get_rect(topleft=phase_icon_position)
         surface.blit(phase_icon, phase_icon_rect)
 
@@ -406,10 +416,15 @@ class GameScreenRenderer:
             hovered = rect.collidepoint(mouse_position)
             if hovered:
                 hovered_action = action
+            icon = (
+                self.turret_icons[player.player_type]
+                if action == "turret"
+                else self.quick_action_icons[action]
+            )
             _draw_quick_action_button(
                 surface,
                 rect,
-                self.quick_action_icons[action],
+                icon,
                 enabled=quick_action_availability[action],
                 hovered=hovered,
                 active=(action == "plant_radius" and player.plant_radius_active > 1)
