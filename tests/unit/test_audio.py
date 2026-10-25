@@ -1,12 +1,14 @@
 from unittest.mock import Mock
 
 import pygame
-from elemental_game.game_entities import farm as farm_module
 from elemental_game.audio import (
+    BACKGROUND_MUSIC_ENDED_EVENT,
+    handle_background_music_end_event,
     initialise_audio,
     play_background_music,
     play_sfx,
 )
+from elemental_game.game_entities import farm as farm_module
 from elemental_game.game_entities.farm import Farm
 from elemental_game.types.crop import CropType
 from elemental_game.types.player import PlayerType
@@ -35,6 +37,7 @@ def test_playback_is_skipped_when_mixer_is_unavailable(monkeypatch) -> None:
 def test_background_music_loops_when_mixer_is_available(monkeypatch) -> None:
     monkeypatch.setattr(pygame.mixer, "get_init", lambda: (44100, -16, 2))
     monkeypatch.setattr(pygame.mixer, "set_reserved", Mock())
+    monkeypatch.setattr("elemental_game.audio.random.choice", lambda tracks: "background")
     sound = Mock()
     construct_sound = Mock(return_value=sound)
     monkeypatch.setattr(pygame.mixer, "Sound", construct_sound)
@@ -43,13 +46,56 @@ def test_background_music_loops_when_mixer_is_available(monkeypatch) -> None:
     monkeypatch.setattr("elemental_game.audio._loaded_music_tracks", {})
     monkeypatch.setattr("elemental_game.audio._current_background_track", None)
     monkeypatch.setattr("elemental_game.audio._current_background_channel_index", None)
+    monkeypatch.setattr("elemental_game.audio._last_normal_background_track", None)
 
     assert play_background_music(volume=0.4)
 
     assert construct_sound.call_args.args[0].endswith("background.ogg")
     channel.set_volume.assert_called_once_with(0.4)
     channel.stop.assert_called_once_with()
-    channel.play.assert_called_once_with(sound, loops=-1, fade_ms=700)
+    channel.set_endevent.assert_called_with(BACKGROUND_MUSIC_ENDED_EVENT)
+    channel.play.assert_called_once_with(sound, loops=0, fade_ms=700)
+
+
+def test_background_music_end_event_starts_a_different_playlist_track(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(pygame.mixer, "get_init", lambda: (44100, -16, 2))
+    monkeypatch.setattr(pygame.mixer, "set_reserved", Mock())
+    current_channel = Mock()
+    current_channel.get_busy.return_value = False
+    next_channel = Mock()
+    monkeypatch.setattr(
+        pygame.mixer,
+        "Channel",
+        Mock(side_effect=lambda index: (current_channel, next_channel)[index]),
+    )
+    sound = Mock()
+    construct_sound = Mock(return_value=sound)
+    monkeypatch.setattr(pygame.mixer, "Sound", construct_sound)
+    monkeypatch.setattr("elemental_game.audio._loaded_music_tracks", {})
+    monkeypatch.setattr(
+        "elemental_game.audio._current_background_track", "farm-and-tavern"
+    )
+    monkeypatch.setattr("elemental_game.audio._current_background_channel_index", 0)
+    monkeypatch.setattr(
+        "elemental_game.audio._last_normal_background_track", "farm-and-tavern"
+    )
+    monkeypatch.setattr(
+        "elemental_game.audio.random.choice", lambda tracks: tracks[0]
+    )
+
+    event = pygame.event.Event(BACKGROUND_MUSIC_ENDED_EVENT)
+    assert handle_background_music_end_event(event, volume=0.5)
+
+    assert construct_sound.call_args.args[0].endswith("background.ogg")
+    next_channel.play.assert_called_once_with(sound, loops=0, fade_ms=700)
+
+
+def test_unrelated_audio_event_is_not_handled() -> None:
+    event = pygame.event.Event(pygame.USEREVENT + 2)
+
+    assert not handle_background_music_end_event(event)
 
 
 def test_playing_background_music_again_does_not_restart_track(monkeypatch) -> None:

@@ -51,12 +51,19 @@ class MultiplayerGameOverDialog:
         panel = self._panel_rect()
         pygame.draw.rect(self.surface, (44, 48, 57), panel, border_radius=12)
         pygame.draw.rect(self.surface, (225, 225, 225), panel, 2, border_radius=12)
-        title = "Congratulations, you won!" if self.result == "victory" else "Game over"
+        if self.result == "victory":
+            title = "Congratulations, you won!"
+            message = "You defeated your opponent."
+        elif self.result == "defeat":
+            title = "You Lost"
+            message = "Your opponent won the match."
+        else:
+            title = "Game over"
+            message = "The match has ended."
         title_surface = self.font.render(title, True, (255, 230, 120))
         self.surface.blit(
             title_surface, title_surface.get_rect(center=(panel.centerx, panel.y + 70))
         )
-        message = "The match has ended."
         message_surface = self.font.render(message, True, (240, 240, 240))
         self.surface.blit(
             message_surface,

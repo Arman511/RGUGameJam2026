@@ -63,12 +63,17 @@ uv run ruff check .
 
 ## Licenses
 The project is licensed under the [MIT License](LICENSE). Audio tracks are
-covered by separate license certificates:
+covered by their respective licenses. Background music is stored as Ogg Vorbis
+for Pygame playback; the normal playlist randomly selects a track and advances
+when it ends. Enemy and boss tracks remain separate looping tracks.
 
-- `background.ogg` — [background license](licenses/background-license.txt)
-- `boss.ogg` — [boss license](licenses/boss-license.txt)
-- `enemies.ogg` — [enemies license](licenses/enemies-license.txt)
+- `background.ogg` — Pixabay, andriig — [license certificate](licenses/background-license.txt)
+- `boss.ogg` — Pixabay, jonasblakewood — [license certificate](licenses/boss-license.txt)
+- `enemies.ogg` — Pixabay, mondamusic — [license certificate](licenses/enemies-license.txt)
+- `farm-and-tavern.ogg` — Pixabay, benvibrant
+- `cinematic-rural-folk.ogg` — Pixabay, desifreemusic
+- `autumn-farm-folk.ogg` — Pixabay, moonpetalmedia
+- `starostin-folk.ogg` — Pixabay, starostin — [license certificate](licenses/starostin-folk-license.txt)
 
-## Current status
-Implemented: core simulation, local persistence, Pygame menu and loop, API/auth routes, and tests.
-Future work: expanded enemy variety, richer graphics, multiplayer protocol implementation and online PvP.
+The Pixabay [License Summary](https://pixabay.com/service/license-summary/)
+applies to Pixabay music.

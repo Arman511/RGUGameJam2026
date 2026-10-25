@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import pygame
 from elemental_game import menus
 from elemental_game.api_client.http import APIError
-from elemental_game.menus.common import HINTS_TOGGLE_BUTTON
+from elemental_game.menus.common import CREDITS_BUTTON, HINTS_TOGGLE_BUTTON
 
 
 def test_register_page_uses_windows_browser_from_wsl(monkeypatch) -> None:
@@ -85,6 +85,20 @@ def test_guest_can_return_to_sign_in_from_menu() -> None:
 
     assert app.state == "login"
     assert app.error_message == ""
+
+
+def test_credits_button_opens_modal_and_escape_closes_it() -> None:
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.layout = menus.MenuLayout(800, 600)
+    app.state = "menu"
+
+    menu_click(app, CREDITS_BUTTON.center)
+
+    assert app.state == "credits"
+    app._handle_credits_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_ESCAPE})
+    )
+    assert app.state == "menu"
 
 
 def test_signed_in_player_can_sign_out_from_menu() -> None:
@@ -519,6 +533,24 @@ def test_multiplayer_game_over_keyboard_dismissal_waits_half_second(
     ticks = 1500
     dialog.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_RETURN}))
     assert dialog.done
+
+
+def test_multiplayer_defeat_screen_says_you_lost() -> None:
+    from elemental_game.screen_rendering.multiplayer_game_over import (
+        MultiplayerGameOverDialog,
+    )
+
+    rendered = []
+
+    class Font:
+        def render(self, text, *_args):
+            rendered.append(text)
+            return pygame.Surface((1, 1), pygame.SRCALPHA)
+
+    dialog = MultiplayerGameOverDialog(pygame.Surface((800, 600)), Font(), "defeat")
+    dialog.draw()
+
+    assert "You Lost" in rendered
 
 
 def test_game_over_plays_explosion_for_single_player_and_loser_only(

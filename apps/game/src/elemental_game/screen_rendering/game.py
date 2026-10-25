@@ -32,19 +32,30 @@ def _draw_quick_action_button(
     hovered: bool,
     active: bool = False,
     background_color: tuple[int, int, int] | None = None,
+    disabled_background_color: tuple[int, int, int] | None = None,
+    border_color: tuple[int, int, int] | None = None,
+    border_width: int = 2,
 ) -> None:
     background = (
         (92, 112, 66)
         if enabled and active
         else background_color
         if enabled and background_color is not None
+        else disabled_background_color
+        if not enabled and disabled_background_color is not None
         else (67, 86, 69)
         if enabled
         else (65, 65, 65)
     )
-    border = (245, 225, 125) if active or (enabled and hovered) else (145, 150, 145)
+    border = (
+        border_color
+        if border_color is not None
+        else (245, 225, 125)
+        if active or (enabled and hovered)
+        else (145, 150, 145)
+    )
     pygame.draw.rect(surface, background, rect, border_radius=9)
-    pygame.draw.rect(surface, border, rect, 2, border_radius=9)
+    pygame.draw.rect(surface, border, rect, border_width, border_radius=9)
     max_icon_width = rect.width - 14
     max_icon_height = rect.height - 14
     scale = min(
@@ -403,10 +414,13 @@ class GameScreenRenderer:
                 hovered=hovered,
                 active=(action == "plant_radius" and player.plant_radius_active > 1)
                 or (action == "radar" and turrets.show_ranges),
-                background_color=(135, 154, 136) if action == "turret" else None,
+                border_color=(255, 225, 100) if action == "turret" else None,
+                border_width=1 if action == "turret" else 2,
             )
         if hovered_action is not None:
-            if not actions_enabled:
+            if hovered_action == "turret" and turrets.modal_slot is not None:
+                tooltip_text = "Close turret menu (F)"
+            elif not actions_enabled:
                 tooltip_text = "Unavailable right now"
             elif hovered_action == "store":
                 tooltip_text = "Open or close the store (M)"

@@ -6,8 +6,9 @@ import re
 import subprocess
 import webbrowser
 
-from elemental_game import config
 import pygame
+
+from elemental_game import config
 
 BUTTON = (65, 85, 65)
 BUTTON_HOVER = (85, 110, 85)
@@ -30,6 +31,9 @@ SETTINGS_BUTTON = pygame.Rect(150, 295, 230, 58)
 HELP_BUTTON = pygame.Rect(420, 295, 230, 58)
 SIGN_IN_BUTTON = pygame.Rect(150, 385, 230, 58)
 EXIT_BUTTON = pygame.Rect(420, 385, 230, 58)
+CREDITS_BUTTON = pygame.Rect(665, 20, 115, 40)
+CREDITS_MODAL = pygame.Rect(70, 60, 660, 480)
+CREDITS_CLOSE_BUTTON = pygame.Rect(330, 470, 140, 44)
 LEADERBOARD_BACK_BUTTON = pygame.Rect(330, 520, 140, 44)
 HELP_BACK_BUTTON = pygame.Rect(330, 520, 140, 44)
 CLEAR_CONFIRM_BUTTON = pygame.Rect(250, 340, 140, 48)

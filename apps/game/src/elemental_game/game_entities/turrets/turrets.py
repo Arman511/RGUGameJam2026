@@ -331,6 +331,12 @@ class TurretSystem:
         self.status_message = ""
         return True
 
+    def toggle_interaction(self, player) -> bool:
+        if self.modal_slot is not None:
+            self.close_modal()
+            return True
+        return self.interact(player)
+
     def close_modal(self) -> None:
         self.modal_slot = None
 

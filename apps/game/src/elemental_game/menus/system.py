@@ -7,6 +7,7 @@ import pygame
 
 from elemental_game.api_client import APIClient, AuthClient, CredentialStore
 from elemental_game.audio import (
+    handle_background_music_end_event,
     initialise_audio,
     play_background_music,
     set_background_music_volume,
@@ -163,6 +164,10 @@ class MenuSystem(
                         self.multiplayer_client = None
                     self.running = False
                     break
+                elif handle_background_music_end_event(
+                    event, volume=self.preferences["music_volume"]
+                ):
+                    continue
                 else:
                     self._handle_event(event)
 
@@ -180,6 +185,8 @@ class MenuSystem(
             self._handle_login_event(event)
         elif self.state == "menu":
             self._handle_menu_event(event)
+        elif self.state == "credits":
+            self._handle_credits_event(event)
         elif self.state == "leaderboard":
             self._handle_leaderboard_event(event)
         elif self.state == "settings":
@@ -203,6 +210,8 @@ class MenuSystem(
             self._draw_login()
         elif self.state == "menu":
             self._draw_menu()
+        elif self.state == "credits":
+            self._draw_credits()
         elif self.state == "leaderboard":
             self._draw_leaderboard()
         elif self.state == "settings":

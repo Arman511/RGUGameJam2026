@@ -9,7 +9,10 @@ from uuid import uuid4
 import pygame
 
 from elemental_game import config
-from elemental_game.audio import play_background_music
+from elemental_game.audio import (
+    handle_background_music_end_event,
+    play_background_music,
+)
 from elemental_game.game_entities.enemies.enemies import (
     EnemyState,
     load_enemy_images,
@@ -24,11 +27,11 @@ from elemental_game.game_entities.turrets.turrets import TurretSystem
 from elemental_game.instance_lock import GameInstanceLock
 from elemental_game.menus import MenuSystem
 from elemental_game.multiplayer import MultiplayerError
-from elemental_game.screen_rendering.game_over import GameOverDialog
 from elemental_game.screen_rendering.game import (
     GameScreenRenderer,
     multiplayer_attack_panel_rect,
 )
+from elemental_game.screen_rendering.game_over import GameOverDialog
 from elemental_game.screen_rendering.multiplayer_game_over import (
     MultiplayerGameOverDialog,
 )
@@ -244,6 +247,10 @@ def main(argv: Sequence[str] | None = None) -> None:
             if event.type == pygame.QUIT:
                 running = False
                 break
+            elif handle_background_music_end_event(
+                event, volume=menus.preferences["music_volume"]
+            ):
+                continue
             elif (
                 game_over_dialog is None
                 and event.type == pygame.MOUSEBUTTONDOWN
@@ -258,6 +265,9 @@ def main(argv: Sequence[str] | None = None) -> None:
                     None,
                 )
                 if clicked_action is not None:
+                    if clicked_action == "turret" and turrets.modal_slot is not None:
+                        turrets.toggle_interaction(player)
+                        continue
                     actions_enabled = (
                         not confirm_exit
                         and not farm.planting
@@ -276,10 +286,8 @@ def main(argv: Sequence[str] | None = None) -> None:
                             player.cycle_plant_radius()
                         elif clicked_action == "radar":
                             turrets.show_ranges = not turrets.show_ranges
-                        elif clicked_action == "turret" and turrets.can_interact(
-                            player
-                        ):
-                            turrets.interact(player)
+                        elif clicked_action == "turret":
+                            turrets.toggle_interaction(player)
                         elif clicked_action == "attack" and multiplayer is not None:
                             multiplayer_panel_open = not multiplayer_panel_open
                             available = [

@@ -278,6 +278,11 @@ def test_turret_action_availability_matches_interaction_range() -> None:
     assert system.interact(player)
     assert system.modal_slot is not None
 
+    assert system.toggle_interaction(player)
+    assert system.modal_slot is None
+    assert system.toggle_interaction(player)
+    assert system.modal_slot is not None
+
     player.pos = pygame.Vector2(0, 0)
     system.close_modal()
     assert not system.can_interact(player)
@@ -482,9 +487,9 @@ def test_turret_attack_overlay_is_filled_and_uses_element_color() -> None:
     assert overlay.get_at((200, 250)).a > 50
 
 
-def test_turret_quick_action_can_use_a_lighter_background() -> None:
+def test_turret_quick_action_uses_the_same_background_as_other_buttons() -> None:
     surface = pygame.Surface((80, 80))
-    background = (135, 154, 136)
+    background = (67, 86, 69)
 
     _draw_quick_action_button(
         surface,
@@ -492,10 +497,29 @@ def test_turret_quick_action_can_use_a_lighter_background() -> None:
         pygame.Surface((1, 1)),
         enabled=True,
         hovered=False,
-        background_color=background,
     )
 
     assert surface.get_at((15, 15))[:3] == background
+
+
+def test_disabled_turret_quick_action_keeps_a_yellow_border() -> None:
+    surface = pygame.Surface((80, 80))
+    background = (65, 65, 65)
+    border = (255, 225, 100)
+
+    _draw_quick_action_button(
+        surface,
+        pygame.Rect(10, 10, 56, 56),
+        pygame.Surface((1, 1)),
+        enabled=False,
+        hovered=False,
+        border_color=border,
+        border_width=1,
+    )
+
+    assert surface.get_at((15, 15))[:3] == background
+    assert surface.get_at((38, 10))[:3] == border
+    assert surface.get_at((38, 11))[:3] == background
 
 
 def test_turret_upgrade_menu_displays_current_upgrade_levels() -> None:
