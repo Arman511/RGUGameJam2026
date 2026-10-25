@@ -27,3 +27,20 @@ IMAGES_DIR = os.path.join(ASSETS_DIR, "imgs")
 ELEMENTAL_KEEP_API_BASE_URL = os.environ.get(
     "ELEMENTAL_KEEP_API_BASE_URL", "https://elemental-keep.armandev.co.uk"
 )
+
+RUDE_USERNAME_WORDS = (
+    "asshole",
+    "bastard",
+    "bitch",
+    "bullshit",
+    "cunt",
+    "dick",
+    "fuck",
+    "fuckface",
+    "fucker",
+    "motherfucker",
+    "shit",
+    "shithead",
+    "slut",
+    "whore",
+)
