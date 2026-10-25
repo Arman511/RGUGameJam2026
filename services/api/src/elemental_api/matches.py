@@ -189,7 +189,7 @@ class MatchManager:
                 {
                     "version": PROTOCOL_VERSION,
                     "type": "room_expired",
-                    "payload": {"message": "No player joined before the room expired."},
+                    "payload": {"message": "Room expired. No player joined."},
                 }
             )
         except RuntimeError as error:
