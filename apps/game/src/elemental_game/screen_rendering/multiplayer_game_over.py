@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pygame
 
+from elemental_game.audio import play_sfx
+
 
 class MultiplayerGameOverDialog:
     def __init__(
@@ -14,6 +16,8 @@ class MultiplayerGameOverDialog:
         self.font = font
         self.result = result
         self.done = False
+        if result == "defeat":
+            play_sfx("explosion")
 
     def _panel_rect(self) -> pygame.Rect:
         panel = pygame.Rect(0, 0, min(560, self.surface.get_width() - 40), 230)

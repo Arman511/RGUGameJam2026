@@ -114,6 +114,26 @@ def _draw_quick_action_button(
         surface.blit(overlay, icon_rect)
 
 
+def _draw_quick_action_tooltip(
+    surface: pygame.Surface,
+    font: pygame.font.Font,
+    button_rect: pygame.Rect,
+    label: str,
+) -> None:
+    text = font.render(label, True, (255, 255, 255))
+    tooltip = pygame.Rect(
+        0,
+        0,
+        text.get_width() + 20,
+        text.get_height() + 12,
+    )
+    tooltip.midbottom = (button_rect.centerx, button_rect.top - 8)
+    tooltip.clamp_ip(surface.get_rect())
+    pygame.draw.rect(surface, (30, 35, 42), tooltip, border_radius=5)
+    pygame.draw.rect(surface, (190, 200, 210), tooltip, 1, border_radius=5)
+    surface.blit(text, text.get_rect(center=tooltip.center))
+
+
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Play Elemental Keep.")
     parser.add_argument(
@@ -779,15 +799,40 @@ def main(argv: Sequence[str] | None = None) -> None:
             "attack": actions_enabled and multiplayer is not None,
         }
         mouse_position = pygame.mouse.get_pos()
+        hovered_action = None
         for action, rect in quick_action_buttons.items():
             if action == "attack" and multiplayer is None:
                 continue
+            hovered = rect.collidepoint(mouse_position)
+            if hovered:
+                hovered_action = action
             _draw_quick_action_button(
                 screen,
                 rect,
                 quick_action_icons[action],
                 enabled=quick_action_availability[action],
-                hovered=rect.collidepoint(mouse_position),
+                hovered=hovered,
+            )
+        if hovered_action is not None:
+            if not actions_enabled:
+                tooltip_text = "Unavailable right now"
+            elif hovered_action == "store":
+                tooltip_text = "Open or close the store (M)"
+            elif hovered_action == "hud":
+                tooltip_text = "Toggle inventory HUD (H)"
+            elif hovered_action == "turret":
+                tooltip_text = (
+                    "Interact with nearby turret (F)"
+                    if turret_action_available
+                    else "Move closer to a turret"
+                )
+            else:
+                tooltip_text = "Open or close multiplayer attacks (V)"
+            _draw_quick_action_tooltip(
+                screen,
+                font,
+                quick_action_buttons[hovered_action],
+                tooltip_text,
             )
         if confirm_exit:
             draw_exit_confirmation(screen, font)

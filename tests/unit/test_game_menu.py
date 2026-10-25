@@ -258,10 +258,46 @@ def test_game_over_saves_guest_run_locally_and_requests_username() -> None:
         ("run-guest", 61.5, 2, 9),
         {"username": "Guest"},
     )
-    dialog.username_input.value = "player-one"
-    dialog._save_guest_username()
+    dialog.handle_event(pygame.event.Event(pygame.TEXTINPUT, {"text": "player-one"}))
+    dialog.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_RETURN}))
     assert dialog.state == "publish"
     assert Menus.store.saved_runs[-1][1] == {"username": "player-one"}
+
+
+def test_guest_can_finish_game_over_without_entering_a_username() -> None:
+    from elemental_game.screen_rendering.game_over import GameOverDialog
+
+    class Store:
+        def __init__(self) -> None:
+            self.saved_runs = []
+
+        def submit_run(self, *args, **kwargs) -> None:
+            self.saved_runs.append((args, kwargs))
+
+    class Menus:
+        username = None
+        store = Store()
+
+    pygame.font.init()
+    dialog = GameOverDialog(
+        pygame.Surface((800, 600)),
+        pygame.font.Font(None, 22),
+        Menus(),
+        run_id="run-guest-finish",
+        survival_time=12.0,
+        final_wave=1,
+        enemies_defeated=2,
+    )
+
+    dialog.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            {"button": 1, "pos": dialog._button_rect(1).center},
+        )
+    )
+
+    assert dialog.done
+    assert Menus.store.saved_runs[0][1] == {"username": "Guest"}
 
 
 def test_successful_publish_completes_game_over_dialog_immediately() -> None:
@@ -323,6 +359,41 @@ def test_multiplayer_game_over_requires_local_menu_button_click() -> None:
     )
 
     assert dialog.done
+
+
+def test_game_over_plays_explosion_for_single_player_and_loser_only(
+    monkeypatch,
+) -> None:
+    from elemental_game.screen_rendering import game_over, multiplayer_game_over
+
+    played: list[str] = []
+    monkeypatch.setattr(game_over, "play_sfx", played.append)
+    monkeypatch.setattr(multiplayer_game_over, "play_sfx", played.append)
+
+    class Store:
+        def submit_run(self, *args, **kwargs) -> None:
+            return None
+
+    class Menus:
+        username = "player-one"
+        store = Store()
+
+    pygame.font.init()
+    font = pygame.font.Font(None, 22)
+    surface = pygame.Surface((800, 600))
+    game_over.GameOverDialog(
+        surface,
+        font,
+        Menus(),
+        run_id="run-single",
+        survival_time=20.0,
+        final_wave=1,
+        enemies_defeated=3,
+    )
+    multiplayer_game_over.MultiplayerGameOverDialog(surface, font, "victory")
+    multiplayer_game_over.MultiplayerGameOverDialog(surface, font, "defeat")
+
+    assert played == ["explosion", "explosion"]
 
 
 def test_exit_button_closes_menu_without_starting_game() -> None:
