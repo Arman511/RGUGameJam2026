@@ -28,6 +28,7 @@ ENEMY_KEYS_BY_ELEMENT = {
     CropType.AIR: "runner",
 }
 ENEMY_GROWTH_RATE = 1.08
+ENEMY_HEALTH_GROWTH_RATE = 1.08
 
 
 @dataclass(frozen=True)
@@ -252,10 +253,11 @@ class Waves:
                 (spawn_x, spawn_y),
                 wave_number=self.wave_number,
             )
-            if self.active_health_multiplier > 1:
-                enemy.max_health = math.ceil(
-                    enemy.max_health * self.active_health_multiplier
-                )
+            health_multiplier = self.active_health_multiplier * (
+                ENEMY_HEALTH_GROWTH_RATE ** (self.wave_number - 1)
+            )
+            if health_multiplier > 1:
+                enemy.max_health = math.ceil(enemy.max_health * health_multiplier)
                 enemy.health = enemy.max_health
             spawned_enemies.append(enemy)
             self.wave_spawned += 1

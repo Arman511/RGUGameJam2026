@@ -148,6 +148,24 @@ def test_wave_sequences_grow_and_use_known_enemies() -> None:
     assert set(wave) <= ENEMY_DEFS.keys()
 
 
+def test_enemy_health_scales_by_wave_and_stacks_with_wave_bonus() -> None:
+    def spawned_health(wave_number: int, health_multiplier: float = 1.0) -> int:
+        waves = Waves.__new__(Waves)
+        waves.wave_elapsed = 0.0
+        waves.wave_sequence = ["swarmer"]
+        waves.wave_spawned = 0
+        waves.wave_number = wave_number
+        waves.active_health_multiplier = health_multiplier
+        house = Mock()
+        house.return_rect.return_value = pygame.Rect(0, 0, 100, 100)
+        screen = pygame.Surface((200, 200))
+
+        return waves._spawn_due_enemies(0, screen, house)[0].health
+
+    assert [spawned_health(wave) for wave in (1, 2, 3, 10)] == [10, 11, 12, 20]
+    assert spawned_health(2, 1.5) == 17
+
+
 def test_boss_wave_contains_known_enemy_types() -> None:
     wave = build_wave_sequence(9)
     assert wave[0] == "big_boss"
@@ -160,19 +178,28 @@ def test_every_third_wave_starts_with_a_big_boss() -> None:
 
 
 def test_big_boss_has_triple_health_higher_resistance_and_boss_status() -> None:
+    normal_boss = EnemyState.create("boss", (0, 0))
     boss = EnemyState.create("big_boss", (0, 0))
 
+    assert normal_boss.max_health == 100
+    assert boss.max_health == 300
     assert boss.max_health == 3 * ENEMY_DEFS["boss"].max_health
-    assert boss.resistance == 0.75
-    assert EnemyState.create("boss", (0, 0)).resistance == 0.5
+    assert boss.resistance == 0.7
+    assert EnemyState.create("boss", (0, 0)).resistance == 0.45
     assert boss.is_boss
     boss.take_damage(10, CropType.FIRE)
     assert boss.health == boss.max_health - 3
 
 
 def test_boss_resistance_increases_per_boss_wave_and_is_capped() -> None:
-    assert EnemyState.create("boss", (0, 0), wave_number=6).resistance == 0.52
-    assert EnemyState.create("big_boss", (0, 0), wave_number=6).resistance == 0.77
+    assert math.isclose(
+        EnemyState.create("boss", (0, 0), wave_number=6).resistance,
+        0.47,
+    )
+    assert math.isclose(
+        EnemyState.create("big_boss", (0, 0), wave_number=6).resistance,
+        0.72,
+    )
     assert EnemyState.create("boss", (0, 0), wave_number=100).resistance == 0.9
     assert EnemyState.create("big_boss", (0, 0), wave_number=100).resistance == 0.95
 
@@ -309,7 +336,7 @@ def test_elites_are_resistant_and_bosses_appear_every_third_wave() -> None:
     boss.take_damage(10, CropType.FIRE)
 
     assert elite.health == elite.max_health - 5
-    assert boss.health == boss.max_health - 5
+    assert boss.health == boss.max_health - 6
     assert build_wave_sequence(3)[0] == "big_boss"
     assert build_wave_sequence(2)[0] != "boss"
     assert build_wave_sequence(6)[0] == "big_boss"
@@ -634,12 +661,12 @@ def test_turret_attack_radius_and_range_upgrades_cost_crops_and_take_effect() ->
     system.modal_selection = UPGRADE_NAMES.index("Attack radius")
     system._confirm_selection(player, slot)
     assert turret.attack_radius_level == 1
-    assert player.crops[CropType.FIRE] == 15
+    assert player.crops[CropType.FIRE] == 13
 
     system.modal_selection = UPGRADE_NAMES.index("Attack range")
     system._confirm_selection(player, slot)
     assert turret.attack_range_level == 1
-    assert player.crops[CropType.FIRE] == 8
+    assert player.crops[CropType.FIRE] == 4
 
 
 def test_upgraded_turret_attacks_targets_in_extended_radius_and_range() -> None:

@@ -152,7 +152,7 @@ ENEMY_DEFS: dict[str, EnemyDefinition] = {
         "Elemental Boss",
         "finalboss.png",
         None,
-        200,
+        100,
         25,
         20,
         30,
@@ -164,7 +164,7 @@ ENEMY_DEFS: dict[str, EnemyDefinition] = {
         "Elemental Colossus",
         "finalboss.png",
         None,
-        600,
+        300,
         25,
         30,
         60,
@@ -213,9 +213,9 @@ class EnemyState:
     def create(cls, key: str, position, *, wave_number: int = 0) -> EnemyState:
         definition = ENEMY_DEFS[key]
         resistance = (
-            min(0.95, 0.75 + 0.02 * max(0, wave_number // 3 - 1))
+            min(0.95, 0.7 + 0.02 * max(0, wave_number // 3 - 1))
             if key == "big_boss"
-            else min(0.9, 0.5 + 0.02 * max(0, wave_number // 3 - 1))
+            else min(0.9, 0.45 + 0.02 * max(0, wave_number // 3 - 1))
             if definition.is_boss
             else 0.5
             if definition.is_elite
@@ -260,7 +260,7 @@ class EnemyState:
                 multiplier = 0.6
             elif OPPOSING_ELEMENTS[self.definition.element] is element:
                 multiplier = 0.5
-        self.health -= max(1, math.ceil(damage * multiplier))
+        self.health -= max(1, math.ceil(round(damage * multiplier, 10)))
 
     def apply_slow(self, amount: float) -> None:
         if amount <= 0:
