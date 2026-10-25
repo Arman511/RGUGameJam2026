@@ -207,6 +207,30 @@ class Farm:
         self.cols += add_cols
 
     def handle_event(self, event, player):
+        if self.planting:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                for index, (_, _, _, rect) in enumerate(self.menu.options):
+                    if rect.collidepoint(event.pos):
+                        self.menu.selected = index
+                        self._plant_selection(
+                            player, self.menu.selected_crop(), self.menu.tile
+                        )
+                        self.planting = False
+                        break
+                return
+            if event.type != pygame.KEYDOWN:
+                return
+            if event.key == pygame.K_ESCAPE:
+                self.planting = False
+            elif event.key in (pygame.K_UP, pygame.K_w):
+                self.menu.move_selection(-1)
+            elif event.key in (pygame.K_DOWN, pygame.K_s):
+                self.menu.move_selection(1)
+            elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                self._plant_selection(player, self.menu.selected_crop(), self.menu.tile)
+                self.planting = False
+            return
+
         # determine if and which tile player is standing on
         if event.type != pygame.KEYDOWN:
             return  # why is there a return statement here do we need this at all
@@ -237,17 +261,6 @@ class Farm:
                     self.notice_timer = 2.5
         elif event.key == pygame.K_g and tile:
             self._harvest_area(tile, player)
-
-        if self.planting:
-            if event.key == pygame.K_ESCAPE:
-                self.planting = False
-            elif event.key == pygame.K_UP:
-                self.menu.move_selection(-1)
-            elif event.key == pygame.K_DOWN:
-                self.menu.move_selection(1)
-            elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
-                self._plant_selection(player, self.menu.selected_crop(), self.menu.tile)
-                self.planting = False
 
     def _plant_selection(self, player, selection, tile):
         if selection is None or tile is None:

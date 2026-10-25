@@ -14,6 +14,7 @@ from elemental_game.game_entities.shop import (
 from elemental_game.game_entities.shop.renderer import ShopRenderer
 from elemental_game.game_entities.turrets.turrets import ManualTurret
 from elemental_game.gameplay import GameSession
+from elemental_game.game_input import GameInputHandler
 from elemental_game.types.player import PlayerType
 from elemental_game.types.seed import SeedType
 
@@ -615,6 +616,44 @@ def test_planting_with_multiple_tiers_of_one_crop_type_shows_the_menu() -> None:
     assert planted_crop.tier == 3
     assert player.seeds[SeedType.FIRE]["tier2"] == 1
     assert player.seeds[SeedType.FIRE]["tier3"] == 1
+
+
+def test_planting_menu_w_and_s_move_selection() -> None:
+    player = make_player()
+    player.add_seed(SeedType.FIRE, "tier1", 1)
+    player.add_seed(SeedType.WATER, "tier1", 1)
+    farm = make_farm()
+    player.pos = pygame.Vector2(25, 25)
+    farm.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_f}), player)
+
+    farm.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_s}), player)
+    assert farm.menu.selected == 1
+    farm.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_w}), player)
+    assert farm.menu.selected == 0
+
+
+def test_clicking_planting_menu_seed_plants_it() -> None:
+    player = make_player()
+    player.add_seed(SeedType.FIRE, "tier1", 1)
+    player.add_seed(SeedType.WATER, "tier1", 1)
+    farm = make_farm()
+    player.pos = pygame.Vector2(25, 25)
+    farm.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_f}), player)
+
+    game = GameSession.__new__(GameSession)
+    game.farm = farm
+    game.player = player
+    event = pygame.event.Event(
+        pygame.MOUSEBUTTONDOWN,
+        {"button": 1, "pos": farm.menu.options[1][3].center},
+    )
+    result = GameInputHandler(game).handle_mouse_event(event, {})
+
+    assert result == "handled"
+    assert not farm.planting
+    assert farm.grid[0][0] is not None
+    assert farm.grid[0][0].crop_type is CropType.WATER
+    assert player.seeds[SeedType.WATER]["tier1"] == 0
 
 
 def test_planting_with_one_crop_and_tier_skips_the_menu() -> None:
