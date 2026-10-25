@@ -6,6 +6,7 @@ new_emberbloom = Crop(<name or id>, CropType.FIRE, (0, 0))
 """
 
 from enum import Enum
+from functools import lru_cache
 import os
 from elemental_game.config import IMAGES_DIR
 from elemental_game.types.crop import CropType
@@ -53,3 +54,11 @@ class Crop:
     def set_crop_yield(self, y):
         # may want to change this as game progresses
         pass
+
+
+@lru_cache(maxsize=None)
+def get_crop_icon(crop_type: CropType, size: int) -> pygame.Surface:
+    loaded_image = pygame.image.load(Crop.CROP_APPEARANCE[crop_type])
+    image = pygame.Surface(loaded_image.get_size(), pygame.SRCALPHA, 32)
+    image.blit(loaded_image, (0, 0))
+    return pygame.transform.smoothscale(image, (size, size))

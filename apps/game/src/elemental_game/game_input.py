@@ -90,6 +90,9 @@ class GameInputHandler:
                     return "attack"
             return "handled"
 
+        if game.farm.planting:
+            game.farm.handle_event(event, game.player)
+            return "handled"
         if game.shop_open:
             game.shop.handle_event(event, game.player, game.farm, game.house, game.screen)
             return "handled"

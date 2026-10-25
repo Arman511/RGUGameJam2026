@@ -207,6 +207,14 @@ def test_elemental_damage_matchups_and_neutral_slimes() -> None:
     assert slime.health == 90
 
 
+def test_turret_does_no_damage_to_same_element_enemies() -> None:
+    enemy = EnemyState.create("elite_fire", (0, 0))
+
+    enemy.take_damage(8, CropType.FIRE)
+
+    assert enemy.health == enemy.max_health
+
+
 def test_elites_are_resistant_and_bosses_appear_every_third_wave() -> None:
     elite = EnemyState.create("elite_fire", (0, 0))
     boss = EnemyState.create("boss", (0, 0))
@@ -402,6 +410,27 @@ def test_elemental_turret_projectile_uses_its_element_sprite_and_hits_on_arrival
     assert not system.projectiles
 
 
+def test_same_element_turret_projectile_does_no_damage_to_matching_elite() -> None:
+    system = TurretSystem.__new__(TurretSystem)
+    system.projectiles = []
+    system._projectile_images = {
+        crop: pygame.Surface((18, 18)) for crop in PROJECTILE_ASSETS
+    }
+    system.slots = [TurretSlot("left", 0, (0, 0), TurretInstance("flame_turret"))]
+    enemy = EnemyState.create("elite_fire", (-100, 0))
+
+    system.update(0.01, [enemy])
+    system.update(1.0, [])
+
+    assert enemy.health == enemy.max_health
+
+
+def test_turret_ranges_are_enabled_by_default(pygame_display) -> None:
+    system = TurretSystem(None)
+
+    assert system.show_ranges
+
+
 def test_elemental_projectile_applies_slow_and_knockback_on_impact() -> None:
     enemy = EnemyState.create("swarmer", (100, 0))
     original_speed = enemy.speed
@@ -538,9 +567,16 @@ def test_turret_upgrade_menu_displays_current_upgrade_levels() -> None:
     system.modal_slot = TurretSlot("right", 0, (0, 0), TurretInstance("flame_turret"))
     system.modal_selection = 0
     system.status_message = ""
-    system._draw_modal(pygame.Surface((1280, 768)), Font(), None)
+    from types import SimpleNamespace
+
+    system._draw_modal(
+        pygame.Surface((1280, 768)),
+        Font(),
+        SimpleNamespace(crops={CropType.FIRE: 8}),
+    )
 
     assert all(f"{name} (x0)" in " ".join(rendered_text) for name in UPGRADE_NAMES[:-1])
+    assert all("have 8" in text for text in rendered_text if "Fire rate" in text)
 
 
 def test_inventory_hud_includes_wave_and_enemy_kill_count(monkeypatch) -> None:

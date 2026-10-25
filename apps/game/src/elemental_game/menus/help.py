@@ -30,6 +30,7 @@ class HelpMenuMixin(MenuContext):
         help_items = (
             "Move: WASD / arrow keys",
             "F: interact, plant, or build",
+            "Planting: W/S, UP/DOWN, or click a seed",
             "G: harvest crops",
             "Shop: M; tabs: TAB / SHIFT+TAB",
             "Shop selection: W/S, UP/DOWN, or mouse wheel",

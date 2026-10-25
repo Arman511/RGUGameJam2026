@@ -82,11 +82,11 @@ class GameSession:
             self.run_elapsed += seconds
         if not paused and not self.controlling_house_turret:
             self.player.update(seconds)
-        self.farm.update(seconds)
-        self.shop.update(seconds)
         if paused:
             return
 
+        self.farm.update(seconds, grow_crops=self.planting_phase)
+        self.shop.update(seconds)
         update = self.waves.update(
             seconds, self.screen, self.house, len(self.enemies),
             extra_enemies=pending_extra_enemies,
