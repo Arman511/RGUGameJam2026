@@ -21,6 +21,8 @@ from elemental_game.screen_rendering.game_over import GameOverDialog
 from elemental_game.screen_rendering.hud import draw_inventory_hud
 from elemental_game.types.player import PlayerType
 from elemental_game.types.seed import SeedType
+from elemental_game.game_entities.house import House
+from elemental_game.game_entities.enemies.waves import Waves
 
 # initialise pygame attributes
 pygame.init()
@@ -72,6 +74,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     house = House(screen)
     turrets = TurretSystem(farm)
     enemy_images = load_enemy_images()
+    waves = Waves(house)
     shop_open = False
     hud_visible = False
     confirm_exit = False
@@ -129,6 +132,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                         run_elapsed = 0.0
                         enemies_defeated = 0
                         game_over_dialog = None
+                        waves = Waves(house)
                         shop_open = False
                         hud_visible = False
                     clock.tick()
@@ -312,6 +316,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         # Render the world and the current phase.
         screen.blit(game_background, (0, 0))
         house.draw(screen)
+        waves.draw_weather(screen)
         farm.draw(screen, font, tile, player)
         for enemy in enemies:
             enemy.draw(screen, enemy_images)

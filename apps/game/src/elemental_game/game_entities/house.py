@@ -23,14 +23,23 @@ class House:
         HouseState.BROKEN: os.path.join(IMAGES_DIR, "house", "broken-house.png"),
         HouseState.DESTROYED: os.path.join(IMAGES_DIR, "house", "fire-house.png"),
     }
+    BAR_SIZE = (250, 24)
+    BAR_MARGIN = 20
 
-    def __init__(self, surface: pygame.Surface | None = None):
-        self.max_hp = self.MAX_HP
-        self.health = self.max_hp
+    APPEARANCE = {
+        HouseState.FIXED: os.path.join(IMAGES_DIR, "house", "house.png"),
+        HouseState.BROKEN: os.path.join(IMAGES_DIR, "house", "broken-house.png"),
+        HouseState.DESTROYED: os.path.join(IMAGES_DIR, "house", "fire-house.png"),
+    }
+
+    def __init__(self, surface):
+        self.max_hp = 100
         self.state = HouseState.FIXED
         self.dimensions = (250, 200)
         self.surface = surface
         self.turret = ManualTurret()
+        self.surface = surface
+
         self.house_images = {
             house_state: pygame.transform.scale(
                 pygame.image.load(image).convert_alpha(),
@@ -42,6 +51,17 @@ class House:
     @property
     def hp(self) -> int:
         return self.health
+
+    def update(self):
+        health = self.hp / self.max_hp * 100
+        match health:
+            case x if x > 50:
+                self.state = HouseState.FIXED
+            case x if x > 0:
+                self.state = HouseState.BROKEN
+            case _:
+                self.state = HouseState.DESTROYED
+        self.draw(self.surface)
 
     @hp.setter
     def hp(self, value: int) -> None:
@@ -84,15 +104,6 @@ class House:
         self.health = min(self.max_hp, round(self.health + self.max_hp * 0.25))
         self.update()
 
-    def update(self) -> None:
-        ratio = self.health / self.max_hp
-        if ratio > 0.5:
-            self.state = HouseState.FIXED
-        elif ratio > 0:
-            self.state = HouseState.BROKEN
-        else:
-            self.state = HouseState.DESTROYED
-
     def return_rect(self) -> pygame.Rect:
         y = FARM_HEIGHT - 225
         x = (WINDOW_WIDTH - self.dimensions[0]) // 2
@@ -106,3 +117,6 @@ class House:
             house_rect.width - 20,
             110,
         )
+
+    def get_hp(self):
+        return self.max_hp
