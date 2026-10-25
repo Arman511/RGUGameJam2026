@@ -36,7 +36,7 @@ class HelpMenuMixin(MenuContext):
             "Shop selection: W/S, UP/DOWN, or mouse wheel",
             "Shop seed tier: A/D or arrow keys",
             "Turret range display: O",
-            "House turret: F at house; A/D aim; SPACE fire",
+            "House turret: F at house; A/D aim; SPACE fire; red laser shows aim",
             "Toggle inventory HUD: H",
             "2-player: V attacks; Q/E selects crop; 1-4 sends",
             "ESC: cancel or go back",

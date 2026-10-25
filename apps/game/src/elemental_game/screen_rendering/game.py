@@ -288,6 +288,11 @@ class GameScreenRenderer:
         for enemy in enemies:
             enemy.draw(surface, enemy_images)
         house.turret.draw_projectiles(surface)
+        if controlling_house_turret:
+            house.turret.draw_laser_sight(
+                surface,
+                (house.return_rect().centerx, house.return_rect().y + 24),
+            )
         if not controlling_house_turret:
             player.draw(surface)
         farm.draw_menu(surface, font)

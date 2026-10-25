@@ -808,6 +808,23 @@ class ManualTurret:
         rotated = pygame.transform.rotate(self.image, -self.angle - 90)
         surface.blit(rotated, rotated.get_rect(center=center))
 
+    def draw_laser_sight(self, surface: pygame.Surface, center) -> None:
+        direction = pygame.Vector2(
+            math.cos(math.radians(self.angle)), math.sin(math.radians(self.angle))
+        )
+        muzzle = pygame.Vector2(center) - direction * 27
+        reach = math.hypot(*surface.get_size()) * 2
+        endpoint = muzzle + direction * reach
+        line = surface.get_rect().clipline(
+            (round(muzzle.x), round(muzzle.y)),
+            (round(endpoint.x), round(endpoint.y)),
+        )
+        if not line:
+            return
+        pygame.draw.line(surface, (255, 0, 0), line[0], line[1], 1)
+        pygame.draw.circle(surface, (255, 0, 0), line[1], 5)
+        pygame.draw.circle(surface, (255, 230, 230), line[1], 2)
+
     def draw_projectiles(self, surface) -> None:
         for projectile in self.projectiles:
             image = _orient_projectile_image(projectile.image, projectile.direction)

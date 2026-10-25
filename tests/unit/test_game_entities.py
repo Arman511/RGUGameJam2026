@@ -664,6 +664,16 @@ def test_manual_turret_can_hit_targets_at_unlimited_range() -> None:
     assert enemy.health < enemy.max_health
 
 
+def test_manual_turret_laser_sight_marks_aim_direction() -> None:
+    turret = ManualTurret.__new__(ManualTurret)
+    turret.angle = 0
+    surface = pygame.Surface((100, 100))
+
+    turret.draw_laser_sight(surface, (50, 50))
+
+    assert surface.get_at((99, 50))[:3] == (255, 230, 230)
+
+
 def test_projectile_sprite_aligns_with_its_direction() -> None:
     assert _projectile_image_angle(pygame.Vector2(0, -1)) == 0
     assert _projectile_image_angle(pygame.Vector2(1, 0)) == -90
