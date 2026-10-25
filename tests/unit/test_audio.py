@@ -1,12 +1,16 @@
 from unittest.mock import Mock
 
 import pygame
+from elemental_game.game_entities import farm as farm_module
 from elemental_game.audio import (
     initialise_audio,
     play_background_music,
     play_sfx,
 )
-from elemental_game.game_entities.farm import CropMenu, Farm
+from elemental_game.game_entities.farm import Farm
+from elemental_game.types.crop import CropType
+from elemental_game.types.player import PlayerType
+from elemental_game.types.seed import SeedType
 
 
 def test_audio_initialization_failure_is_optional(monkeypatch, capsys) -> None:
@@ -101,25 +105,49 @@ def test_sound_effect_plays_when_mixer_is_available(monkeypatch) -> None:
     sound.play.assert_called_once_with()
 
 
-def test_farm_events_report_successful_planting_and_harvesting() -> None:
-    farm = Farm(rows=1, cols=1)
-    farm.menu = CropMenu((0, 0), (0, 0))
-    planting_pos = farm.menu.options[0][1].center
-    planting_event = pygame.event.Event(
-        pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": planting_pos}
+def test_farm_events_report_successful_planting_and_harvesting(
+    pygame_display, monkeypatch
+) -> None:
+    played_sounds = []
+    monkeypatch.setattr(
+        farm_module, "play_sfx", lambda name: played_sounds.append(name) or True
     )
+    monkeypatch.setattr(pygame.time, "delay", lambda _milliseconds: None)
+    monkeypatch.setattr(farm_module.random, "random", lambda: 0.5)
+    farm = Farm(rows=2, cols=2)
 
-    assert farm.handle_event(planting_event, None) == "planting"
+    class Player:
+        pos = (75, 25)
+        player_type = PlayerType.WATER
+        unlocked_quadrants = {"top_right"}
+        seeds = {
+            seed_type: {"tier1": 0, "tier2": 0, "tier3": 0}
+            for seed_type in SeedType
+        }
+        seeds[SeedType.FIRE]["tier1"] = 1
+        crops = {}
 
-    class ReadyCrop:
-        def is_ready(self) -> bool:
+        def consume_seed(self, seed_type, tier) -> bool:
+            key = f"tier{tier}"
+            if self.seeds[seed_type][key] <= 0:
+                return False
+            self.seeds[seed_type][key] -= 1
             return True
 
-        def harvest(self) -> None:
-            return None
+        def add_crop(self, crop_type, amount) -> None:
+            self.crops[crop_type] = self.crops.get(crop_type, 0) + amount
 
-    farm.grid[0][0] = ReadyCrop()
-    harvesting_event = pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_h})
+    player = Player()
+    farm.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_f}), player
+    )
+    assert farm.grid[0][1].crop_type is CropType.FIRE
 
-    assert farm.handle_event(harvesting_event, (0, 0)) == "harvesting"
-    assert farm.grid[0][0] is None
+    farm.update(farm.grid[0][1].GROWTH_TIME)
+    farm.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_g}), player
+    )
+
+    assert farm.grid[0][1] is None
+    assert player.crops[CropType.FIRE] == 1
+    assert played_sounds == ["planting", "harvesting"]

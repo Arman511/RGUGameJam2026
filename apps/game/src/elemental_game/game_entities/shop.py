@@ -272,7 +272,9 @@ class ShopMenu:
         list_y = panel.y + (
             130
             if self.mode == "buy" and not self.selecting_quadrant
-            else 105 if self.selecting_quadrant or self.mode == "upgrade" else 88
+            else 105
+            if self.selecting_quadrant or self.mode == "upgrade"
+            else 88
         )
         for index, option in enumerate(options):
             if isinstance(option, str):

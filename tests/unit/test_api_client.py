@@ -55,7 +55,11 @@ def test_auth_client_uses_active_username_and_guest_name(tmp_path, monkeypatch) 
 
     def fake_post(path: str, **kwargs: Any) -> dict[str, Any]:
         if path.endswith("/login"):
-            return {"token": f"token-{current_user['username']}", "user": current_user}
+            return {
+                "token": f"token-{current_user['username']}",
+                "user": current_user,
+                "expires_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
+            }
         return {"message": "logged out"}
 
     monkeypatch.setattr(client, "post", fake_post)

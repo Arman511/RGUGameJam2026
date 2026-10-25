@@ -16,7 +16,7 @@ def test_register_page_uses_windows_browser_from_wsl(monkeypatch) -> None:
 
     monkeypatch.setattr(menus.subprocess, "run", fake_run)
 
-    assert menus._open_registration_page()
+    assert menus.open_registration_page()
     assert commands[0][0] == [
         "cmd.exe",
         "/c",
@@ -37,8 +37,8 @@ def test_register_button_opens_registration_page(monkeypatch) -> None:
     app.error_message = ""
     opened_urls: list[str] = []
     monkeypatch.setattr(
-        menus,
-        "_open_registration_page",
+        menus.login,
+        "open_registration_page",
         lambda: (opened_urls.append(menus.REGISTER_URL), True)[1],
     )
 
@@ -59,7 +59,7 @@ def test_register_button_reports_browser_failure(monkeypatch) -> None:
         pygame.Rect(250, 265, 300, 44), placeholder="Password", max_length=128
     )
     app.error_message = ""
-    monkeypatch.setattr(menus, "_open_registration_page", lambda: False)
+    monkeypatch.setattr(menus.login, "open_registration_page", lambda: False)
 
     app._handle_login_event(
         pygame.event.Event(pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": (400, 364)})
@@ -127,6 +127,95 @@ def test_menu_layout_scales_and_centers_for_configured_window() -> None:
     assert layout.scale == 1.25
     assert layout.offset == (0, 25)
     assert layout.rect(menus.PLAY_BUTTON).center == layout.point((265, 234))
+
+
+def test_host_fetches_server_timeout_before_creating_room(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.auth = SimpleNamespace(
+        client=SimpleNamespace(
+            get_match_config=Mock(
+                return_value=SimpleNamespace(join_timeout_seconds=45.25)
+            )
+        )
+    )
+    app.username = "alice"
+    app.error_message = ""
+    app.state = "online_select"
+    client = SimpleNamespace(room_code="ABC123")
+    monkeypatch.setattr(menus.MultiplayerClient, "host", lambda _: client)
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 1000)
+
+    app._host_multiplayer_game()
+
+    assert app.multiplayer_client is client
+    assert app.host_join_timeout_ms == 45250
+    assert app.host_join_deadline_ms == 46250
+    assert app.state == "hosting"
+
+
+def test_queued_host_starts_countdown_when_room_is_created(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.multiplayer_client = SimpleNamespace(
+        poll=lambda: [{"type": "room_created", "payload": {"room_code": "ABC123"}}]
+    )
+    app.host_join_timeout_ms = 5000
+    app.host_join_deadline_ms = None
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 2000)
+
+    app._poll_hosting_room()
+
+    assert app.host_join_deadline_ms == 7000
+
+
+def test_hosting_screen_displays_remaining_join_time(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.multiplayer_client = SimpleNamespace(room_code="ABC123", queue_position=None)
+    app.host_join_deadline_ms = 2500
+    app.error_message = ""
+    app._draw_panel = Mock()
+    app._draw_title = Mock()
+    app._draw_text = Mock()
+    app._draw_button = Mock()
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 1000)
+
+    app._draw_hosting()
+
+    assert any(
+        call.args[:3] == ("Time remaining: 2s", 400, 350)
+        for call in app._draw_text.call_args_list
+    )
+
+
+def test_help_instructions_and_expired_room_message_fit_their_panel() -> None:
+    from pathlib import Path
+
+    pygame.font.init()
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.layout = menus.MenuLayout(800, 600)
+    app.font = pygame.font.Font(
+        str(Path(menus.ASSETS_DIR) / "font" / "pixelfont.ttf"), 28
+    )
+    app._draw_panel = Mock()
+    app._draw_title = Mock()
+    app._draw_text = Mock()
+    app._draw_button = Mock()
+
+    app._draw_help()
+
+    instruction_calls = app._draw_text.call_args_list
+    assert instruction_calls
+    assert all(app.font.size(call.args[0])[0] <= 520 for call in instruction_calls)
+    assert all(
+        call.args[2] + app.font.get_linesize() // 2 < menus.HELP_BACK_BUTTON.top
+        for call in instruction_calls
+    )
+    assert app.font.size("Room expired. No player joined.")[0] <= 520
 
 
 def test_menu_click_target_uses_scaled_window_layout() -> None:
@@ -224,6 +313,32 @@ def test_local_leaderboard_censors_rude_username_until_clicked() -> None:
     )
 
     assert "run-1" in app.revealed_usernames
+
+
+def test_local_leaderboard_scroll_uses_visible_row_count() -> None:
+    class Filter:
+        value = ""
+
+        def handle_event(self, event) -> None:
+            return None
+
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.layout = menus.MenuLayout(800, 600)
+    app.leaderboard_filter = Filter()
+    app.leaderboard_rows = [
+        {
+            "run_id": f"run-{index}",
+            "username": f"player-{index}",
+            "final_wave": index,
+            "survival_time": index,
+            "enemies_defeated": index,
+        }
+        for index in range(15)
+    ]
+    app.leaderboard_scroll = 0
+    app._handle_leaderboard_event(pygame.event.Event(pygame.MOUSEWHEEL, {"y": -99}))
+
+    assert app.leaderboard_scroll == 5
 
 
 def test_game_over_saves_guest_run_locally_and_requests_username() -> None:
@@ -448,7 +563,7 @@ def test_menu_quit_does_not_draw_a_final_frame(monkeypatch) -> None:
     app._draw = Mock()
     flip = Mock()
 
-    monkeypatch.setattr(menus, "play_background_music", Mock())
+    monkeypatch.setattr(menus.system, "play_background_music", Mock())
     monkeypatch.setattr(pygame.display, "flip", flip)
 
     events = (

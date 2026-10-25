@@ -189,7 +189,7 @@ class MatchManager:
                 {
                     "version": PROTOCOL_VERSION,
                     "type": "room_expired",
-                    "payload": {"message": "No player joined before the room expired."},
+                    "payload": {"message": "Room expired. No player joined."},
                 }
             )
         except RuntimeError as error:
@@ -384,6 +384,11 @@ class MatchManager:
 
 
 match_manager = MatchManager()
+
+
+@router.get("/api/v1/matches/config")
+def multiplayer_config() -> dict[str, float]:
+    return {"join_timeout_seconds": match_manager.join_timeout_seconds}
 
 
 @router.websocket("/api/v1/matches")

@@ -257,6 +257,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
     multiplayer_result_sent = False
 
+    clock.tick()
     while running:
         if house.health <= 0 and game_over_dialog is None and multiplayer is None:
             game_over_dialog = GameOverDialog(
@@ -787,7 +788,9 @@ def main(argv: Sequence[str] | None = None) -> None:
             True,
             (0, 0, 0),
         )
-        phase_text_position = (78, config.TEXT_Y) if multiplayer is not None else (78, 5)
+        phase_text_position = (
+            (78, config.TEXT_Y) if multiplayer is not None else (78, 5)
+        )
         screen.blit(
             timer,
             (screen.get_width() - timer.get_width() - 20, phase_text_position[1]),
