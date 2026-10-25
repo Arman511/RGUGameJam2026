@@ -754,8 +754,10 @@ def test_multiplayer_defeat_screen_says_you_lost(monkeypatch) -> None:
             rendered.append(text)
             return pygame.Surface((1, 1), pygame.SRCALPHA)
 
-    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 1500)
+    ticks = 1000
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: ticks)
     dialog = MultiplayerGameOverDialog(pygame.Surface((800, 600)), Font(), "defeat")
+    ticks = 1500
     dialog.draw()
 
     assert "You Lost" in rendered
