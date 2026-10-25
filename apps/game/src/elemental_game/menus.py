@@ -25,8 +25,9 @@ from elemental_game.audio import (
     play_background_music,
     set_background_music_volume,
 )
-from elemental_game.config import IMAGES_DIR
+from elemental_game.config import ASSETS_DIR, IMAGES_DIR
 from elemental_game.database import LocalLeaderboardStore
+from elemental_game.multiplayer import MultiplayerClient, MultiplayerError
 from elemental_game.types.player import PlayerType
 
 BUTTON = (65, 85, 65)
@@ -53,6 +54,14 @@ LEADERBOARD_BACK_BUTTON = pygame.Rect(330, 520, 140, 44)
 HELP_BACK_BUTTON = pygame.Rect(330, 520, 140, 44)
 CLEAR_CONFIRM_BUTTON = pygame.Rect(250, 340, 140, 48)
 CANCEL_CONFIRM_BUTTON = pygame.Rect(410, 340, 140, 48)
+SINGLE_PLAYER_BUTTON = pygame.Rect(150, 260, 230, 58)
+ONLINE_PLAYER_BUTTON = pygame.Rect(420, 260, 230, 58)
+HOST_MATCH_BUTTON = pygame.Rect(150, 260, 230, 58)
+JOIN_MATCH_BUTTON = pygame.Rect(420, 260, 230, 58)
+JOIN_CODE_RECT = pygame.Rect(250, 210, 300, 44)
+JOIN_CODE_SUBMIT_BUTTON = pygame.Rect(330, 285, 140, 48)
+MULTIPLAYER_BACK_BUTTON = pygame.Rect(330, 390, 140, 44)
+CANCEL_HOST_BUTTON = pygame.Rect(330, 410, 140, 44)
 LEADERBOARD_FILTER_RECT = pygame.Rect(265, 105, 330, 42)
 LOGIN_USERNAME_RECT = pygame.Rect(250, 205, 300, 44)
 LOGIN_PASSWORD_RECT = pygame.Rect(250, 265, 300, 44)
@@ -180,9 +189,12 @@ class MenuSystem:
         self.layout = MenuLayout(*screen.get_size())
         pygame.display.set_caption("Elemental Keep")
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.SysFont(None, max(1, round(28 * self.layout.scale)))
-        self.title_font = pygame.font.SysFont(
-            None, max(1, round(42 * self.layout.scale))
+        menu_font_path = os.path.join(ASSETS_DIR, "font", "pixelfont.ttf")
+        self.font = pygame.font.Font(
+            menu_font_path, max(1, round(28 * self.layout.scale))
+        )
+        self.title_font = pygame.font.Font(
+            menu_font_path, max(1, round(42 * self.layout.scale))
         )
         self.store = LocalLeaderboardStore()
         self.credentials = CredentialStore()
@@ -191,6 +203,8 @@ class MenuSystem:
         self.state = "login"
         self.running = True
         self.start_game = False  # set when the player presses Play
+        self.game_mode = "single"
+        self.multiplayer_client: MultiplayerClient | None = None
         self.error_message = ""
         self.notice_message = ""
         self.leaderboard_rows: list[dict[str, Any]] = []
@@ -213,6 +227,12 @@ class MenuSystem:
             placeholder="Password",
             max_length=128,
             secret=True,
+            scale=self.layout.scale,
+        )
+        self.join_code = InputField(
+            self.layout.rect(JOIN_CODE_RECT),
+            placeholder="Room code",
+            max_length=6,
             scale=self.layout.scale,
         )
         self.preferences = self.store.sound_preferences()
@@ -284,10 +304,15 @@ class MenuSystem:
         play_background_music(volume=self.preferences["music_volume"])
         while self.running:
             self.clock.tick(60)
+            if self.state == "hosting":
+                self._poll_hosting_room()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     if self.state == "settings":
                         self._save_sound_preferences()
+                    if getattr(self, "multiplayer_client", None) is not None:
+                        self.multiplayer_client.close()
+                        self.multiplayer_client = None
                     self.running = False
                     break
                 else:
@@ -315,6 +340,14 @@ class MenuSystem:
             self._handle_help_event(event)
         elif self.state == "confirm_clear":
             self._handle_clear_confirmation_event(event)
+        elif self.state == "mode_select":
+            self._handle_mode_select_event(event)
+        elif self.state == "online_select":
+            self._handle_online_select_event(event)
+        elif self.state == "join_room":
+            self._handle_join_room_event(event)
+        elif self.state == "hosting":
+            self._handle_hosting_event(event)
 
     def _handle_login_event(self, event: pygame.event.Event) -> None:
         self.login_username.handle_event(event)
@@ -365,8 +398,8 @@ class MenuSystem:
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return
         if self.layout.rect(PLAY_BUTTON).collidepoint(event.pos):
-            self.start_game = True  # hand control back to main.py
-            self.running = False
+            self.error_message = ""
+            self.state = "mode_select"
         elif self.layout.rect(LEADERBOARD_BUTTON).collidepoint(event.pos):
             self.leaderboard_rows = self.store.top_scores(limit=None)
             self.leaderboard_filter.value = ""
@@ -394,6 +427,118 @@ class MenuSystem:
         elif self.layout.rect(EXIT_BUTTON).collidepoint(event.pos):
             self.start_game = False
             self.running = False
+
+    def _handle_mode_select_event(self, event: pygame.event.Event) -> None:
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self.state = "menu"
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.layout.rect(SINGLE_PLAYER_BUTTON).collidepoint(event.pos):
+                self.game_mode = "single"
+                self.state = "menu"
+                self.start_game = True
+                self.running = False
+            elif self.layout.rect(ONLINE_PLAYER_BUTTON).collidepoint(event.pos):
+                self.state = "online_select"
+            elif self.layout.rect(MULTIPLAYER_BACK_BUTTON).collidepoint(event.pos):
+                self.state = "menu"
+
+    def _handle_online_select_event(self, event: pygame.event.Event) -> None:
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self.state = "mode_select"
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.layout.rect(HOST_MATCH_BUTTON).collidepoint(event.pos):
+                self._host_multiplayer_game()
+            elif self.layout.rect(JOIN_MATCH_BUTTON).collidepoint(event.pos):
+                self.join_code.value = ""
+                self.join_code.focused = False
+                self.state = "join_room"
+            elif self.layout.rect(MULTIPLAYER_BACK_BUTTON).collidepoint(event.pos):
+                self.state = "mode_select"
+
+    def _host_multiplayer_game(self) -> None:
+        try:
+            self.multiplayer_client = MultiplayerClient.host(self.username or "Guest")
+        except MultiplayerError as error:
+            self.error_message = str(error)
+            return
+        self.error_message = ""
+        self.state = "hosting"
+
+    def _handle_join_room_event(self, event: pygame.event.Event) -> None:
+        self.join_code.handle_event(event)
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self.state = "online_select"
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+            self._join_multiplayer_game()
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.layout.rect(JOIN_CODE_SUBMIT_BUTTON).collidepoint(event.pos):
+                self._join_multiplayer_game()
+            elif self.layout.rect(MULTIPLAYER_BACK_BUTTON).collidepoint(event.pos):
+                self.state = "online_select"
+
+    def _join_multiplayer_game(self) -> None:
+        room_code = self.join_code.value.strip().upper()
+        if len(room_code) != 6:
+            self.error_message = "Enter the 6-character room code."
+            return
+        try:
+            self.multiplayer_client = MultiplayerClient.join(
+                self.username or "Guest", room_code
+            )
+        except MultiplayerError as error:
+            self.error_message = str(error)
+            return
+        self.game_mode = "multiplayer"
+        self.state = "menu"
+        self.error_message = ""
+        self.start_game = True
+        self.running = False
+
+    def _poll_hosting_room(self) -> None:
+        if self.multiplayer_client is None:
+            self.state = "online_select"
+            self.error_message = "Could not connect to the multiplayer room."
+            return
+        try:
+            messages = self.multiplayer_client.poll()
+        except MultiplayerError as error:
+            self.multiplayer_client.close()
+            self.multiplayer_client = None
+            self.state = "online_select"
+            self.error_message = str(error)
+            return
+        for message in messages:
+            if message["type"] == "match_started":
+                self.game_mode = "multiplayer"
+                self.state = "menu"
+                self.start_game = True
+                self.running = False
+            elif message["type"] == "room_expired":
+                self.multiplayer_client.close()
+                self.multiplayer_client = None
+                self.state = "online_select"
+                self.error_message = message["payload"]["message"]
+                return
+            elif message["type"] == "error":
+                self.error_message = message["payload"]["message"]
+            elif message["type"] == "opponent_disconnected":
+                self.error_message = "Your opponent disconnected."
+
+    def _handle_hosting_event(self, event: pygame.event.Event) -> None:
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            if self.multiplayer_client is not None:
+                self.multiplayer_client.close()
+                self.multiplayer_client = None
+            self.state = "online_select"
+            self.error_message = ""
+        elif (
+            event.type == pygame.MOUSEBUTTONDOWN
+            and event.button == 1
+            and self.layout.rect(CANCEL_HOST_BUTTON).collidepoint(event.pos)
+        ):
+            self._handle_hosting_event(
+                pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_ESCAPE})
+            )
 
     def _handle_help_event(self, event: pygame.event.Event) -> None:
         if (
@@ -509,6 +654,14 @@ class MenuSystem:
             self._draw_help()
         elif self.state == "confirm_clear":
             self._draw_clear_confirmation()
+        elif self.state == "mode_select":
+            self._draw_mode_select()
+        elif self.state == "online_select":
+            self._draw_online_select()
+        elif self.state == "join_room":
+            self._draw_join_room()
+        elif self.state == "hosting":
+            self._draw_hosting()
 
     def _draw_login(self) -> None:
         self._draw_panel(pygame.Rect(115, 75, 570, 115))
@@ -543,6 +696,56 @@ class MenuSystem:
         if self.error_message:
             self._draw_text(self.error_message, 400, 580, color=ERROR_TEXT)
 
+    def _draw_mode_select(self) -> None:
+        self._draw_panel(pygame.Rect(120, 150, 560, 300))
+        self._draw_title("Choose a game", 190)
+        self._draw_button("Single player", SINGLE_PLAYER_BUTTON)
+        self._draw_button("2-player VS", ONLINE_PLAYER_BUTTON)
+        self._draw_button("Back", MULTIPLAYER_BACK_BUTTON)
+
+    def _draw_online_select(self) -> None:
+        self._draw_panel(pygame.Rect(120, 150, 560, 300))
+        self._draw_title("2-player VS", 190)
+        self._draw_button("Host a game", HOST_MATCH_BUTTON)
+        self._draw_button("Join with code", JOIN_MATCH_BUTTON)
+        self._draw_button("Back", MULTIPLAYER_BACK_BUTTON)
+        if self.error_message:
+            self._draw_text(self.error_message, 400, 355, color=ERROR_TEXT)
+
+    def _draw_join_room(self) -> None:
+        self._draw_panel(pygame.Rect(120, 130, 560, 340))
+        self._draw_title("Join a game", 170)
+        self._draw_text("Enter the host's 6-character room code.", 400, 205)
+        self.join_code.draw(self.screen, self.font)
+        self._draw_button("Join", JOIN_CODE_SUBMIT_BUTTON)
+        self._draw_button("Back", MULTIPLAYER_BACK_BUTTON)
+        if self.error_message:
+            self._draw_text(self.error_message, 400, 370, color=ERROR_TEXT)
+
+    def _draw_hosting(self) -> None:
+        self._draw_panel(pygame.Rect(120, 130, 560, 340))
+        room_code = (
+            self.multiplayer_client.room_code
+            if self.multiplayer_client is not None
+            else "------"
+        )
+        if room_code is None:
+            self._draw_title("Match queue", 175)
+            position = (
+                self.multiplayer_client.queue_position
+                if self.multiplayer_client is not None
+                else None
+            )
+            self._draw_text(f"Queue position: {position or 'updating'}", 400, 270)
+            self._draw_text("A match slot will open automatically.", 400, 315)
+        else:
+            self._draw_title("Waiting for player 2", 175)
+            self._draw_text(f"Room code: {room_code}", 400, 270)
+            self._draw_text("Share the code with your opponent.", 400, 315)
+        self._draw_button("Cancel", CANCEL_HOST_BUTTON)
+        if self.error_message:
+            self._draw_text(self.error_message, 400, 370, color=ERROR_TEXT)
+
     def _draw_help(self) -> None:
         self._draw_panel(pygame.Rect(100, 45, 600, 510))
         self._draw_title("Controls", 75)
@@ -559,6 +762,7 @@ class MenuSystem:
             "Fire house turret: SPACE",
             "Toggle inventory HUD: H",
             "Pause / back: ESC",
+            "Multiplayer: V opens attacks, Q/E selects crop, 1-4 sends",
         )
         for index, line in enumerate(help_lines):
             self._draw_text(line, 400, 130 + index * 31)

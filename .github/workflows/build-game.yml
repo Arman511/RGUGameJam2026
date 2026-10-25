@@ -135,10 +135,11 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ steps.image.outputs.name }}
+          flavor: latest=false
           tags: |
             type=ref,event=tag
             type=sha,format=long,prefix=sha-
-            type=raw,value=latest,enable=${{ !startsWith(github.ref_name, 'ev') }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref_name, 'v') }}
             type=raw,value=experimental,enable=${{ startsWith(github.ref_name, 'ev') }}
 
       - name: Build and push multi-platform API image

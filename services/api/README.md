@@ -10,8 +10,16 @@ CSS and JavaScript are served from `/static/`; the leaderboard refreshes scores
 every seven seconds and supports searching by player/run ID, sorting by score
 fields, and switching between light and dark themes. CORS allows
 `https://elemental-keep.armandev.co.uk` and local `localhost`/`127.0.0.1`
-development origins. WebSocket handshakes use the same origin allowlist for
-the planned multiplayer feature.
+development origins. WebSocket handshakes use the same origin allowlist. The versioned
+`/api/v1/matches` WebSocket endpoint creates six-character rooms, joins the
+second player, relays validated match actions and wave status, and broadcasts
+the winner when a player reports defeat. Rooms are held in memory and are
+removed when a match ends or a player disconnects; active matches do not
+survive an API server restart.
+`ELEMENTAL_MATCH_LIMIT` controls how many rooms may be hosted at once (default
+100). Additional hosts wait in a first-in, first-out queue and receive a room
+when a slot opens. `ELEMENTAL_MATCH_JOIN_TIMEOUT_SECONDS` controls how long a
+host room waits for player 2 before it expires (default 120 seconds).
 
 Set `ELEMENTAL_API_DB_PATH` to select the SQLite database file. To inspect or
 apply migrations manually from this directory:

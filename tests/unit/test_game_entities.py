@@ -118,6 +118,30 @@ def test_boss_wave_contains_known_enemy_types() -> None:
     assert set(wave) <= ENEMY_DEFS.keys()
 
 
+def test_multiplayer_modifiers_add_enemy_count_and_elemental_bias() -> None:
+    baseline = build_wave_sequence(1)
+
+    wave = build_wave_sequence(
+        1,
+        extra_enemies=2,
+        elemental_bias=CropType.FIRE,
+    )
+
+    assert len(wave) == len(baseline) + 4
+    assert wave.count("fire") == 2
+
+
+def test_elemental_penalties_stack_across_multiple_attacks() -> None:
+    wave = build_wave_sequence(
+        1,
+        elemental_biases={CropType.FIRE: 3},
+        extra_enemies=12,
+    )
+
+    assert wave.count("fire") == 6
+    assert wave.count("swarmer") == 15
+
+
 def test_wave_sequence_is_deterministic() -> None:
     assert build_wave_sequence(3) == build_wave_sequence(3)
 
@@ -243,9 +267,7 @@ def test_unlocked_turret_plot_is_added_to_the_map_slots() -> None:
     system.slots = []
 
     system._refresh_slots(player)
-    starting_centers = {
-        (slot.side, slot.index): slot.center for slot in system.slots
-    }
+    starting_centers = {(slot.side, slot.index): slot.center for slot in system.slots}
     player.turret_slots_unlocked = 4
     system._refresh_slots(player)
 
@@ -322,7 +344,9 @@ def test_manual_turret_can_hit_targets_at_unlimited_range() -> None:
     assert enemy.health < enemy.max_health
 
 
-def test_elemental_turret_projectile_uses_its_element_sprite_and_hits_on_arrival() -> None:
+def test_elemental_turret_projectile_uses_its_element_sprite_and_hits_on_arrival() -> (
+    None
+):
     import pygame
 
     element = CropType.FIRE
@@ -331,9 +355,7 @@ def test_elemental_turret_projectile_uses_its_element_sprite_and_hits_on_arrival
     system._projectile_images = {
         crop: pygame.Surface((18, 18)) for crop in PROJECTILE_ASSETS
     }
-    system.slots = [
-        TurretSlot("left", 0, (0, 0), TurretInstance("flame_turret"))
-    ]
+    system.slots = [TurretSlot("left", 0, (0, 0), TurretInstance("flame_turret"))]
     enemy = EnemyState.create("swarmer", (-100, 0))
 
     system.update(0.01, [enemy])

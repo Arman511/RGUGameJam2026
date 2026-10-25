@@ -57,6 +57,134 @@ def test_pages_link_to_download_page(client) -> None:
     assert 'href="/download">Download</a>' in registration_page.text
 
 
+def test_multiplayer_room_relays_actions_and_match_results(client) -> None:
+    with client.websocket_connect("/api/v1/matches") as host:
+        host.send_json(
+            {
+                "version": 1,
+                "type": "host",
+                "payload": {"player_name": "Alice"},
+            }
+        )
+        room_created = host.receive_json()
+        room_code = room_created["payload"]["room_code"]
+
+        with client.websocket_connect("/api/v1/matches") as guest:
+            guest.send_json(
+                {
+                    "version": 1,
+                    "type": "join",
+                    "payload": {"player_name": "Bob", "room_code": room_code},
+                }
+            )
+            host_started = host.receive_json()
+            guest_started = guest.receive_json()
+            assert host_started["type"] == guest_started["type"] == "match_started"
+            assert host_started["payload"]["player_id"] == "player1"
+            assert guest_started["payload"]["player_id"] == "player2"
+
+            guest.send_json(
+                {
+                    "version": 1,
+                    "type": "action",
+                    "payload": {"action": "change_weather", "element": "FIRE"},
+                }
+            )
+            assert host.receive_json()["type"] == "opponent_action"
+            assert guest.receive_json()["type"] == "action_accepted"
+
+            host.send_json(
+                {
+                    "version": 1,
+                    "type": "match_ended",
+                    "payload": {"result": "defeat"},
+                }
+            )
+            assert host.receive_json()["payload"]["result"] == "defeat"
+            assert guest.receive_json()["payload"]["result"] == "victory"
+
+
+def test_match_manager_has_configurable_capacity_and_join_timeout(monkeypatch) -> None:
+    from elemental_api.matches import (
+        DEFAULT_JOIN_TIMEOUT_SECONDS,
+        DEFAULT_MATCH_LIMIT,
+        MatchManager,
+    )
+
+    monkeypatch.delenv("ELEMENTAL_MATCH_LIMIT", raising=False)
+    monkeypatch.delenv("ELEMENTAL_MATCH_JOIN_TIMEOUT_SECONDS", raising=False)
+    default_manager = MatchManager()
+    assert default_manager.room_limit == 100
+    assert default_manager.join_timeout_seconds == 120
+
+    monkeypatch.setenv("ELEMENTAL_MATCH_LIMIT", "7")
+    monkeypatch.setenv("ELEMENTAL_MATCH_JOIN_TIMEOUT_SECONDS", "30")
+    manager = MatchManager()
+
+    assert manager.room_limit == 7
+    assert manager.join_timeout_seconds == 30
+    assert DEFAULT_MATCH_LIMIT == 100
+    assert DEFAULT_JOIN_TIMEOUT_SECONDS == 120
+
+
+def test_match_queue_promotes_next_host_when_a_room_ends(client) -> None:
+    from elemental_api.matches import match_manager
+
+    previous_limit = match_manager.room_limit
+    match_manager.room_limit = 1
+    try:
+        with client.websocket_connect("/api/v1/matches") as first_host:
+            first_host.send_json(
+                {"version": 1, "type": "host", "payload": {"player_name": "First"}}
+            )
+            first_room = first_host.receive_json()["payload"]["room_code"]
+            with client.websocket_connect("/api/v1/matches") as queued_host:
+                queued_host.send_json(
+                    {"version": 1, "type": "host", "payload": {"player_name": "Next"}}
+                )
+                assert queued_host.receive_json()["type"] == "queued"
+                with client.websocket_connect("/api/v1/matches") as opponent:
+                    opponent.send_json(
+                        {
+                            "version": 1,
+                            "type": "join",
+                            "payload": {"room_code": first_room},
+                        }
+                    )
+                    first_host.receive_json()
+                    opponent.receive_json()
+                    first_host.send_json(
+                        {
+                            "version": 1,
+                            "type": "match_ended",
+                            "payload": {"result": "defeat"},
+                        }
+                    )
+                    first_host.receive_json()
+                    opponent.receive_json()
+                    promoted = queued_host.receive_json()
+                    assert promoted["type"] == "room_created"
+    finally:
+        match_manager.room_limit = previous_limit
+
+
+def test_host_room_expires_if_player_two_does_not_join(client) -> None:
+    from elemental_api.matches import match_manager
+
+    previous_timeout = match_manager.join_timeout_seconds
+    match_manager.join_timeout_seconds = 0.05
+    try:
+        with client.websocket_connect("/api/v1/matches") as host:
+            host.send_json(
+                {"version": 1, "type": "host", "payload": {"player_name": "Waiting"}}
+            )
+            assert host.receive_json()["type"] == "room_created"
+            expired = host.receive_json()
+            assert expired["type"] == "room_expired"
+    finally:
+        match_manager.join_timeout_seconds = previous_timeout
+
+
 def test_duplicate_username_is_rejected(client) -> None:
     client.post(
         "/api/v1/auth/register", json={"username": "alice", "password": "secretpass"}
