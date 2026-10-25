@@ -479,4 +479,3 @@ class GameScreenRenderer:
             draw_exit_confirmation(surface, font)
         if game_over_dialog is not None:
             game_over_dialog.draw()
-        pygame.display.flip()
