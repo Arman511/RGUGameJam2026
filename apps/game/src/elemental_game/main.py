@@ -743,9 +743,9 @@ def main(argv: Sequence[str] | None = None) -> None:
             opponent_text = font.render(
                 f"VS {multiplayer.opponent_name}  |  Room {room_code}  |  V: attacks",
                 True,
-                (255, 255, 255),
+                (0, 0, 0),
             )
-            screen.blit(opponent_text, (78, 6))
+            screen.blit(opponent_text, (78, config.TEXT_Y))
             if multiplayer_status:
                 status_text = font.render(
                     multiplayer_status[:75], True, (255, 225, 125)
@@ -757,12 +757,31 @@ def main(argv: Sequence[str] | None = None) -> None:
             phase_icons["planting" if planting_phase else "enemy"],
             phase_icon_position,
         )
-        if planting_phase:
-            instruction_label = font.render("Buy plants in the shop!", True, (0, 0, 0))
-            screen.blit(
-                instruction_label,
-                instruction_label.get_rect(midtop=(screen.get_width() // 2, config.TEXT_Y)),
+        buffer = 0
+        if multiplayer:
+            buffer = 20
+
+        if controlling_house_turret:
+            label_text = "Shoot enemies with SPACE!"
+        elif planting_phase:
+            crop = farm.get_crop(*tile) if tile else None
+            can_farm = (
+                tile is not None
+                and farm.quadrant_at(*tile) in player.unlocked_quadrants
+                and (crop is None or crop.is_ready())
             )
+            if turrets.can_interact(player):
+                label_text = "Upgrade turrets with plants!"
+            elif can_farm:
+                label_text = "Press F to plant or harvest!"
+            else:
+                label_text = "Buy seeds in the shop!"
+
+        instruction_label = font.render(label_text, True, (0, 0, 0))
+        screen.blit(
+            instruction_label,
+            instruction_label.get_rect(midtop=(screen.get_width() // 2 + buffer, config.TEXT_Y)),
+        )
         timer = font.render(
             f"{phase_label}  {max(0, phase_remaining):.0f}s",
             True,
