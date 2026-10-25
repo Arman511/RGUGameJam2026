@@ -38,6 +38,8 @@ class TurretInstance:
     damage_level: int = 0
     slow_level: int = 0
     knockback_level: int = 0
+    attack_radius_level: int = 0
+    attack_range_level: int = 0
 
 
 TURRET_DEFS: dict[str, TurretDefinition] = {
@@ -119,7 +121,23 @@ PROJECTILE_ASSETS = {
     CropType.ICE: "ice-pellet.png",
     CropType.LIGHTNING: "lightning-pellet.png",
 }
-UPGRADE_NAMES = ("Fire rate", "Damage", "Slowdown", "Knockback", "Destroy turret")
+ELEMENT_RANGE_COLORS = {
+    CropType.FIRE: (245, 92, 64),
+    CropType.WATER: (72, 150, 245),
+    CropType.EARTH: (106, 205, 112),
+    CropType.AIR: (230, 235, 245),
+    CropType.ICE: (102, 220, 235),
+    CropType.LIGHTNING: (250, 220, 72),
+}
+UPGRADE_NAMES = (
+    "Fire rate",
+    "Damage",
+    "Slowdown",
+    "Knockback",
+    "Attack radius",
+    "Attack range",
+    "Destroy turret",
+)
 
 
 @dataclass
@@ -212,6 +230,8 @@ class TurretSystem:
     INTERACTION_RADIUS = 76
     CLOSE_RANGE = 74
     RANGE = ELEMENTAL_TURRET_RANGE
+    ATTACK_RADIUS_PER_LEVEL = 20
+    ATTACK_RANGE_PER_LEVEL = 40
     UPGRADE_BASE_COST = 5
     STARTING_SLOT_COUNT = 3
     UNLOCKED_SLOT_Y_OFFSETS = (-36, 36)
@@ -321,7 +341,9 @@ class TurretSystem:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if surface is None:
                 return
-            options = list(DEFINITION_BY_ELEMENT) if slot.turret is None else UPGRADE_NAMES
+            options = (
+                list(DEFINITION_BY_ELEMENT) if slot.turret is None else UPGRADE_NAMES
+            )
             panel = self._modal_panel_rect(surface)
             for index in range(len(options)):
                 row = pygame.Rect(
@@ -386,8 +408,12 @@ class TurretSystem:
             slot.turret.damage_level += 1
         elif upgrade_index == 2:
             slot.turret.slow_level += 1
-        else:
+        elif upgrade_index == 3:
             slot.turret.knockback_level += 1
+        elif upgrade_index == 4:
+            slot.turret.attack_radius_level += 1
+        elif upgrade_index == 5:
+            slot.turret.attack_range_level += 1
         self.status_message = f"{UPGRADE_NAMES[upgrade_index]} upgraded (cost {cost})."
 
     def update(self, dt: float, enemies) -> None:
@@ -404,15 +430,22 @@ class TurretSystem:
             definition = TURRET_DEFS[turret.key]
             position = pygame.Vector2(slot.center)
             facing = pygame.Vector2(-1 if slot.side == "left" else 1, 0)
+            attack_range = (
+                self.RANGE + turret.attack_range_level * self.ATTACK_RANGE_PER_LEVEL
+            )
+            attack_radius = (
+                self.CLOSE_RANGE
+                + turret.attack_radius_level * self.ATTACK_RADIUS_PER_LEVEL
+            )
             targets = []
             for enemy in enemies:
                 if enemy.health <= 0:
                     continue
                 offset = pygame.Vector2(enemy.pos) - position
                 distance = offset.length()
-                if distance > self.RANGE:
+                if distance > attack_range:
                     continue
-                in_close_radius = distance <= self.CLOSE_RANGE
+                in_close_radius = distance <= attack_radius
                 in_cone = distance > 0 and offset.normalize().dot(facing) >= math.cos(
                     math.pi / 4
                 )
@@ -515,28 +548,45 @@ class TurretSystem:
             self._draw_modal(surface, font, player)
 
     def _draw_range(self, overlay, slot: TurretSlot) -> None:
+        turret = slot.turret
+        if turret is None:
+            return
         center = pygame.Vector2(slot.center)
+        element = TURRET_DEFS[turret.key].element
+        color = ELEMENT_RANGE_COLORS[element]
         facing_angle = math.pi if slot.side == "left" else 0.0
         half_angle = math.pi / 4
+        attack_range = (
+            self.RANGE + turret.attack_range_level * self.ATTACK_RANGE_PER_LEVEL
+        )
+        attack_radius = (
+            self.CLOSE_RANGE + turret.attack_radius_level * self.ATTACK_RADIUS_PER_LEVEL
+        )
         arc_points = [
             (
-                round(center.x + math.cos(angle) * self.RANGE),
-                round(center.y + math.sin(angle) * self.RANGE),
+                round(center.x + math.cos(angle) * attack_range),
+                round(center.y + math.sin(angle) * attack_range),
             )
             for angle in (
                 facing_angle - half_angle + i * (2 * half_angle / 40) for i in range(41)
             )
         ]
-        color = (210, 235, 255, 52)
-        pygame.draw.lines(overlay, (210, 235, 255, 100), False, arc_points, 1)
-        pygame.draw.line(overlay, (210, 235, 255, 75), center, arc_points[0], 1)
-        pygame.draw.line(overlay, (210, 235, 255, 75), center, arc_points[-1], 1)
+        pygame.draw.polygon(overlay, (*color, 58), [center, *arc_points])
         pygame.draw.circle(
             overlay,
-            color,
+            (*color, 46),
             (round(center.x), round(center.y)),
-            self.CLOSE_RANGE,
-            1,
+            attack_radius,
+        )
+        pygame.draw.lines(overlay, (*color, 210), False, arc_points, 2)
+        pygame.draw.line(overlay, (*color, 185), center, arc_points[0], 2)
+        pygame.draw.line(overlay, (*color, 185), center, arc_points[-1], 2)
+        pygame.draw.circle(
+            overlay,
+            (*color, 205),
+            (round(center.x), round(center.y)),
+            attack_radius,
+            2,
         )
 
     def _draw_modal(self, surface, font, player) -> None:
@@ -573,9 +623,20 @@ class TurretSystem:
             options = list(UPGRADE_NAMES)
             turret = slot.turret
             element = TURRET_DEFS[turret.key].element.name.lower()
+            upgrade_levels = (
+                turret.fire_rate_level,
+                turret.damage_level,
+                turret.slow_level,
+                turret.knockback_level,
+                turret.attack_radius_level,
+                turret.attack_range_level,
+            )
             labels = [
-                f"{name} - {self.UPGRADE_BASE_COST * (turret.level + 1)} {element} crops"
-                for name in UPGRADE_NAMES[:-1]
+                (
+                    f"{name} (x{level}) - "
+                    f"{self.UPGRADE_BASE_COST * (turret.level + 1)} {element}"
+                )
+                for name, level in zip(UPGRADE_NAMES[:-1], upgrade_levels)
             ] + ["Destroy turret"]
         for index, label in enumerate(labels):
             color = (

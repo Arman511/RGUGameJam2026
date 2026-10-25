@@ -16,11 +16,14 @@ from elemental_game.game_entities.enemies.waves import (
 )
 from elemental_game.game_entities.house import House
 from elemental_game.game_entities.player.player import Player, PlayerType
+from elemental_game.screen_rendering.game import _draw_quick_action_button
 from elemental_game.game_entities.turrets.turrets import (
     DEFINITION_BY_ELEMENT,
+    ELEMENT_RANGE_COLORS,
     ELEMENTAL_TURRET_RANGE,
     PROJECTILE_ASSETS,
     TURRET_DEFS,
+    UPGRADE_NAMES,
     ManualTurret,
     TurretInstance,
     TurretProjectile,
@@ -164,8 +167,8 @@ def test_weather_has_a_background_behind_its_icon() -> None:
         WeatherTypes.FIRE: pygame.Surface((55, 55), pygame.SRCALPHA)
     }
     surface = pygame.Surface((1280, 768))
-
-    waves.draw_weather(surface)
+    font = pygame.font.Font(None, 36)
+    waves.draw_weather(surface, font)
 
     assert surface.get_at((1212, 87))[:3] == (28, 34, 46)
 
@@ -413,6 +416,103 @@ def test_elemental_projectile_applies_slow_and_knockback_on_impact() -> None:
     enemy.update_status_effects(1.0)
     assert enemy.speed == original_speed
     assert enemy.slow_timer == 0
+
+
+def test_earth_enemies_and_boss_resist_knockback_more() -> None:
+    earth_enemies = (
+        EnemyState.create("brute", (0, 0)),
+        EnemyState.create("elite_earth", (0, 0)),
+    )
+    boss = EnemyState.create("boss", (0, 0))
+    regular_enemy = EnemyState.create("fire", (0, 0))
+
+    for enemy in (*earth_enemies, boss):
+        enemy.apply_knockback((1, 0), 40)
+    regular_enemy.apply_knockback((1, 0), 40)
+
+    assert [enemy.pos.x for enemy in earth_enemies] == [20, 20]
+    assert boss.pos.x == 10
+    assert regular_enemy.pos.x == 40
+
+
+def test_turret_attack_radius_and_range_upgrades_cost_crops_and_take_effect() -> None:
+    system = TurretSystem.__new__(TurretSystem)
+    turret = TurretInstance("flame_turret")
+    slot = TurretSlot("right", 0, (0, 0), turret)
+    player = type("PlayerState", (), {"crops": {CropType.FIRE: 20}})()
+    system.status_message = ""
+
+    system.modal_selection = UPGRADE_NAMES.index("Attack radius")
+    system._confirm_selection(player, slot)
+    assert turret.attack_radius_level == 1
+    assert player.crops[CropType.FIRE] == 15
+
+    system.modal_selection = UPGRADE_NAMES.index("Attack range")
+    system._confirm_selection(player, slot)
+    assert turret.attack_range_level == 1
+    assert player.crops[CropType.FIRE] == 5
+
+
+def test_upgraded_turret_attacks_targets_in_extended_radius_and_range() -> None:
+    for enemy_position, upgrade_field in (
+        ((0, 80), "attack_radius_level"),
+        ((230, 0), "attack_range_level"),
+    ):
+        system = TurretSystem.__new__(TurretSystem)
+        turret = TurretInstance("flame_turret")
+        setattr(turret, upgrade_field, 1)
+        system.slots = [TurretSlot("right", 0, (0, 0), turret)]
+        system.projectiles = []
+        system._projectile_images = {CropType.FIRE: pygame.Surface((18, 18))}
+        enemy = EnemyState.create("swarmer", enemy_position)
+
+        system.update(0.01, [enemy])
+
+        assert len(system.projectiles) == 1
+
+
+def test_turret_attack_overlay_is_filled_and_uses_element_color() -> None:
+    system = TurretSystem.__new__(TurretSystem)
+    overlay = pygame.Surface((500, 500), pygame.SRCALPHA)
+    slot = TurretSlot("right", 0, (100, 250), TurretInstance("flame_turret"))
+
+    system._draw_range(overlay, slot)
+
+    assert overlay.get_at((200, 250)) == (*ELEMENT_RANGE_COLORS[CropType.FIRE], 58)
+    assert overlay.get_at((200, 250)).a > 50
+
+
+def test_turret_quick_action_can_use_a_lighter_background() -> None:
+    surface = pygame.Surface((80, 80))
+    background = (135, 154, 136)
+
+    _draw_quick_action_button(
+        surface,
+        pygame.Rect(10, 10, 56, 56),
+        pygame.Surface((1, 1)),
+        enabled=True,
+        hovered=False,
+        background_color=background,
+    )
+
+    assert surface.get_at((15, 15))[:3] == background
+
+
+def test_turret_upgrade_menu_displays_current_upgrade_levels() -> None:
+    rendered_text = []
+
+    class Font:
+        def render(self, text, *_args):
+            rendered_text.append(text)
+            return pygame.Surface((1, 1), pygame.SRCALPHA)
+
+    system = TurretSystem.__new__(TurretSystem)
+    system.modal_slot = TurretSlot("right", 0, (0, 0), TurretInstance("flame_turret"))
+    system.modal_selection = 0
+    system.status_message = ""
+    system._draw_modal(pygame.Surface((1280, 768)), Font(), None)
+
+    assert all(f"{name} (x0)" in " ".join(rendered_text) for name in UPGRADE_NAMES[:-1])
 
 
 def test_inventory_hud_includes_wave_and_enemy_kill_count(monkeypatch) -> None:

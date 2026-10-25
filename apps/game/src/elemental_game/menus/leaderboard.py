@@ -30,8 +30,8 @@ class LeaderboardMenuMixin(MenuContext):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             rows = self._filtered_leaderboard()
             visible_rows = rows[
-                self.leaderboard_scroll :
-                self.leaderboard_scroll + LEADERBOARD_VISIBLE_ROWS
+                self.leaderboard_scroll : self.leaderboard_scroll
+                + LEADERBOARD_VISIBLE_ROWS
             ]
             revealed_usernames = getattr(self, "revealed_usernames", set())
             for index, row in enumerate(visible_rows):
@@ -39,9 +39,7 @@ class LeaderboardMenuMixin(MenuContext):
                 display_name = str(row["username"])
                 if run_id not in revealed_usernames:
                     display_name = censor_username(display_name)
-                position = self.layout.point(
-                    (LEADERBOARD_COLUMNS[0], 220 + index * 24)
-                )
+                position = self.layout.point((LEADERBOARD_COLUMNS[0], 220 + index * 24))
                 username_rect = self.font.render(
                     display_name, True, (245, 245, 245)
                 ).get_rect(topleft=position)
@@ -63,6 +61,7 @@ class LeaderboardMenuMixin(MenuContext):
             for row in self.leaderboard_rows
             if query in str(row["username"]).casefold()
         ]
+
     def _draw_leaderboard(self) -> None:
         self._draw_panel(pygame.Rect(125, 30, 550, 480))
         self._draw_panel(pygame.Rect(125, 30, 550, 480))
@@ -81,8 +80,7 @@ class LeaderboardMenuMixin(MenuContext):
 
         rows = self._filtered_leaderboard()
         visible_rows = rows[
-            self.leaderboard_scroll :
-            self.leaderboard_scroll + LEADERBOARD_VISIBLE_ROWS
+            self.leaderboard_scroll : self.leaderboard_scroll + LEADERBOARD_VISIBLE_ROWS
         ]
         for index, row in enumerate(visible_rows):
             y = 220 + index * 24

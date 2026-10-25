@@ -130,7 +130,9 @@ class Waves:
         label = font.render("Weather Forecast", True, (0, 0, 0))
         surface.blit(
             label,
-            label.get_rect(midright=(background_rect.left - 10, background_rect.centery)),
+            label.get_rect(
+                midright=(background_rect.left - 10, background_rect.centery)
+            ),
         )
 
     def new_wave(self):

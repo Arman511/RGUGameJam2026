@@ -27,6 +27,9 @@ class Player:
         self.crops = {}
         self.unlocked_quadrants = set(self.STARTING_UNLOCKED_QUADRANTS)
         self.turret_slots_unlocked = 0
+        self.harvest_size = 1
+        self.plant_radius = 1
+        self.plant_radius_active = 1
 
     def update(self, dt):
         keys = pygame.key.get_pressed()
@@ -82,6 +85,20 @@ class Player:
         self.coins += 3
         return True
 
+    def sell_all_crops(self) -> int:
+        sold_count = sum(self.crops.values())
+        if sold_count:
+            self.coins += sold_count * 3
+            for crop_type in self.crops:
+                self.crops[crop_type] = 0
+        return sold_count
+
+    def cycle_plant_radius(self) -> int:
+        self.plant_radius_active = (
+            self.plant_radius_active % max(1, self.plant_radius) + 1
+        )
+        return self.plant_radius_active
+
     def next_farm_quadrant_unlock(self):
         return next(
             (
@@ -127,6 +144,9 @@ class Player:
         self.crops = {}
         self.unlocked_quadrants = set(self.STARTING_UNLOCKED_QUADRANTS)
         self.turret_slots_unlocked = 0
+        self.harvest_size = 1
+        self.plant_radius = 1
+        self.plant_radius_active = 1
 
     def can_afford(self, cost):
         return self.coins >= cost

@@ -35,6 +35,7 @@ from elemental_game.screen_rendering.multiplayer_game_over import (
 from elemental_game.types.crop import CropType
 from elemental_game.types.player import PlayerType
 from elemental_game.types.weather import WeatherTypes
+
 MULTIPLAYER_COIN_COSTS = {"extra_enemies": 6, "tougher_enemies": 8}
 _game_instance_lock = GameInstanceLock()
 try:
@@ -66,7 +67,9 @@ def _create_game(screen, player_type):
             config.FARM_HEIGHT,
         ),
     )
-    player = Player(player_type=PlayerType(player_type), pos=farm.tile_rect(0, 5).center)
+    player = Player(
+        player_type=PlayerType(player_type), pos=farm.tile_rect(0, 5).center
+    )
     return farm, player
 
 
@@ -80,14 +83,15 @@ def _send_multiplayer_attack(action, selected_attack_element, player, multiplaye
         element is None or player.crops.get(element, 0) <= 0
     ):
         return "Harvest an elemental crop first."
-    if action in MULTIPLAYER_COIN_COSTS and player.coins < MULTIPLAYER_COIN_COSTS[action]:
+    if (
+        action in MULTIPLAYER_COIN_COSTS
+        and player.coins < MULTIPLAYER_COIN_COSTS[action]
+    ):
         return "Not enough coins for that attack."
     if multiplayer is None:
         return "Multiplayer attacks are unavailable."
     try:
-        multiplayer.send_action(
-            action, element.name if element is not None else None
-        )
+        multiplayer.send_action(action, element.name if element is not None else None)
     except MultiplayerError as error:
         return str(error)
 
@@ -268,6 +272,10 @@ def main(argv: Sequence[str] | None = None) -> None:
                             shop.clear_status()
                         elif clicked_action == "hud":
                             hud_visible = not hud_visible
+                        elif clicked_action == "plant_radius":
+                            player.cycle_plant_radius()
+                        elif clicked_action == "radar":
+                            turrets.show_ranges = not turrets.show_ranges
                         elif clicked_action == "turret" and turrets.can_interact(
                             player
                         ):
@@ -456,6 +464,18 @@ def main(argv: Sequence[str] | None = None) -> None:
                 hud_visible = not hud_visible
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
                 turrets.show_ranges = not turrets.show_ranges
+            elif (
+                event.type == pygame.KEYDOWN
+                and event.key == pygame.K_r
+                and not farm.planting
+                and not shop_open
+                and not confirm_exit
+                and turrets.modal_slot is None
+                and not controlling_house_turret
+                and not multiplayer_panel_open
+                and game_over_dialog is None
+            ):
+                player.cycle_plant_radius()
             elif turrets.modal_slot is not None:
                 turrets.handle_event(event, player, screen)
             elif controlling_house_turret and event.type == pygame.KEYDOWN:

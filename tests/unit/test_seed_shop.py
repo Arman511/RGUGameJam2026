@@ -3,7 +3,13 @@ from elemental_game.game_entities.crops.crops import Crop, CropType
 from elemental_game.game_entities.farm import CropMenu, Farm
 from elemental_game.game_entities.house import House, HouseState
 from elemental_game.game_entities.player.player import Player
-from elemental_game.game_entities.shop import HouseUpgrade, ShopMenu
+from elemental_game.game_entities.shop import (
+    HarvestSizeUpgrade,
+    HouseUpgrade,
+    PlantRadiusUpgrade,
+    SellAllCrops,
+    ShopMenu,
+)
 from elemental_game.game_entities.turrets.turrets import ManualTurret
 from elemental_game.types.player import PlayerType
 from elemental_game.types.seed import SeedType
@@ -18,6 +24,9 @@ def make_player():
     player.coins = 5
     player.crops = {}
     player.unlocked_quadrants = {"top_right", "top_left"}
+    player.harvest_size = 1
+    player.plant_radius = 1
+    player.plant_radius_active = 1
     return player
 
 
@@ -32,6 +41,7 @@ def make_farm(crop=None):
     farm.fertilizers = {}
     farm.notice_message = ""
     farm.notice_timer = 0.0
+    farm.pending_plant_tiles = []
     return farm
 
 
@@ -43,7 +53,7 @@ def test_player_starts_with_five_coins_and_can_buy_tiered_seeds(monkeypatch) -> 
             return surface
 
     monkeypatch.setattr(pygame.image, "load", lambda _: LoadedImage())
-    player = Player(player_type=PlayerType.WATER)
+    player = Player(player_type=PlayerType.WATER, pos=(0, 0))
 
     assert player.coins == 5
     assert player.buy_seed(SeedType.FIRE, 3)
@@ -134,6 +144,30 @@ def test_market_enter_after_selling_last_crop_does_not_crash() -> None:
     assert shop.status_message == "No crops to sell."
 
 
+def test_sell_all_option_appears_only_with_crops_and_sells_everything() -> None:
+    player = make_player()
+    shop = ShopMenu()
+    shop.mode = "sell"
+
+    assert not any(isinstance(option, SellAllCrops) for option in shop._options(player))
+
+    player.crops = {CropType.FIRE: 2, CropType.WATER: 3}
+    options = shop._options(player)
+    sell_all_index = next(
+        index
+        for index, option in enumerate(options)
+        if isinstance(option, SellAllCrops)
+    )
+    assert options[sell_all_index].count == 5
+
+    shop.selected = sell_all_index
+    shop._activate_selection(player, make_farm())
+
+    assert player.crops == {CropType.FIRE: 0, CropType.WATER: 0}
+    assert player.coins == 20
+    assert not any(isinstance(option, SellAllCrops) for option in shop._options(player))
+
+
 def test_market_enter_clamps_stale_upgrade_selection() -> None:
     player = make_player()
     player.next_farm_quadrant_unlock = lambda: None
@@ -152,14 +186,82 @@ def test_market_enter_clamps_stale_upgrade_selection() -> None:
     assert shop.pending_fertilizer == CropType.LIGHTNING
 
 
+def test_market_harvest_area_upgrades_use_the_requested_costs_and_maximum() -> None:
+    player = make_player()
+    player.coins = 1000
+    shop = ShopMenu()
+    shop.mode = "upgrade"
+    farm = make_farm()
+
+    for expected_size, expected_cost in enumerate((20, 50, 100, 200, 300), start=2):
+        option = next(
+            option
+            for option in shop._upgrade_options(player)
+            if isinstance(option, HarvestSizeUpgrade)
+        )
+        assert option.size == expected_size
+        assert option.cost == expected_cost
+        shop.selected = shop._upgrade_options(player).index(option)
+        shop._activate_selection(player, farm)
+        assert player.harvest_size == expected_size
+
+    assert not any(
+        isinstance(option, HarvestSizeUpgrade)
+        for option in shop._upgrade_options(player)
+    )
+    assert player.coins == 330
+
+
+def test_market_plant_radius_upgrades_use_the_requested_costs_and_maximum() -> None:
+    player = make_player()
+    player.coins = 300
+    shop = ShopMenu()
+    shop.mode = "upgrade"
+    farm = make_farm()
+
+    for expected_radius, expected_cost in ((2, 50), (3, 200)):
+        option = next(
+            option
+            for option in shop._upgrade_options(player)
+            if isinstance(option, PlantRadiusUpgrade)
+        )
+        assert option.radius == expected_radius
+        assert option.cost == expected_cost
+        shop.selected = shop._upgrade_options(player).index(option)
+        shop._activate_selection(player, farm)
+        assert player.plant_radius == expected_radius
+
+    assert not any(
+        isinstance(option, PlantRadiusUpgrade)
+        for option in shop._upgrade_options(player)
+    )
+    assert player.coins == 50
+
+
+def test_plant_radius_button_cycles_only_through_purchased_radii() -> None:
+    player = make_player()
+
+    assert player.cycle_plant_radius() == 1
+    assert player.plant_radius_active == 1
+
+    player.plant_radius = 2
+    assert player.cycle_plant_radius() == 2
+    assert player.cycle_plant_radius() == 1
+
+    player.plant_radius = 3
+    assert player.cycle_plant_radius() == 2
+    assert player.cycle_plant_radius() == 3
+    assert player.cycle_plant_radius() == 1
+
+
 def test_fertilizer_enter_clamps_stale_quadrant_selection() -> None:
     player = make_player()
     player.coins = 20
     farm = make_farm()
     applied_quadrants = []
-    farm.apply_fertilizer = lambda quadrant, crop_type: applied_quadrants.append(
-        quadrant
-    ) or True
+    farm.apply_fertilizer = lambda quadrant, crop_type: (
+        applied_quadrants.append(quadrant) or True
+    )
     shop = ShopMenu()
     shop.mode = "upgrade"
     shop.selecting_quadrant = True
@@ -370,6 +472,45 @@ def test_planting_with_one_crop_and_tier_skips_the_menu() -> None:
     assert planted_crop.crop_type is CropType.FIRE
     assert planted_crop.tier == 3
     assert player.seeds[SeedType.FIRE]["tier3"] == 0
+
+
+def test_area_planting_at_the_farm_edge_only_uses_eligible_slots(monkeypatch) -> None:
+    player = make_player()
+    player.unlocked_quadrants = set(Farm.QUADRANTS)
+    player.plant_radius = 3
+    player.plant_radius_active = 3
+    player.add_seed(SeedType.FIRE, "tier1", 3)
+    farm = make_farm()
+    player.pos = pygame.Vector2(25, 25)
+    monkeypatch.setattr("elemental_game.game_entities.farm.play_sfx", lambda _: False)
+
+    farm.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_f}), player)
+
+    assert sum(crop is not None for row in farm.grid for crop in row) == 3
+    assert player.seeds[SeedType.FIRE]["tier1"] == 0
+    assert farm.grid[0][0] is not None
+    assert farm.grid[0][1] is not None
+    assert farm.grid[1][0] is not None
+    assert farm.grid[1][1] is None
+
+
+def test_area_harvesting_at_the_farm_edge_uses_all_in_bounds_crops(monkeypatch) -> None:
+    player = make_player()
+    player.unlocked_quadrants = set(Farm.QUADRANTS)
+    player.harvest_size = 2
+    player.pos = pygame.Vector2(25, 25)
+    crops = [Crop(CropType.FIRE, (row, col)) for row in range(2) for col in range(2)]
+    for crop in crops:
+        crop.growth_timer = crop.GROWTH_TIME
+    farm = make_farm()
+    farm.grid = [[crops[0], crops[1]], [crops[2], crops[3]]]
+    monkeypatch.setattr("elemental_game.game_entities.farm.play_sfx", lambda _: False)
+    monkeypatch.setattr("elemental_game.game_entities.farm.random.random", lambda: 0.5)
+
+    farm.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_g}), player)
+
+    assert all(crop is None for row in farm.grid for crop in row)
+    assert player.crops[CropType.FIRE] == 4
 
 
 def test_planting_with_multiple_crop_types_still_shows_the_menu() -> None:

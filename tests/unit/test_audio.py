@@ -121,8 +121,7 @@ def test_farm_events_report_successful_planting_and_harvesting(
         player_type = PlayerType.WATER
         unlocked_quadrants = {"top_right"}
         seeds = {
-            seed_type: {"tier1": 0, "tier2": 0, "tier3": 0}
-            for seed_type in SeedType
+            seed_type: {"tier1": 0, "tier2": 0, "tier3": 0} for seed_type in SeedType
         }
         seeds[SeedType.FIRE]["tier1"] = 1
         crops = {}
@@ -138,15 +137,11 @@ def test_farm_events_report_successful_planting_and_harvesting(
             self.crops[crop_type] = self.crops.get(crop_type, 0) + amount
 
     player = Player()
-    farm.handle_event(
-        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_f}), player
-    )
+    farm.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_f}), player)
     assert farm.grid[0][1].crop_type is CropType.FIRE
 
     farm.update(farm.grid[0][1].GROWTH_TIME)
-    farm.handle_event(
-        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_g}), player
-    )
+    farm.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_g}), player)
 
     assert farm.grid[0][1] is None
     assert player.crops[CropType.FIRE] == 1

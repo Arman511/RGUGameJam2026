@@ -52,6 +52,7 @@ class Farm:
         self.notice_message = ""
         self.notice_timer = 0.0
         self.weather_crop_type: CropType | None = None
+        self.pending_plant_tiles = []
 
         soil_img = pygame.image.load(
             os.path.join(IMAGES_DIR, "settings-and-gameplay", "soil.png")
@@ -65,7 +66,7 @@ class Farm:
         self.soil_img = pygame.transform.scale(soil_img, (TILE_SIZE, TILE_SIZE))
         self.seedling_img = pygame.transform.scale(seedling_img, (TILE_SIZE, TILE_SIZE))
         self.locked_soil_img = pygame.transform.scale(
-            locked_soil_img, (TILE_SIZE-2, TILE_SIZE-2)
+            locked_soil_img, (TILE_SIZE - 2, TILE_SIZE - 2)
         )
         self.fertilizers = {}
 
@@ -95,25 +96,25 @@ class Farm:
             return None
         return self.grid[row][col]
 
-    def plant(self, row, col, crop_type, tier=1, player=None):
+    def plant(self, row, col, crop_type, tier=1, player=None, play_sound=True):
         """Returns the new Crop, or None if the tile is taken or out of bounds."""
         if not self.is_empty(row, col) or (
             player is not None
             and self.quadrant_at(row, col) not in player.unlocked_quadrants
         ):
             return None
-        if play_sfx("planting"):
+        if play_sound and play_sfx("planting"):
             pygame.time.delay(round(config.SFX_ACTION_DELAY * 1000))
         crop = Crop(crop_type, (row, col), tier)
         self.grid[row][col] = crop
         return crop
 
-    def harvest(self, row, col):
+    def harvest(self, row, col, play_sound=True):
         """Harvests a ready crop, clears its tile, and returns the crop or None."""
         crop = self.get_crop(row, col)
         if crop is None or not crop.is_ready():
             return None
-        if play_sfx("harvesting"):
+        if play_sound and play_sfx("harvesting"):
             pygame.time.delay(round(config.SFX_ACTION_DELAY * 1000))
         self.grid[row][col] = None
         return crop
@@ -214,8 +215,12 @@ class Farm:
         if event.key == pygame.K_f and tile:
             crop = self.get_crop(*tile)
             if crop is not None and crop.is_ready():
-                self._harvest_for_player(*tile, player)
+                self._harvest_area(tile, player)
             elif crop is None and self.quadrant_at(*tile) in player.unlocked_quadrants:
+                plant_size = getattr(player, "plant_radius_active", 1)
+                self.pending_plant_tiles = self._area_tiles(
+                    tile, plant_size, player, empty_only=True
+                )
                 self.menu.move_to(tile, self.tile_rect(*tile).bottomleft, player)
                 if self.menu.options:
                     self.notice_timer = 0.0
@@ -225,12 +230,13 @@ class Farm:
                 else:
                     self.planting = len(self.menu.options) > 1
                 if not self.planting and not self.menu.options:
+                    self.pending_plant_tiles = []
                     self.notice_message = (
                         "Buy seeds in the market first. Press M to open the market."
                     )
                     self.notice_timer = 2.5
         elif event.key == pygame.K_g and tile:
-            self._harvest_for_player(*tile, player)
+            self._harvest_area(tile, player)
 
         if self.planting:
             if event.key == pygame.K_ESCAPE:
@@ -248,14 +254,62 @@ class Farm:
             return
         crop_type, tier = selection
         seed_type = SeedType[crop_type.name]
-        if player.consume_seed(seed_type, tier):
-            self.plant(tile[0], tile[1], crop_type, tier, player)
+        targets = getattr(self, "pending_plant_tiles", None) or [tile]
+        planted_count = 0
+        for row, col in targets:
+            if player.seeds[seed_type][f"tier{tier}"] <= 0:
+                break
+            if not player.consume_seed(seed_type, tier):
+                break
+            planted = self.plant(
+                row,
+                col,
+                crop_type,
+                tier,
+                player,
+                play_sound=planted_count == 0,
+            )
+            if planted is None:
+                player.add_seed(seed_type, f"tier{tier}", 1)
+                continue
+            planted_count += 1
+        self.pending_plant_tiles = []
 
-    def _harvest_for_player(self, row, col, player):
+    def _area_tiles(self, center, size, player, *, empty_only=False):
+        row_start = center[0] - (size - 1) // 2
+        col_start = center[1] - (size - 1) // 2
+        tiles = []
+        for row in range(row_start, row_start + size):
+            for col in range(col_start, col_start + size):
+                if not self.in_bounds(row, col):
+                    continue
+                if self.quadrant_at(row, col) not in player.unlocked_quadrants:
+                    continue
+                if empty_only and not self.is_empty(row, col):
+                    continue
+                tiles.append((row, col))
+        return tiles
+
+    def _harvest_area(self, center, player):
+        size = max(1, getattr(player, "harvest_size", 1))
+        harvested_count = 0
+        for row, col in self._area_tiles(center, size, player):
+            crop = self.get_crop(row, col)
+            if crop is None or not crop.is_ready():
+                continue
+            self._harvest_for_player(
+                row,
+                col,
+                player,
+                play_sound=harvested_count == 0,
+            )
+            harvested_count += 1
+
+    def _harvest_for_player(self, row, col, player, play_sound=True):
         crop = self.get_crop(row, col)
         if crop is None or not crop.is_ready():
             return
-        harvested = self.harvest(row, col)
+        harvested = self.harvest(row, col, play_sound=play_sound)
         if harvested is None:
             return
         yield_amount = harvested.tier

@@ -32,6 +32,17 @@ spend coins on damage and fire-rate upgrades.
 Defeated enemies automatically reward a random tier-one seed. The reward amount
 is scaled by `ENEMY_SEED_DROP_MULTIPLIER` in `elemental_game.config`.
 
+## Farm upgrades
+The market can increase harvest area from 1x1 up to 6x6 for 20, 50, 100, 200,
+and 300 coins. Plant radius can be upgraded from 1x1 to 2x2 for 50 coins and
+then 3x3 for 200 coins. Press R or use the soil-plant button in the bottom-right
+to cycle planting area from 1x1 to each purchased radius and back; each eligible
+empty plot uses one seed of the selected type and tier. Harvesting and planting
+areas are centered on the player's plot and ignore plots outside the farm or
+locked farm quadrants. Elemental turrets can also upgrade their close attack
+radius and maximum attack range; their upgrade menu shows the level of each
+upgrade.
+
 ## Difficulty
 Slimes are neutral to elemental attacks. Elemental enemies have elemental
 resistances, while elite enemies appear from wave three and increase in number

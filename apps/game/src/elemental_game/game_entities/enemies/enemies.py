@@ -27,6 +27,7 @@ class EnemyDefinition:
     reward: int
     is_boss: bool = False
     is_elite: bool = False
+    knockback_resistance: float = 0.0
 
 
 ENEMY_DEFS: dict[str, EnemyDefinition] = {
@@ -34,7 +35,15 @@ ENEMY_DEFS: dict[str, EnemyDefinition] = {
         "swarmer", "Slime", "enemy_slime.png", None, 10, 56, 4, 2
     ),
     "brute": EnemyDefinition(
-        "brute", "Earth Brute", "enemy_earth.png", CropType.EARTH, 36, 30, 9, 5
+        "brute",
+        "Earth Brute",
+        "enemy_earth.png",
+        CropType.EARTH,
+        36,
+        30,
+        9,
+        5,
+        knockback_resistance=0.5,
     ),
     "runner": EnemyDefinition(
         "runner", "Air Runner", "enemy_air.png", CropType.AIR, 16, 88, 4, 3
@@ -90,6 +99,7 @@ ENEMY_DEFS: dict[str, EnemyDefinition] = {
         12,
         10,
         is_elite=True,
+        knockback_resistance=0.5,
     ),
     "elite_air": EnemyDefinition(
         "elite_air",
@@ -125,7 +135,16 @@ ENEMY_DEFS: dict[str, EnemyDefinition] = {
         is_elite=True,
     ),
     "boss": EnemyDefinition(
-        "boss", "Elemental Boss", "finalboss.png", None, 200, 25, 20, 30, is_boss=True
+        "boss",
+        "Elemental Boss",
+        "finalboss.png",
+        None,
+        200,
+        25,
+        20,
+        30,
+        is_boss=True,
+        knockback_resistance=0.75,
     ),
 }
 
@@ -219,7 +238,8 @@ class EnemyState:
     def apply_knockback(self, direction, distance: float) -> None:
         vector = pygame.Vector2(direction)
         if distance > 0 and vector.length_squared() > 0:
-            self.pos += vector.normalize() * distance
+            resistance = self.definition.knockback_resistance
+            self.pos += vector.normalize() * distance * (1.0 - resistance)
 
     def update_status_effects(self, dt: float) -> None:
         if self.slow_timer <= 0:

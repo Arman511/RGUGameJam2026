@@ -91,9 +91,7 @@ class SettingsMenuMixin(MenuContext):
         self._draw_text("SFX volume", 150, 225, center=False)
         self._draw_slider(SFX_SLIDER, self.preferences["sfx_volume"])
         self._draw_text("Gameplay hints", 150, 276, center=False)
-        self._draw_button(
-            "On" if self.hints_enabled else "Off", HINTS_TOGGLE_BUTTON
-        )
+        self._draw_button("On" if self.hints_enabled else "Off", HINTS_TOGGLE_BUTTON)
 
         self._draw_text("Player", 145, 337, center=False)
         self._draw_button("<", PLAYER_PREVIOUS_BUTTON)

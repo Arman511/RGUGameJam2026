@@ -30,13 +30,40 @@ class HouseUpgrade:
     cost: int
 
 
-UpgradeOption = LandUpgrade | FertilizerUpgrade | TurretSlotUpgrade | HouseUpgrade
+@dataclass(frozen=True)
+class HarvestSizeUpgrade:
+    size: int
+    cost: int
+
+
+@dataclass(frozen=True)
+class PlantRadiusUpgrade:
+    radius: int
+    cost: int
+
+
+@dataclass(frozen=True)
+class SellAllCrops:
+    count: int
+
+
+UpgradeOption = (
+    LandUpgrade
+    | FertilizerUpgrade
+    | TurretSlotUpgrade
+    | HouseUpgrade
+    | HarvestSizeUpgrade
+    | PlantRadiusUpgrade
+)
 
 
 class ShopMenu:
     ITEM_H = 30
     FERTILIZER_COST = 10
     STATUS_DURATION = 5.0
+    HARVEST_SIZE_UPGRADE_COSTS = (20, 50, 100, 200, 300)
+    PLANT_RADIUS_UPGRADE_COSTS = (50, 200)
+    MAX_VISIBLE_UPGRADES = 12
     CONFIRM_KEYS = (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE, pygame.K_f)
     MODES = ("buy", "upgrade", "sell")
     FERTILIZER_TYPES = (
@@ -63,6 +90,7 @@ class ShopMenu:
         self.pending_fertilizer = None
         self._status_message = ""
         self.status_timer = 0.0
+        self.scroll_offset = 0
 
     @property
     def status_message(self) -> str:
@@ -99,6 +127,7 @@ class ShopMenu:
                 (self.MODES.index(self.mode) + step) % len(self.MODES)
             ]
             self.selected = 0
+            self.scroll_offset = 0
             self.status_message = ""
         elif event.key == pygame.K_UP:
             self._move_selection(-1, player, house)
@@ -115,16 +144,24 @@ class ShopMenu:
         panel = self._panel_rect(surface)
         options = self._visible_options(player, house)
         list_y = self._list_y(panel)
-        for index, option in enumerate(options):
+        scroll_offset = (
+            self.scroll_offset
+            if self.mode == "upgrade" and not self.selecting_quadrant
+            else 0
+        )
+        visible_options = options[
+            scroll_offset : scroll_offset + self.MAX_VISIBLE_UPGRADES
+        ]
+        for visible_index, option in enumerate(visible_options):
             row = pygame.Rect(
                 panel.x + 16,
-                list_y + index * self.ITEM_H,
+                list_y + visible_index * self.ITEM_H,
                 panel.width - 32,
                 self.ITEM_H,
             )
             if not row.collidepoint(position):
                 continue
-            self.selected = index
+            self.selected = visible_index + scroll_offset
             if self.selecting_quadrant:
                 self._purchase_fertilizer(option, player, farm)
             else:
@@ -145,9 +182,16 @@ class ShopMenu:
             player.buy_seed(SeedType[crop_type.name], self.tier)
         elif self.mode == "sell":
             crop_type = options[self.selected]
-            player.sell_crop(crop_type)
+            if isinstance(crop_type, SellAllCrops):
+                sold_count = player.sell_all_crops()
+                self.status_message = (
+                    f"Sold {sold_count} crops for {sold_count * 3} coins."
+                )
+            else:
+                player.sell_crop(crop_type)
             self.selected = min(
-                self.selected, max(0, len(self._crop_options(player)) - 1)
+                self.selected,
+                max(0, len(self._crop_options(player)) - 1),
             )
         elif self.mode == "upgrade":
             option = options[self.selected]
@@ -164,9 +208,37 @@ class ShopMenu:
                     self.status_message = "Not enough coins."
             elif isinstance(option, HouseUpgrade):
                 self._purchase_house_upgrade(option, player, house)
+            elif isinstance(option, HarvestSizeUpgrade):
+                if player.coins < option.cost:
+                    self.status_message = "Not enough coins."
+                else:
+                    player.coins -= option.cost
+                    player.harvest_size = option.size
+                    self.status_message = (
+                        f"Harvest area increased to {option.size}x{option.size}."
+                    )
+            elif isinstance(option, PlantRadiusUpgrade):
+                if player.coins < option.cost:
+                    self.status_message = "Not enough coins."
+                else:
+                    player.coins -= option.cost
+                    player.plant_radius = option.radius
+                    self.status_message = (
+                        f"Plant radius increased to {option.radius}x{option.radius}."
+                    )
             else:
                 self.pending_fertilizer = option.crop_type
                 self._begin_fertilizer_purchase(player, farm)
+
+        if self.mode == "upgrade" and not self.selecting_quadrant:
+            self.scroll_offset = min(
+                self.scroll_offset,
+                max(
+                    0,
+                    len(self._upgrade_options(player, house))
+                    - self.MAX_VISIBLE_UPGRADES,
+                ),
+            )
 
     def _purchase_house_upgrade(self, option, player, house):
         if house is None:
@@ -202,6 +274,7 @@ class ShopMenu:
         elif quadrants:
             self.selecting_quadrant = True
             self.selected = 0
+            self.scroll_offset = 0
             self.status_message = ""
 
     def _handle_quadrant_selection(self, event, player, farm):
@@ -210,6 +283,7 @@ class ShopMenu:
             self.selecting_quadrant = False
             self.pending_fertilizer = None
             self.selected = 0
+            self.scroll_offset = 0
             self.status_message = "Fertilizer purchase cancelled."
         elif event.key == pygame.K_UP and quadrants:
             self.selected = (self.selected - 1) % len(quadrants)
@@ -231,6 +305,7 @@ class ShopMenu:
             )
             self.selecting_quadrant = False
             self.pending_fertilizer = None
+            self.scroll_offset = 0
         else:
             self.status_message = "Could not apply fertilizer."
         self.selected = 0
@@ -304,14 +379,23 @@ class ShopMenu:
                 (
                     panel.x + 20,
                     panel.y
-                    + (165 if self.mode == "buy" and not self.selecting_quadrant else 125),
+                    + (
+                        165
+                        if self.mode == "buy" and not self.selecting_quadrant
+                        else 125
+                    ),
                 ),
                 panel.width - 40,
             )
             return
 
         list_y = self._list_y(panel)
-        for index, option in enumerate(options):
+        visible_offset = self.scroll_offset if self.mode == "upgrade" else 0
+        visible_options = options[
+            visible_offset : visible_offset + self.MAX_VISIBLE_UPGRADES
+        ]
+        for visible_index, option in enumerate(visible_options):
+            index = visible_index + visible_offset
             if isinstance(option, str):
                 quadrant = option
                 active = farm.fertilizers.get(quadrant)
@@ -327,6 +411,15 @@ class ShopMenu:
                 label = f"Unlock next turret plot - {option.cost} coins"
             elif isinstance(option, HouseUpgrade):
                 label = f"{option.label} - {option.cost} coins"
+            elif isinstance(option, HarvestSizeUpgrade):
+                label = (
+                    f"Harvest area {option.size}x{option.size} - {option.cost} coins"
+                )
+            elif isinstance(option, PlantRadiusUpgrade):
+                label = (
+                    f"Plant radius {option.radius}x{option.radius} - "
+                    f"{option.cost} coins"
+                )
             elif isinstance(option, FertilizerUpgrade):
                 label = (
                     f"{option.crop_type.name.title()} fertilizer - "
@@ -343,12 +436,16 @@ class ShopMenu:
                 crop_type = option
                 count = player.crops.get(crop_type, 0)
                 label = f"{crop_type.name.title()} crop x{count} - sell 1 for 3 coins"
+            elif isinstance(option, SellAllCrops):
+                label = (
+                    f"Sell all crops x{option.count} - earn {option.count * 3} coins"
+                )
             else:
                 raise ValueError(f"Unsupported market option: {option!r}")
 
             row = pygame.Rect(
                 panel.x + 16,
-                list_y + index * self.ITEM_H,
+                list_y + visible_index * self.ITEM_H,
                 panel.width - 32,
                 self.ITEM_H,
             )
@@ -364,10 +461,18 @@ class ShopMenu:
             )
 
         if self.mode == "upgrade" and not self.selecting_quadrant:
-            for line, y_offset in (
-                ("Matching crops: double yield for 60s.", 75),
-                ("Replaces current fertilizer in that quadrant.", 51),
-            ):
+            upgrade_help = (
+                (
+                    "Matching crops: double yield for 60s.",
+                    "UP/DOWN: Scroll through upgrades.",
+                )
+                if len(options) > self.MAX_VISIBLE_UPGRADES
+                else (
+                    "Matching crops: double yield for 60s.",
+                    "Replaces current fertilizer in that quadrant.",
+                )
+            )
+            for line, y_offset in zip(upgrade_help, (75, 51)):
                 self._draw_fitted(
                     surface,
                     font,
@@ -386,14 +491,17 @@ class ShopMenu:
                 panel.width - 40,
             )
 
-    def _crop_options(self, player) -> list[CropType]:
+    def _crop_options(self, player) -> list[CropType | SellAllCrops]:
         if self.mode == "buy":
             return list(self.CROP_TYPES)
-        return [
+        crops = [
             crop_type
             for crop_type in self.CROP_TYPES
             if player.crops.get(crop_type, 0) > 0
         ]
+        if crops:
+            crops.append(SellAllCrops(sum(player.crops.values())))
+        return crops
 
     def _visible_options(self, player, house=None):
         if self.selecting_quadrant:
@@ -426,6 +534,24 @@ class ShopMenu:
         options: list[UpgradeOption] = [
             FertilizerUpgrade(crop_type) for crop_type in self.FERTILIZER_TYPES
         ]
+        radius_upgrades: list[UpgradeOption] = []
+        harvest_size = getattr(player, "harvest_size", 1)
+        if harvest_size <= len(self.HARVEST_SIZE_UPGRADE_COSTS):
+            radius_upgrades.append(
+                HarvestSizeUpgrade(
+                    harvest_size + 1,
+                    self.HARVEST_SIZE_UPGRADE_COSTS[harvest_size - 1],
+                )
+            )
+        plant_radius = getattr(player, "plant_radius", 1)
+        if plant_radius <= len(self.PLANT_RADIUS_UPGRADE_COSTS):
+            radius_upgrades.append(
+                PlantRadiusUpgrade(
+                    plant_radius + 1,
+                    self.PLANT_RADIUS_UPGRADE_COSTS[plant_radius - 1],
+                )
+            )
+        options[4:4] = radius_upgrades
         unlock = player.next_farm_quadrant_unlock()
         if unlock is not None:
             quadrant, cost = unlock
@@ -456,7 +582,9 @@ class ShopMenu:
             )
         return options
 
-    def _options(self, player, house=None) -> Sequence[CropType | UpgradeOption]:
+    def _options(
+        self, player, house=None
+    ) -> Sequence[CropType | UpgradeOption | SellAllCrops]:
         if self.mode == "upgrade":
             return self._upgrade_options(player, house)
         return self._crop_options(player)
@@ -482,5 +610,15 @@ class ShopMenu:
         options = self._options(player, house)
         if options:
             self.selected = (self.selected + step) % len(options)
+            if self.mode == "upgrade":
+                max_offset = max(0, len(options) - self.MAX_VISIBLE_UPGRADES)
+                if self.selected < self.scroll_offset:
+                    self.scroll_offset = self.selected
+                elif self.selected >= self.scroll_offset + self.MAX_VISIBLE_UPGRADES:
+                    self.scroll_offset = min(
+                        max_offset,
+                        self.selected - self.MAX_VISIBLE_UPGRADES + 1,
+                    )
         else:
             self.selected = 0
+            self.scroll_offset = 0

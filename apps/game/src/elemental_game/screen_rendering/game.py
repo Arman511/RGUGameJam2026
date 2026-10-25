@@ -30,9 +30,19 @@ def _draw_quick_action_button(
     *,
     enabled: bool,
     hovered: bool,
+    active: bool = False,
+    background_color: tuple[int, int, int] | None = None,
 ) -> None:
-    background = (67, 86, 69) if enabled else (65, 65, 65)
-    border = (225, 230, 215) if enabled and hovered else (145, 150, 145)
+    background = (
+        (92, 112, 66)
+        if enabled and active
+        else background_color
+        if enabled and background_color is not None
+        else (67, 86, 69)
+        if enabled
+        else (65, 65, 65)
+    )
+    border = (245, 225, 125) if active or (enabled and hovered) else (145, 150, 145)
     pygame.draw.rect(surface, background, rect, border_radius=9)
     pygame.draw.rect(surface, border, rect, 2, border_radius=9)
     max_icon_width = rect.width - 14
@@ -145,13 +155,29 @@ class GameScreenRenderer:
         quick_action_size = 56
         quick_action_y = surface.get_height() - quick_action_size - 18
         self.quick_action_buttons = {
-            "store": pygame.Rect(16, quick_action_y, quick_action_size, quick_action_size),
-            "hud": pygame.Rect(78, quick_action_y, quick_action_size, quick_action_size),
+            "store": pygame.Rect(
+                16, quick_action_y, quick_action_size, quick_action_size
+            ),
+            "hud": pygame.Rect(
+                78, quick_action_y, quick_action_size, quick_action_size
+            ),
             "turret": pygame.Rect(
                 140, quick_action_y, quick_action_size, quick_action_size
             ),
             "attack": pygame.Rect(
                 202, quick_action_y, quick_action_size, quick_action_size
+            ),
+            "plant_radius": pygame.Rect(
+                surface.get_width() - quick_action_size - 16,
+                quick_action_y,
+                quick_action_size,
+                quick_action_size,
+            ),
+            "radar": pygame.Rect(
+                surface.get_width() - quick_action_size * 2 - 32,
+                quick_action_y,
+                quick_action_size,
+                quick_action_size,
             ),
         }
         self.quick_action_icons = {
@@ -163,6 +189,10 @@ class GameScreenRenderer:
             "attack": self._load_quick_action_icon(
                 "settings-and-gameplay", "attack.png"
             ),
+            "plant_radius": self._load_quick_action_icon(
+                "settings-and-gameplay", "soil_plant.png"
+            ),
+            "radar": self._load_quick_action_icon("settings-and-gameplay", "radar.png"),
         }
         self.phase_icons = {
             "planting": pygame.transform.smoothscale(
@@ -354,6 +384,8 @@ class GameScreenRenderer:
             "hud": actions_enabled,
             "turret": turret_action_available,
             "attack": actions_enabled and multiplayer is not None,
+            "plant_radius": actions_enabled,
+            "radar": actions_enabled,
         }
         mouse_position = pygame.mouse.get_pos()
         hovered_action = None
@@ -369,6 +401,9 @@ class GameScreenRenderer:
                 self.quick_action_icons[action],
                 enabled=quick_action_availability[action],
                 hovered=hovered,
+                active=(action == "plant_radius" and player.plant_radius_active > 1)
+                or (action == "radar" and turrets.show_ranges),
+                background_color=(135, 154, 136) if action == "turret" else None,
             )
         if hovered_action is not None:
             if not actions_enabled:
@@ -383,6 +418,13 @@ class GameScreenRenderer:
                     if turret_action_available
                     else "Move closer to a turret / turret slot"
                 )
+            elif hovered_action == "plant_radius":
+                tooltip_text = (
+                    f"Toggle plant radius (R) - current plant radius: "
+                    f"{player.plant_radius_active}x{player.plant_radius_active}"
+                )
+            elif hovered_action == "radar":
+                tooltip_text = "Toggle turret radius of attack view (O)"
             else:
                 tooltip_text = "Open or close multiplayer attacks (V)"
             _draw_quick_action_tooltip(
