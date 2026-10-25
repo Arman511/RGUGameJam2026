@@ -830,7 +830,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 tooltip_text = (
                     "Interact with nearby turret (F)"
                     if turret_action_available
-                    else "Move closer to a turret"
+                    else "Move closer to a turret / turret slot"
                 )
             else:
                 tooltip_text = "Open or close multiplayer attacks (V)"
