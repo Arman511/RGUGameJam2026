@@ -3,6 +3,7 @@ import os
 import pygame
 
 from elemental_game import config
+from elemental_game.game_entities.crops.crops import get_crop_icon
 from elemental_game.types.crop import CropType
 from elemental_game.types.seed import SeedType
 
@@ -31,20 +32,28 @@ def draw_inventory_hud(surface, player, current_wave: int, enemies_killed: int):
         seeds = player.seeds[SeedType[crop_type.name]]
         crop_count = player.crops.get(crop_type, 0)
         row_y = 70 + index * 28
+        row_center_y = row_y + 14
+        crop_icon = get_crop_icon(crop_type, 22)
         panel.blit(
-            hud_font.render(crop_type.name.title(), True, (255, 255, 255)),
-            (12, row_y),
+            crop_icon,
+            crop_icon.get_rect(midleft=(12, row_center_y)),
         )
         panel.blit(
-            hud_font.render(
+            crop_icon,
+            crop_icon.get_rect(midleft=(310, row_center_y)),
+        )
+        row_text = (
+            (crop_type.name.title(), 40),
+            (
                 f"T1: {seeds['tier1']}   T2: {seeds['tier2']}   T3: {seeds['tier3']}",
-                True,
-                (255, 255, 255),
+                130,
             ),
-            (105, row_y),
+            (str(crop_count), 338),
         )
-        panel.blit(
-            hud_font.render(f"Crops:  {crop_count}", True, (255, 255, 255)),
-            (330, row_y),
-        )
+        for text, x in row_text:
+            rendered_text = hud_font.render(text, True, (255, 255, 255))
+            panel.blit(
+                rendered_text,
+                rendered_text.get_rect(midleft=(x, row_center_y)),
+            )
     surface.blit(panel, (10, 64))

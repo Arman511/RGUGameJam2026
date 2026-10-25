@@ -7,7 +7,7 @@ from typing import Protocol
 
 import pygame
 from elemental_game.config import ELEMENTAL_TURRET_RANGE, IMAGES_DIR, TILE_SIZE
-from elemental_game.game_entities.crops.crops import CropType
+from elemental_game.game_entities.crops.crops import CropType, get_crop_icon
 
 
 @dataclass(frozen=True)
@@ -630,13 +630,25 @@ class TurretSystem:
         if slot.turret is None:
             options = list(DEFINITION_BY_ELEMENT)
             labels = [
-                f"{element.name.title()} - 5 {element.name.lower()} crops"
+                (
+                    f"{element.name.title()} - {DEFINITION_BY_ELEMENT[element].resource_cost} "
+                    f"needed, have {player.crops.get(element, 0)}"
+                )
+                for element in options
+            ]
+            resource_elements = options
+            resource_available = [
+                player.crops.get(element, 0)
+                >= DEFINITION_BY_ELEMENT[element].resource_cost
                 for element in options
             ]
         else:
             options = list(UPGRADE_NAMES)
             turret = slot.turret
-            element = TURRET_DEFS[turret.key].element.name.lower()
+            crop_type = TURRET_DEFS[turret.key].element
+            element = crop_type.name.lower()
+            available_crops = player.crops.get(crop_type, 0)
+            cost = self.UPGRADE_BASE_COST * (turret.level + 1)
             upgrade_levels = (
                 turret.fire_rate_level,
                 turret.damage_level,
@@ -647,18 +659,43 @@ class TurretSystem:
             )
             labels = [
                 (
-                    f"{name} (x{level}) - "
-                    f"{self.UPGRADE_BASE_COST * (turret.level + 1)} {element}"
+                    f"{name} (x{level}) - {cost} {element}, have {available_crops}"
                 )
                 for name, level in zip(UPGRADE_NAMES[:-1], upgrade_levels)
             ] + ["Destroy turret"]
+            resource_elements = [crop_type] * len(UPGRADE_NAMES[:-1]) + [None]
+            resource_available = [available_crops >= cost] * len(UPGRADE_NAMES[:-1]) + [
+                False
+            ]
         for index, label in enumerate(labels):
+            element = resource_elements[index]
             color = (
-                (255, 255, 255) if index != self.modal_selection else (255, 230, 120)
+                (255, 230, 120)
+                if index == self.modal_selection
+                else (
+                    (130, 220, 140)
+                    if element is not None and resource_available[index]
+                    else (220, 145, 145)
+                    if element is not None
+                    else (255, 255, 255)
+                )
+            )
+            if element is not None:
+                icon = get_crop_icon(element, 24)
+                row_center_y = panel.y + 99 + index * 38
+                surface.blit(icon, icon.get_rect(midleft=(panel.x + 20, row_center_y)))
+            else:
+                row_center_y = panel.y + 99 + index * 38
+            rendered_label = font.render(label, True, color)
+            label_rect = rendered_label.get_rect(
+                midleft=(
+                    panel.x + (54 if element is not None else 24),
+                    row_center_y,
+                )
             )
             surface.blit(
-                font.render(label, True, color),
-                (panel.x + 24, panel.y + 88 + index * 38),
+                rendered_label,
+                label_rect,
             )
         if self.status_message:
             surface.blit(

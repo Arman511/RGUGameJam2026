@@ -538,9 +538,16 @@ def test_turret_upgrade_menu_displays_current_upgrade_levels() -> None:
     system.modal_slot = TurretSlot("right", 0, (0, 0), TurretInstance("flame_turret"))
     system.modal_selection = 0
     system.status_message = ""
-    system._draw_modal(pygame.Surface((1280, 768)), Font(), None)
+    from types import SimpleNamespace
+
+    system._draw_modal(
+        pygame.Surface((1280, 768)),
+        Font(),
+        SimpleNamespace(crops={CropType.FIRE: 8}),
+    )
 
     assert all(f"{name} (x0)" in " ".join(rendered_text) for name in UPGRADE_NAMES[:-1])
+    assert all("have 8" in text for text in rendered_text if "Fire rate" in text)
 
 
 def test_inventory_hud_includes_wave_and_enemy_kill_count(monkeypatch) -> None:
