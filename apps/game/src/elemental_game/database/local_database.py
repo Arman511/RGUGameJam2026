@@ -211,7 +211,7 @@ class LocalLeaderboardStore:
             raise ValueError(
                 "Enter a server URL using http:// or https:// with no path."
             )
-        return value
+        return parsed.geturl().rstrip("/")
 
     def save_sound_preferences(self, *, music_volume: float, sfx_volume: float) -> None:
         if not 0.0 <= music_volume <= 1.0 or not 0.0 <= sfx_volume <= 1.0:
