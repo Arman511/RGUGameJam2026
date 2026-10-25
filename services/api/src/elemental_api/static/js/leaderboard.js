@@ -11,12 +11,15 @@ const previousPageButton = document.querySelector("#previous-page");
 const nextPageButton = document.querySelector("#next-page");
 const pageSizeSelect = document.querySelector("#page-size");
 const PAGE_SIZE_KEY = "leaderboard-page-size";
+const RUDE_USERNAME_PATTERN =
+  /\b(?:asshole|bastard|bitch|bullshit|cunt|dick|fuck|fuckface|fucker|motherfucker|shit|shithead|slut|whore)\b/gi;
 let scores = [];
 let descending = true;
 let totalScores = 0;
 let offset = 0;
 let activeRequest;
 let searchTimer;
+const revealedUsernames = new Set();
 
 function formatDuration(seconds) {
   const wholeSeconds = Math.floor(seconds);
@@ -31,6 +34,45 @@ function makeCell(value, className = "") {
   return cell;
 }
 
+function censoredUsername(username) {
+  return username.replace(RUDE_USERNAME_PATTERN, (word) => "*".repeat(word.length));
+}
+
+function appendUsername(container, username) {
+  const censored = censoredUsername(username);
+  if (censored === username) {
+    container.textContent = username;
+    return;
+  }
+
+  const button = document.createElement("button");
+  button.className = "username-toggle";
+  button.type = "button";
+  button.dataset.username = username;
+  button.textContent = revealedUsernames.has(username) ? username : censored;
+  button.setAttribute("aria-pressed", String(revealedUsernames.has(username)));
+  button.setAttribute(
+    "aria-label",
+    revealedUsernames.has(username) ? "Hide uncensored username" : "Show uncensored username",
+  );
+  button.addEventListener("click", () => {
+    const revealed = !revealedUsernames.has(username);
+    if (revealed) revealedUsernames.add(username);
+    else revealedUsernames.delete(username);
+
+    document.querySelectorAll(".username-toggle").forEach((candidate) => {
+      if (candidate.dataset.username !== username) return;
+      candidate.textContent = revealed ? username : censored;
+      candidate.setAttribute("aria-pressed", String(revealed));
+      candidate.setAttribute(
+        "aria-label",
+        revealed ? "Hide uncensored username" : "Show uncensored username",
+      );
+    });
+  });
+  container.append(button);
+}
+
 function renderPodium(ranked) {
   podiumElement.replaceChildren();
   (offset === 0 ? ranked.slice(0, 3) : []).forEach((score, index) => {
@@ -43,7 +85,7 @@ function renderPodium(ranked) {
     rank.textContent = `#${index + 1} keeper`;
     const name = document.createElement("div");
     name.className = "podium-name";
-    name.textContent = score.username;
+    appendUsername(name, score.username);
     const time = document.createElement("div");
     time.className = "podium-time";
     time.textContent = `${formatDuration(score.time_survived)} survived · wave ${score.wave_number}`;
@@ -76,7 +118,8 @@ function render() {
 
   ranked.forEach((score, index) => {
     const row = document.createElement("tr");
-    const player = makeCell(score.username, "player-cell");
+    const player = makeCell("", "player-cell");
+    appendUsername(player, score.username);
     const runId = document.createElement("span");
     runId.className = "run-id";
     runId.textContent = `Run ${score.run_id}`;

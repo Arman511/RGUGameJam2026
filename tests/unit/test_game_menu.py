@@ -212,6 +212,41 @@ def test_game_over_saves_guest_run_locally_and_requests_username() -> None:
     assert Menus.store.saved_runs[-1][1] == {"username": "player-one"}
 
 
+def test_successful_publish_completes_game_over_dialog_immediately() -> None:
+    from elemental_game.screen_rendering.game_over import GameOverDialog
+
+    class Store:
+        def submit_run(self, *args, **kwargs) -> None:
+            return None
+
+    class Client:
+        def submit_run(self, run) -> None:
+            return None
+
+    class Auth:
+        client = Client()
+
+    class Menus:
+        username = "player-one"
+        store = Store()
+        auth = Auth()
+
+    pygame.font.init()
+    dialog = GameOverDialog(
+        pygame.Surface((800, 600)),
+        pygame.font.Font(None, 22),
+        Menus(),
+        run_id="run-published",
+        survival_time=61.5,
+        final_wave=2,
+        enemies_defeated=9,
+    )
+
+    dialog._publish()
+
+    assert dialog.done
+
+
 def test_exit_button_closes_menu_without_starting_game() -> None:
     app = menus.MenuSystem.__new__(menus.MenuSystem)
     app.layout = menus.MenuLayout(1000, 800)

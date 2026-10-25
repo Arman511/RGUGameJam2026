@@ -195,6 +195,7 @@ class GameOverDialog:
             return
         self.state = "published"
         self.status_message = "Run published successfully."
+        self.done = True
 
     def draw(self) -> None:
         overlay = pygame.Surface(self.surface.get_size(), pygame.SRCALPHA)

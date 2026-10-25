@@ -156,6 +156,17 @@ def test_turret_slots_are_outside_both_farm_edges() -> None:
 
 
 def test_manual_turret_can_hit_targets_at_unlimited_range() -> None:
+    no_target_turret = ManualTurret.__new__(ManualTurret)
+    no_target_turret.angle = 0
+    no_target_turret.cooldown = 0
+    no_target_turret.damage_level = 0
+    no_target_turret.fire_rate_level = 0
+    no_target_turret.projectiles = []
+    no_target_turret.projectile_image = pygame.Surface((18, 18))
+    outside_cone = EnemyState.create("swarmer", (0, 5000))
+    no_target_turret.update(0.01, [outside_cone], (0, 0), 0, True)
+    assert not no_target_turret.projectiles
+
     turret = ManualTurret.__new__(ManualTurret)
     turret.angle = 0
     turret.cooldown = 0
@@ -204,6 +215,7 @@ def test_house_roof_includes_the_mounted_turret_standing_area() -> None:
     rect = house.turret_control_rect()
 
     assert rect.collidepoint(house.return_rect().centerx, house.return_rect().y + 20)
+    assert rect.collidepoint(house.return_rect().center)
 
 
 def test_elemental_turret_range_is_increased() -> None:

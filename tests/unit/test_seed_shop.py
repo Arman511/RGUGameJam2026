@@ -1,8 +1,10 @@
 import pygame
 from elemental_game.game_entities.crops.crops import Crop, CropType
 from elemental_game.game_entities.farm import CropMenu, Farm
+from elemental_game.game_entities.house import House, HouseState
 from elemental_game.game_entities.player.player import Player
-from elemental_game.game_entities.shop import ShopMenu
+from elemental_game.game_entities.shop import HouseUpgrade, ShopMenu
+from elemental_game.game_entities.turrets.turrets import ManualTurret
 from elemental_game.types.player import PlayerType
 from elemental_game.types.seed import SeedType
 
@@ -152,6 +154,48 @@ def test_fertilizer_market_applies_directly_when_only_one_quadrant_is_unlocked()
     assert not shop.selecting_quadrant
     assert player.coins == 5
     assert farm.fertilizers["top_right"] == (CropType.FIRE, 60.0)
+
+
+def test_house_upgrades_are_available_in_shop_and_cost_more_after_each_use() -> None:
+    from types import SimpleNamespace
+
+    player = SimpleNamespace(
+        coins=200,
+        next_farm_quadrant_unlock=lambda: None,
+        next_turret_slot_cost=lambda: None,
+    )
+    house = House.__new__(House)
+    house.max_hp = 100
+    house.health = 50
+    house.state = HouseState.BROKEN
+    house.health_upgrade_count = 0
+    house.repair_count = 0
+    house.turret = ManualTurret.__new__(ManualTurret)
+    house.turret.damage_level = 0
+    house.turret.fire_rate_level = 0
+    house.turret.upgrade_selection = 0
+    house.turret.status_message = ""
+    shop = ShopMenu()
+    shop.mode = "upgrade"
+
+    def option_for(key: str) -> HouseUpgrade:
+        return next(
+            option
+            for option in shop._upgrade_options(player, house)
+            if isinstance(option, HouseUpgrade) and option.key == key
+        )
+
+    shop._purchase_house_upgrade(option_for("turret_damage"), player, house)
+    assert house.turret.damage_level == 1
+    assert option_for("turret_damage").cost == 20
+
+    shop._purchase_house_upgrade(option_for("max_health"), player, house)
+    assert house.max_hp == 125
+    assert option_for("max_health").cost == 50
+
+    shop._purchase_house_upgrade(option_for("repair"), player, house)
+    assert house.health > 62
+    assert option_for("repair").cost == 20
 
 
 def test_planting_without_seeds_shows_market_reminder() -> None:

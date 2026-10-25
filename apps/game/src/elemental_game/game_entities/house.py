@@ -28,6 +28,8 @@ class House:
     def __init__(self, surface: pygame.Surface | None = None):
         self.max_hp = self.MAX_HP
         self.health = self.max_hp
+        self.health_upgrade_count = 0
+        self.repair_count = 0
         self.state = HouseState.FIXED
         self.dimensions = (250, 200)
         self.surface = surface
@@ -92,6 +94,14 @@ class House:
         self.health = round(self.health * 1.25)
         self.update()
 
+    @property
+    def next_health_upgrade_cost(self) -> int:
+        return 25 * (self.health_upgrade_count + 1)
+
+    @property
+    def next_repair_cost(self) -> int:
+        return 10 * (self.repair_count + 1)
+
     def repair(self) -> None:
         self.health = min(self.max_hp, round(self.health + self.max_hp * 0.25))
         self.update()
@@ -103,12 +113,13 @@ class House:
 
     def turret_control_rect(self) -> pygame.Rect:
         house_rect = self.return_rect()
-        return pygame.Rect(
+        rooftop_rect = pygame.Rect(
             house_rect.x + 10,
             house_rect.y - 35,
             house_rect.width - 20,
             110,
         )
+        return house_rect.union(rooftop_rect)
 
     def get_hp(self):
         return self.health

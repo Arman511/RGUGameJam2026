@@ -23,13 +23,20 @@ class TurretSlotUpgrade:
     cost: int
 
 
-UpgradeOption = LandUpgrade | FertilizerUpgrade | TurretSlotUpgrade
+@dataclass(frozen=True)
+class HouseUpgrade:
+    key: str
+    label: str
+    cost: int
+
+
+UpgradeOption = LandUpgrade | FertilizerUpgrade | TurretSlotUpgrade | HouseUpgrade
 
 
 class ShopMenu:
-    ITEM_H = 34
+    ITEM_H = 30
     FERTILIZER_COST = 10
-    CONFIRM_KEYS = (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE)
+    CONFIRM_KEYS = (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE, pygame.K_f)
     MODES = ("buy", "upgrade", "sell")
     FERTILIZER_TYPES = (
         CropType.FIRE,
@@ -55,7 +62,7 @@ class ShopMenu:
         self.pending_fertilizer = None
         self.status_message = ""
 
-    def handle_event(self, event, player, farm):
+    def handle_event(self, event, player, farm, house=None):
         if event.type != pygame.KEYDOWN:
             return
 
@@ -66,9 +73,9 @@ class ShopMenu:
             self.selected = 0
             self.status_message = ""
         elif event.key == pygame.K_UP:
-            self._move_selection(-1, player)
+            self._move_selection(-1, player, house)
         elif event.key == pygame.K_DOWN:
-            self._move_selection(1, player)
+            self._move_selection(1, player, house)
         elif self.mode == "buy" and event.key == pygame.K_LEFT:
             self.tier = (self.tier - 2) % 3 + 1
         elif self.mode == "buy" and event.key == pygame.K_RIGHT:
@@ -80,9 +87,11 @@ class ShopMenu:
             elif self.mode == "sell":
                 crop_type = self._crop_options(player)[self.selected]
                 player.sell_crop(crop_type)
-                self.selected = min(self.selected, len(self._options(player)) - 1)
+                self.selected = min(
+                    self.selected, len(self._options(player, house)) - 1
+                )
             elif self.mode == "upgrade":
-                option = self._upgrade_options(player)[self.selected]
+                option = self._upgrade_options(player, house)[self.selected]
                 if isinstance(option, LandUpgrade):
                     if player.buy_next_farm_quadrant():
                         self.status_message = "Farm quadrant unlocked."
@@ -95,8 +104,38 @@ class ShopMenu:
                     else:
                         self.status_message = "Not enough coins."
                 else:
-                    self.pending_fertilizer = option.crop_type
-                    self._begin_fertilizer_purchase(player, farm)
+                    if isinstance(option, HouseUpgrade):
+                        self._purchase_house_upgrade(option, player, house)
+                    else:
+                        self.pending_fertilizer = option.crop_type
+                        self._begin_fertilizer_purchase(player, farm)
+
+    def _purchase_house_upgrade(self, option, player, house):
+        if house is None:
+            raise ValueError("House upgrades require the house instance.")
+        if option.key == "repair" and house.health >= house.max_hp:
+            self.status_message = "House is already fully repaired."
+            return
+        if player.coins < option.cost:
+            self.status_message = "Not enough coins."
+            return
+
+        if option.key in ("turret_damage", "turret_fire_rate"):
+            house.turret.upgrade_selection = int(option.key == "turret_fire_rate")
+            house.turret.upgrade(player)
+            self.status_message = house.turret.status_message
+        elif option.key == "max_health":
+            player.coins -= option.cost
+            house.increase_max_health()
+            house.health_upgrade_count += 1
+            self.status_message = "House maximum health increased."
+        elif option.key == "repair":
+            player.coins -= option.cost
+            house.repair()
+            house.repair_count += 1
+            self.status_message = "House repaired."
+        else:
+            raise ValueError(f"Unsupported house upgrade: {option.key}")
 
     def _begin_fertilizer_purchase(self, player, farm):
         quadrants = self._unlocked_quadrants(player)
@@ -137,13 +176,13 @@ class ShopMenu:
             self.status_message = "Could not apply fertilizer."
         self.selected = 0
 
-    def draw(self, surface, font, player, farm):
+    def draw(self, surface, font, player, farm, house=None):
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 190))
         surface.blit(overlay, (0, 0))
 
         panel_width = min(540, surface.get_width() - 40)
-        panel_height = min(440, surface.get_height() - 40)
+        panel_height = min(550, surface.get_height() - 40)
         panel = pygame.Rect(0, 0, panel_width, panel_height)
         panel.center = surface.get_rect().center
         pygame.draw.rect(surface, (44, 48, 57), panel)
@@ -187,7 +226,7 @@ class ShopMenu:
         if self.selecting_quadrant:
             options = self._unlocked_quadrants(player)
         elif self.mode == "upgrade":
-            options = self._upgrade_options(player)
+            options = self._upgrade_options(player, house)
         else:
             options = self._crop_options(player)
         if not options:
@@ -209,9 +248,7 @@ class ShopMenu:
         list_y = panel.y + (
             130
             if self.mode == "buy" and not self.selecting_quadrant
-            else 105
-            if self.selecting_quadrant or self.mode == "upgrade"
-            else 88
+            else 105 if self.selecting_quadrant or self.mode == "upgrade" else 88
         )
         for index, option in enumerate(options):
             if isinstance(option, str):
@@ -227,6 +264,8 @@ class ShopMenu:
                 )
             elif isinstance(option, TurretSlotUpgrade):
                 label = f"Unlock next turret plot - {option.cost} coins"
+            elif isinstance(option, HouseUpgrade):
+                label = f"{option.label} - {option.cost} coins"
             elif isinstance(option, FertilizerUpgrade):
                 label = (
                     f"{option.crop_type.name.title()} fertilizer - "
@@ -264,7 +303,7 @@ class ShopMenu:
             )
 
         if self.mode == "upgrade" and not self.selecting_quadrant:
-            notice = "Lasts 60s; replaces the quadrant's current fertilizer"
+            notice = "Fertilizer lasts 60s; replaces the quadrant's current fertilizer"
             self._draw_fitted(
                 surface,
                 font,
@@ -292,7 +331,7 @@ class ShopMenu:
             if player.crops.get(crop_type, 0) > 0
         ]
 
-    def _upgrade_options(self, player) -> list[UpgradeOption]:
+    def _upgrade_options(self, player, house=None) -> list[UpgradeOption]:
         options: list[UpgradeOption] = [
             FertilizerUpgrade(crop_type) for crop_type in self.FERTILIZER_TYPES
         ]
@@ -303,11 +342,32 @@ class ShopMenu:
         turret_cost = player.next_turret_slot_cost()
         if turret_cost is not None:
             options.append(TurretSlotUpgrade(turret_cost))
+        if house is not None:
+            options.extend(
+                (
+                    HouseUpgrade(
+                        "turret_damage",
+                        "House turret damage",
+                        house.turret.next_upgrade_cost,
+                    ),
+                    HouseUpgrade(
+                        "turret_fire_rate",
+                        "House turret fire rate",
+                        house.turret.next_upgrade_cost,
+                    ),
+                    HouseUpgrade(
+                        "max_health",
+                        "Increase house max health",
+                        house.next_health_upgrade_cost,
+                    ),
+                    HouseUpgrade("repair", "Repair house", house.next_repair_cost),
+                )
+            )
         return options
 
-    def _options(self, player) -> Sequence[object]:
+    def _options(self, player, house=None) -> Sequence[object]:
         if self.mode == "upgrade":
-            return self._upgrade_options(player)
+            return self._upgrade_options(player, house)
         return self._crop_options(player)
 
     @staticmethod
@@ -327,8 +387,8 @@ class ShopMenu:
             if quadrant in player.unlocked_quadrants
         ]
 
-    def _move_selection(self, step, player):
-        options = self._options(player)
+    def _move_selection(self, step, player, house=None):
+        options = self._options(player, house)
         if options:
             self.selected = (self.selected + step) % len(options)
         else:

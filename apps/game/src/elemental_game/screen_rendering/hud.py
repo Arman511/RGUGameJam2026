@@ -1,9 +1,10 @@
+import os
+
+import pygame
+
 from elemental_game import config
 from elemental_game.types.crop import CropType
-import pygame
 from elemental_game.types.seed import SeedType
-from pygame.font import Font
-import os
 
 
 def draw_inventory_hud(surface, player):
@@ -38,4 +39,4 @@ def draw_inventory_hud(surface, player):
             hud_font.render(f"Crops:  {crop_count}", True, (255, 255, 255)),
             (330, row_y),
         )
-    surface.blit(panel, (10, 48))
+    surface.blit(panel, (10, 64))

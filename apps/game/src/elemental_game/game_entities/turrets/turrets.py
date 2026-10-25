@@ -444,7 +444,7 @@ class TurretSystem:
                 facing_angle - half_angle + i * (2 * half_angle / 40) for i in range(41)
             )
         ]
-        color = (210, 235, 255, 30)
+        color = (210, 235, 255, 52)
         pygame.draw.lines(overlay, (210, 235, 255, 100), False, arc_points, 1)
         pygame.draw.line(overlay, (210, 235, 255, 75), center, arc_points[0], 1)
         pygame.draw.line(overlay, (210, 235, 255, 75), center, arc_points[-1], 1)
@@ -535,7 +535,6 @@ class ManualTurret:
         self.damage_level = 0
         self.fire_rate_level = 0
         self.upgrade_selection = 0
-        self.upgrade_menu_open = False
         self.status_message = ""
 
     def update(
@@ -609,40 +608,4 @@ class ManualTurret:
             surface.blit(
                 projectile.image,
                 projectile.image.get_rect(center=projectile.position),
-            )
-
-    def draw_upgrade_menu(self, surface, font, player) -> None:
-        if not self.upgrade_menu_open:
-            return
-        overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 170))
-        surface.blit(overlay, (0, 0))
-        panel = pygame.Rect(0, 0, 450, 210)
-        panel.center = surface.get_rect().center
-        pygame.draw.rect(surface, (44, 48, 57), panel)
-        pygame.draw.rect(surface, (230, 230, 230), panel, 2)
-        surface.blit(
-            font.render(
-                f"HOUSE TURRET UPGRADES - {player.coins} coins", True, (255, 230, 120)
-            ),
-            (panel.x + 18, panel.y + 16),
-        )
-        for index, label in enumerate(("Damage", "Fire rate")):
-            level = self.damage_level if index == 0 else self.fire_rate_level
-            cost = self.next_upgrade_cost
-            color = (
-                (255, 255, 255) if index != self.upgrade_selection else (255, 230, 120)
-            )
-            surface.blit(
-                font.render(f"{label} level {level} - {cost} coins", True, color),
-                (panel.x + 24, panel.y + 64 + index * 38),
-            )
-        surface.blit(
-            font.render("UP/DOWN select  ENTER buy  E close", True, (225, 225, 225)),
-            (panel.x + 18, panel.bottom - 38),
-        )
-        if self.status_message:
-            surface.blit(
-                font.render(self.status_message, True, (255, 200, 130)),
-                (panel.x + 18, panel.bottom - 66),
             )

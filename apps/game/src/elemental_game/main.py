@@ -186,21 +186,8 @@ def main(argv: Sequence[str] | None = None) -> None:
             elif turrets.modal_slot is not None:
                 turrets.handle_event(event, player)
             elif controlling_house_turret and event.type == pygame.KEYDOWN:
-                house_turret = house.turret
-                if house_turret.upgrade_menu_open:
-                    if event.key == pygame.K_e:
-                        house_turret.upgrade_menu_open = False
-                    elif event.key in (pygame.K_UP, pygame.K_DOWN):
-                        house_turret.upgrade_selection = (
-                            1 - house_turret.upgrade_selection
-                        )
-                    elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
-                        house_turret.upgrade(player)
-                elif event.key in (pygame.K_f, pygame.K_ESCAPE):
+                if event.key in (pygame.K_f, pygame.K_ESCAPE):
                     controlling_house_turret = False
-                elif event.key == pygame.K_e:
-                    house_turret.upgrade_menu_open = True
-                    house_turret.status_message = ""
             elif shop_open and event.type == pygame.KEYDOWN:
                 if (
                     event.key in (pygame.K_ESCAPE, pygame.K_m)
@@ -208,21 +195,23 @@ def main(argv: Sequence[str] | None = None) -> None:
                 ):
                     shop_open = False
                 else:
-                    shop.handle_event(event, player, farm)
+                    shop.handle_event(event, player, farm, house)
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
+                roof = house.turret_control_rect()
+                if roof.collidepoint(player.pos):
+                    controlling_house_turret = True
+                elif farm.planting:
+                    farm.handle_event(event, player)
+                elif turrets.interact(player):
+                    pass
+                else:
+                    farm.handle_event(event, player)
             elif event.type == pygame.KEYDOWN and farm.planting:
                 farm.handle_event(event, player)
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 confirm_exit = True
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_m:
                 shop_open = True
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
-                roof = house.turret_control_rect()
-                if roof.collidepoint(player.pos):
-                    controlling_house_turret = True
-                elif turrets.interact(player):
-                    pass
-                else:
-                    farm.handle_event(event, player)
             elif event.type == pygame.KEYDOWN:
                 farm.handle_event(event, player)
 
@@ -231,7 +220,6 @@ def main(argv: Sequence[str] | None = None) -> None:
             or confirm_exit
             or farm.planting
             or turrets.modal_slot is not None
-            or (controlling_house_turret and house.turret.upgrade_menu_open)
             or house.health <= 0
             or game_over_dialog is not None
         )
@@ -356,7 +344,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         if hud_visible:
             draw_inventory_hud(screen, player)
         if shop_open:
-            shop.draw(screen, font, player, farm)
+            shop.draw(screen, font, player, farm, house)
         if confirm_exit:
             draw_exit_confirmation(screen, font)
         if game_over_dialog is not None:
