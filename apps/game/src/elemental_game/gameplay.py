@@ -16,6 +16,7 @@ from elemental_game.game_entities.house import House
 from elemental_game.game_entities.player.player import Player
 from elemental_game.game_entities.shop import ShopMenu
 from elemental_game.game_entities.turrets.turrets import TurretSystem
+from elemental_game.game_input import GameInputHandler
 from elemental_game.types.crop import CropType
 from elemental_game.types.player import PlayerType
 from elemental_game.types.weather import WeatherTypes
@@ -25,6 +26,7 @@ class GameSession:
     def __init__(self, screen: pygame.Surface, player_type: int) -> None:
         self.screen = screen
         self.reset(player_type)
+        self.input = GameInputHandler(self)
 
     def reset(self, player_type: int) -> None:
         self.farm = Farm(
@@ -73,53 +75,10 @@ class GameSession:
         return self.house.health <= 0
 
     def handle_event(self, event: pygame.event.Event) -> None:
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_h:
-            if not self.farm.planting:
-                self.hud_visible = not self.hud_visible
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
-            self.turrets.show_ranges = not self.turrets.show_ranges
-        elif (
-            event.type == pygame.KEYDOWN
-            and event.key == pygame.K_r
-            and not self.farm.planting
-            and not self.shop_open
-            and not self.confirm_exit
-            and self.turrets.modal_slot is None
-            and not self.controlling_house_turret
-        ):
-            self.player.cycle_plant_radius()
-        elif self.turrets.modal_slot is not None:
-            self.turrets.handle_event(event, self.player, self.screen)
-        elif self.controlling_house_turret and event.type == pygame.KEYDOWN:
-            if event.key in (pygame.K_f, pygame.K_ESCAPE):
-                self.controlling_house_turret = False
-        elif self.shop_open and event.type in (pygame.KEYDOWN, pygame.MOUSEWHEEL):
-            if (
-                event.type == pygame.KEYDOWN
-                and event.key in (pygame.K_ESCAPE, pygame.K_m)
-                and not self.shop.selecting_quadrant
-            ):
-                self.shop_open = False
-                self.shop.clear_status()
-            else:
-                self.shop.handle_event(
-                    event, self.player, self.farm, self.house, self.screen
-                )
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
-            roof = self.house.turret_control_rect()
-            if roof.collidepoint(self.player.pos):
-                self.controlling_house_turret = True
-            elif self.farm.planting or not self.turrets.interact(self.player):
-                self.farm.handle_event(event, self.player)
-        elif event.type == pygame.KEYDOWN and self.farm.planting:
-            self.farm.handle_event(event, self.player)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            self.confirm_exit = True
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_m:
-            self.shop_open = True
-            self.shop.clear_status()
-        elif event.type == pygame.KEYDOWN:
-            self.farm.handle_event(event, self.player)
+        self.input.handle_event(event)
+
+    def handle_mouse_event(self, event, quick_action_buttons) -> str | None:
+        return self.input.handle_mouse_event(event, quick_action_buttons)
 
     def update(
         self,

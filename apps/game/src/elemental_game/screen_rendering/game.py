@@ -301,7 +301,7 @@ class GameScreenRenderer:
         phase_icon_rect = phase_icon.get_rect(topleft=phase_icon_position)
         surface.blit(phase_icon, phase_icon_rect)
 
-        buffer = 40 if multiplayer else 0
+        buffer = 48 if multiplayer else 0
         if hints_enabled:
             hint_font = pygame.font.Font(
                 os.path.join(config.ASSETS_DIR, "font", "pixelfont.ttf"), 24
