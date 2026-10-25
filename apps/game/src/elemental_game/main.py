@@ -79,6 +79,61 @@ def _create_game(screen, player_type):
     return farm, player
 
 
+def _draw_quick_action_button(
+    surface: pygame.Surface,
+    rect: pygame.Rect,
+    icon: pygame.Surface,
+    *,
+    enabled: bool,
+    hovered: bool,
+) -> None:
+    background = (67, 86, 69) if enabled else (65, 65, 65)
+    border = (225, 230, 215) if enabled and hovered else (145, 150, 145)
+    pygame.draw.rect(surface, background, rect, border_radius=9)
+    pygame.draw.rect(surface, border, rect, 2, border_radius=9)
+    max_icon_width = rect.width - 14
+    max_icon_height = rect.height - 14
+    scale = min(
+        max_icon_width / icon.get_width(),
+        max_icon_height / icon.get_height(),
+        1.0,
+    )
+    if scale < 1:
+        icon = pygame.transform.smoothscale(
+            icon,
+            (
+                max(1, round(icon.get_width() * scale)),
+                max(1, round(icon.get_height() * scale)),
+            ),
+        )
+    icon_rect = icon.get_rect(center=rect.center)
+    surface.blit(icon, icon_rect)
+    if not enabled:
+        overlay = pygame.Surface(icon_rect.size, pygame.SRCALPHA)
+        overlay.fill((75, 75, 75, 155))
+        surface.blit(overlay, icon_rect)
+
+
+def _draw_quick_action_tooltip(
+    surface: pygame.Surface,
+    font: pygame.font.Font,
+    button_rect: pygame.Rect,
+    label: str,
+) -> None:
+    text = font.render(label, True, (255, 255, 255))
+    tooltip = pygame.Rect(
+        0,
+        0,
+        text.get_width() + 20,
+        text.get_height() + 12,
+    )
+    tooltip.midbottom = (button_rect.centerx, button_rect.top - 8)
+    tooltip.clamp_ip(surface.get_rect())
+    pygame.draw.rect(surface, (30, 35, 42), tooltip, border_radius=5)
+    pygame.draw.rect(surface, (190, 200, 210), tooltip, 1, border_radius=5)
+    surface.blit(text, text.get_rect(center=tooltip.center))
+
+
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Play Elemental Keep.")
     parser.add_argument(
@@ -102,6 +157,37 @@ def main(argv: Sequence[str] | None = None) -> None:
         return
 
     multiplayer = menus.multiplayer_client if menus.game_mode == "multiplayer" else None
+    quick_action_size = 56
+    quick_action_y = screen.get_height() - quick_action_size - 18
+    quick_action_buttons = {
+        "store": pygame.Rect(16, quick_action_y, quick_action_size, quick_action_size),
+        "hud": pygame.Rect(78, quick_action_y, quick_action_size, quick_action_size),
+        "turret": pygame.Rect(
+            140, quick_action_y, quick_action_size, quick_action_size
+        ),
+        "attack": pygame.Rect(
+            202, quick_action_y, quick_action_size, quick_action_size
+        ),
+    }
+    emoji_font = pygame.font.SysFont("Noto Color Emoji", 38)
+    quick_action_icons = {
+        "store": pygame.transform.smoothscale(
+            pygame.image.load(
+                os.path.join(
+                    config.IMAGES_DIR, "settings-and-gameplay", "store-icon.png"
+                )
+            ).convert_alpha(),
+            (42, 42),
+        ),
+        "hud": emoji_font.render("📦", True, (255, 255, 255)),
+        "turret": pygame.transform.smoothscale(
+            pygame.image.load(
+                os.path.join(config.IMAGES_DIR, "turrets", "standard-turret.png")
+            ).convert_alpha(),
+            (42, 42),
+        ),
+        "attack": emoji_font.render("⚔️", True, (255, 255, 255)),
+    }
     farm, player = _create_game(screen, menus.store.player_image_number())
     shop = ShopMenu()
     house = House(screen)
@@ -174,8 +260,6 @@ def main(argv: Sequence[str] | None = None) -> None:
                 enemies_defeated=enemies_defeated,
             )
         seconds = clock.tick(60) / 1000  # seconds since last frame
-        if isinstance(game_over_dialog, MultiplayerGameOverDialog):
-            game_over_dialog.update(seconds)
         if multiplayer is not None:
             try:
                 for message in multiplayer.poll():
@@ -246,6 +330,46 @@ def main(argv: Sequence[str] | None = None) -> None:
             if event.type == pygame.QUIT:
                 running = False
                 break
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                clicked_action = next(
+                    (
+                        action
+                        for action, rect in quick_action_buttons.items()
+                        if rect.collidepoint(event.pos)
+                    ),
+                    None,
+                )
+                if clicked_action is not None:
+                    actions_enabled = (
+                        not confirm_exit
+                        and not farm.planting
+                        and turrets.modal_slot is None
+                        and not controlling_house_turret
+                        and game_over_dialog is None
+                        and house.health > 0
+                    )
+                    if actions_enabled:
+                        if clicked_action == "store":
+                            shop_open = not shop_open
+                            shop.clear_status()
+                        elif clicked_action == "hud":
+                            hud_visible = not hud_visible
+                        elif clicked_action == "turret" and turrets.can_interact(
+                            player
+                        ):
+                            turrets.interact(player)
+                        elif clicked_action == "attack" and multiplayer is not None:
+                            multiplayer_panel_open = not multiplayer_panel_open
+                            available = [
+                                crop
+                                for crop, count in player.crops.items()
+                                if count > 0
+                            ]
+                            if selected_attack_element not in available:
+                                selected_attack_element = (
+                                    available[0] if available else None
+                                )
+                    continue
             elif confirm_exit and event.type == pygame.KEYDOWN:
                 if event.key in (pygame.K_y, pygame.K_RETURN):
                     confirm_exit = False
@@ -447,10 +571,15 @@ def main(argv: Sequence[str] | None = None) -> None:
             break
 
         game_paused = (
-            shop_open
-            or confirm_exit
-            or farm.planting
-            or turrets.modal_slot is not None
+            (
+                multiplayer is None
+                and (
+                    shop_open
+                    or confirm_exit
+                    or farm.planting
+                    or turrets.modal_slot is not None
+                )
+            )
             or house.health <= 0
             or game_over_dialog is not None
         )
@@ -594,6 +723,19 @@ def main(argv: Sequence[str] | None = None) -> None:
         turrets.draw_modal(screen, font, player)
         phase_label = "PLANTING" if planting_phase else f"WAVE {wave_number}"
         phase_icon_position = (20, 12)
+        if multiplayer is not None:
+            room_code = multiplayer.room_code or "------"
+            opponent_text = font.render(
+                f"VS {multiplayer.opponent_name}  |  Room {room_code}  |  V: attacks",
+                True,
+                (255, 255, 255),
+            )
+            screen.blit(opponent_text, (78, 6))
+            if multiplayer_status:
+                status_text = font.render(
+                    multiplayer_status[:75], True, (255, 225, 125)
+                )
+                screen.blit(status_text, (78, 34))
         if not planting_phase:
             screen.blit(enemy_marker_background, (14, 6))
         screen.blit(
@@ -611,54 +753,93 @@ def main(argv: Sequence[str] | None = None) -> None:
             True,
             (255, 255, 255),
         )
+        phase_text_position = (78, 18) if multiplayer is not None else (78, 5)
         screen.blit(
             timer,
-            (screen.get_width() - timer.get_width() - 20, 5),
+            (screen.get_width() - timer.get_width() - 20, phase_text_position[1]),
         )
         if hud_visible:
             draw_inventory_hud(screen, player, wave_number, enemies_defeated)
-        if multiplayer is not None:
-            room_code = multiplayer.room_code or "------"
-            opponent_text = font.render(
-                f"VS {multiplayer.opponent_name}  |  Room {room_code}  |  V: attacks",
-                True,
-                (255, 255, 255),
+        if multiplayer is not None and multiplayer_panel_open:
+            panel = pygame.Rect(665, 170, 470, 300)
+            pygame.draw.rect(screen, (35, 40, 50), panel, border_radius=10)
+            pygame.draw.rect(screen, (215, 220, 230), panel, 2, border_radius=10)
+            crop_count = (
+                player.crops.get(selected_attack_element, 0)
+                if selected_attack_element is not None
+                else 0
             )
-            screen.blit(opponent_text, (20, 75))
-            if multiplayer_status:
-                status_text = font.render(
-                    multiplayer_status[:75], True, (255, 225, 125)
+            selected_crop_name = (
+                selected_attack_element.name.title()
+                if selected_attack_element is not None
+                else "none"
+            )
+            attack_lines = (
+                "VS ATTACKS  (V / ESC to close)",
+                f"Coins: {player.coins}    Crop: {selected_crop_name} x{crop_count} (Q/E)",
+                "1  Send 4 extra enemies  -  6 coins",
+                "2  Toughen next wave     -  8 coins",
+                "3  Raise elemental odds  -  1 crop",
+                "4  Change enemy weather  -  1 crop",
+            )
+            for index, line in enumerate(attack_lines):
+                text = font.render(
+                    line, True, (255, 230, 150) if index == 0 else (245, 245, 245)
                 )
-                screen.blit(status_text, (20, 105))
-            if multiplayer_panel_open:
-                panel = pygame.Rect(665, 170, 470, 300)
-                pygame.draw.rect(screen, (35, 40, 50), panel, border_radius=10)
-                pygame.draw.rect(screen, (215, 220, 230), panel, 2, border_radius=10)
-                crop_count = (
-                    player.crops.get(selected_attack_element, 0)
-                    if selected_attack_element is not None
-                    else 0
-                )
-                selected_crop_name = (
-                    selected_attack_element.name.title()
-                    if selected_attack_element is not None
-                    else "none"
-                )
-                attack_lines = (
-                    "VS ATTACKS  (V / ESC to close)",
-                    f"Coins: {player.coins}    Crop: {selected_crop_name} x{crop_count} (Q/E)",
-                    "1  Send 4 extra enemies  -  6 coins",
-                    "2  Toughen next wave     -  8 coins",
-                    "3  Raise elemental odds  -  1 crop",
-                    "4  Change enemy weather  -  1 crop",
-                )
-                for index, line in enumerate(attack_lines):
-                    text = font.render(
-                        line, True, (255, 230, 150) if index == 0 else (245, 245, 245)
-                    )
-                    screen.blit(text, (panel.x + 18, panel.y + 25 + index * 42))
+                screen.blit(text, (panel.x + 18, panel.y + 25 + index * 42))
         if shop_open:
             shop.draw(screen, font, player, farm, house)
+        actions_enabled = (
+            not confirm_exit
+            and not farm.planting
+            and turrets.modal_slot is None
+            and not controlling_house_turret
+            and game_over_dialog is None
+            and house.health > 0
+        )
+        turret_action_available = actions_enabled and turrets.can_interact(player)
+        quick_action_availability = {
+            "store": actions_enabled,
+            "hud": actions_enabled,
+            "turret": turret_action_available,
+            "attack": actions_enabled and multiplayer is not None,
+        }
+        mouse_position = pygame.mouse.get_pos()
+        hovered_action = None
+        for action, rect in quick_action_buttons.items():
+            if action == "attack" and multiplayer is None:
+                continue
+            hovered = rect.collidepoint(mouse_position)
+            if hovered:
+                hovered_action = action
+            _draw_quick_action_button(
+                screen,
+                rect,
+                quick_action_icons[action],
+                enabled=quick_action_availability[action],
+                hovered=hovered,
+            )
+        if hovered_action is not None:
+            if not actions_enabled:
+                tooltip_text = "Unavailable right now"
+            elif hovered_action == "store":
+                tooltip_text = "Open or close the store (M)"
+            elif hovered_action == "hud":
+                tooltip_text = "Toggle inventory HUD (H)"
+            elif hovered_action == "turret":
+                tooltip_text = (
+                    "Interact with nearby turret (F)"
+                    if turret_action_available
+                    else "Move closer to a turret"
+                )
+            else:
+                tooltip_text = "Open or close multiplayer attacks (V)"
+            _draw_quick_action_tooltip(
+                screen,
+                font,
+                quick_action_buttons[hovered_action],
+                tooltip_text,
+            )
         if confirm_exit:
             draw_exit_confirmation(screen, font)
         if game_over_dialog is not None:

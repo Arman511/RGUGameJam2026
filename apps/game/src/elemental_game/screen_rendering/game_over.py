@@ -7,6 +7,7 @@ from pydantic import ValidationError as PydanticValidationError
 
 from elemental_game.api_client.http import APIError
 from elemental_game.api_client.models import RunSubmission
+from elemental_game.audio import play_sfx
 from elemental_game.menus import (
     InputField,
     _open_registration_page,
@@ -33,6 +34,7 @@ class GameOverDialog:
         self.final_wave = final_wave
         self.enemies_defeated = enemies_defeated
         self.username = menus.username or "Guest"
+        play_sfx("explosion")
         self.status_message = ""
         self.done = False
         self.state = "publish" if menus.username else "username"
@@ -44,7 +46,11 @@ class GameOverDialog:
             pygame.Rect(center_x - 250, center_y - 10, 500, 48),
             placeholder="Leaderboard username",
             max_length=32,
+            text_input=True,
         )
+        self.username_input.focused = menus.username is None
+        if self.username_input.focused:
+            pygame.key.start_text_input()
         self.login_username = InputField(
             pygame.Rect(center_x - 250, center_y - 75, 500, 48),
             placeholder="Account username",
@@ -58,7 +64,10 @@ class GameOverDialog:
         )
         self.login_username.value = self.username if menus.username is None else ""
         self.local_saved = False
-        self._save_local(self.username)
+        if menus.username:
+            self._save_local(self.username)
+        else:
+            self._save_local("Guest")
 
     def _save_local(self, username: str) -> bool:
         try:
@@ -94,11 +103,13 @@ class GameOverDialog:
                     and self._button_rect(1).collidepoint(event.pos)
                 )
             ):
-                self.done = True
+                self._finish()
             return
         if self.state == "username":
             self.username_input.handle_event(event)
-            if (
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self._save_as_guest()
+            elif (
                 event.type == pygame.KEYDOWN
                 and event.key == pygame.K_RETURN
                 or (
@@ -108,20 +119,35 @@ class GameOverDialog:
                 )
             ):
                 self._save_guest_username()
+            elif (
+                event.type == pygame.MOUSEBUTTONDOWN
+                and event.button == 1
+                and self._button_rect(1).collidepoint(event.pos)
+            ):
+                self._save_as_guest()
             return
         if self.state == "login":
             self._handle_login_event(event)
             return
         if event.type == pygame.KEYDOWN:
             if event.key in (pygame.K_ESCAPE, pygame.K_n):
-                self.done = True
+                self._finish()
             elif event.key in (pygame.K_RETURN, pygame.K_y):
                 self._publish_or_sign_in()
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self._button_rect(0).collidepoint(event.pos):
                 self._publish_or_sign_in()
             elif self._button_rect(1).collidepoint(event.pos):
-                self.done = True
+                self._finish()
+
+    def _finish(self) -> None:
+        if self.username_input.text_input:
+            pygame.key.stop_text_input()
+        self.done = True
+
+    def _save_as_guest(self) -> None:
+        if self._save_local("Guest"):
+            self._finish()
 
     def _save_guest_username(self) -> None:
         username = self.username_input.value.strip()
@@ -129,6 +155,7 @@ class GameOverDialog:
             self.status_message = "Enter a username to save this run."
             return
         if self._save_local(username):
+            pygame.key.stop_text_input()
             self.login_username.value = username
             self.state = "publish"
 
@@ -211,11 +238,12 @@ class GameOverDialog:
         )
         if self.state == "username":
             self._draw_text(
-                "Choose a username for your local leaderboard entry.",
+                "Choose a local name, or keep the Guest entry.",
                 self.panel.y + 130,
             )
             self.username_input.draw(self.surface, self.font)
-            self._draw_button("Save run", self._button_rect(0))
+            self._draw_button("Save with name", self._button_rect(0))
+            self._draw_button("Finish as Guest", self._button_rect(1))
         elif self.state == "login":
             self._draw_text("Sign in to publish this run online.", self.panel.y + 116)
             self.login_username.draw(self.surface, self.font)

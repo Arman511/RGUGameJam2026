@@ -146,12 +146,14 @@ class InputField:
         max_length: int,
         secret: bool = False,
         scale: float = 1.0,
+        text_input: bool = False,
     ) -> None:
         self.rect = rect
         self.placeholder = placeholder
         self.max_length = max_length
         self.secret = secret
         self.scale = scale
+        self.text_input = text_input
         self.value = ""
         self.focused = False
 
@@ -161,8 +163,17 @@ class InputField:
         elif event.type == pygame.KEYDOWN and self.focused:
             if event.key == pygame.K_BACKSPACE:
                 self.value = self.value[:-1]
-            elif event.unicode.isprintable() and len(self.value) < self.max_length:
+            elif (
+                not self.text_input
+                and event.unicode.isprintable()
+                and len(self.value) < self.max_length
+            ):
                 self.value += event.unicode
+        elif event.type == pygame.TEXTINPUT and self.focused and self.text_input:
+            text = "".join(
+                character for character in event.text if character.isprintable()
+            )
+            self.value = (self.value + text)[: self.max_length]
 
     def draw(self, surface: pygame.Surface, font: pygame.font.Font) -> None:
         pygame.draw.rect(surface, (50, 50, 50), self.rect)
@@ -310,8 +321,9 @@ class MenuSystem:
                 if event.type == pygame.QUIT:
                     if self.state == "settings":
                         self._save_sound_preferences()
-                    if getattr(self, "multiplayer_client", None) is not None:
-                        self.multiplayer_client.close()
+                    multiplayer_client = getattr(self, "multiplayer_client", None)
+                    if multiplayer_client is not None:
+                        multiplayer_client.close()
                         self.multiplayer_client = None
                     self.running = False
                     break
@@ -666,7 +678,7 @@ class MenuSystem:
     def _draw_login(self) -> None:
         self._draw_panel(pygame.Rect(115, 75, 570, 115))
         self._draw_title("Elemental Keep", 110)
-        self._draw_text("Log in to your account, or skip to play as a guest.", 400, 170)
+        self._draw_text("Log in or skip to play as a guest.", 400, 170)
         self.login_username.draw(self.screen, self.font)
         self.login_password.draw(self.screen, self.font)
         self._draw_button("Log in", LOGIN_BUTTON)

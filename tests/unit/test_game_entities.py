@@ -257,6 +257,29 @@ def test_turret_slots_are_outside_both_farm_edges() -> None:
     )
 
 
+def test_turret_action_availability_matches_interaction_range() -> None:
+    from types import SimpleNamespace
+
+    player = Player.__new__(Player)
+    player.turret_slots_unlocked = 0
+    player.pos = pygame.Vector2(408, 367)
+    system = TurretSystem.__new__(TurretSystem)
+    system.farm = SimpleNamespace(origin=(475, 399), cols=6, rows=6)
+    system.slots = []
+    system.modal_slot = None
+    system.modal_selection = 0
+    system.status_message = ""
+
+    assert system.can_interact(player)
+    assert system.modal_slot is None
+    assert system.interact(player)
+    assert system.modal_slot is not None
+
+    player.pos = pygame.Vector2(0, 0)
+    system.close_modal()
+    assert not system.can_interact(player)
+
+
 def test_unlocked_turret_plot_is_added_to_the_map_slots() -> None:
     from types import SimpleNamespace
 
