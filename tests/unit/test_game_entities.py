@@ -166,6 +166,7 @@ def test_weather_has_a_background_behind_its_icon() -> None:
     waves.weather_images = {
         WeatherTypes.FIRE: pygame.Surface((55, 55), pygame.SRCALPHA)
     }
+    pygame.font.init()
     surface = pygame.Surface((1280, 768))
     font = pygame.font.Font(None, 36)
     waves.draw_weather(surface, font)

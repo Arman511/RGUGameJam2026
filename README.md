@@ -58,6 +58,7 @@ Local leaderboard data is stored in the OS app-data directory, not in the reposi
 ## Tests
 ```bash
 uv run pytest
+make coverage
 uv run ruff check .
 ```
 

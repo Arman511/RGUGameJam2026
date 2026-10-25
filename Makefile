@@ -1,4 +1,4 @@
-.PHONY: install game compile-game api test lint format serve local-serve release game-skip-menu
+.PHONY: install game compile-game api test coverage lint format serve local-serve release game-skip-menu
 
 install:
 	uv sync --all-packages --all-groups
@@ -18,6 +18,9 @@ api:
 
 test:
 	uv run pytest
+
+coverage:
+	uv run pytest --cov=elemental_game --cov=elemental_api --cov-report=term-missing
 
 lint:
 	uv run ruff check .
