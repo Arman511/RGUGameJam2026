@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+      - 'ev*'
 
 permissions:
   contents: write
@@ -137,7 +138,8 @@ jobs:
           tags: |
             type=ref,event=tag
             type=sha,format=long,prefix=sha-
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ !startsWith(github.ref_name, 'ev') }}
+            type=raw,value=experimental,enable=${{ startsWith(github.ref_name, 'ev') }}
 
       - name: Build and push multi-platform API image
         uses: docker/build-push-action@v6
@@ -173,11 +175,33 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
+        shell: bash
         run: |
+          if [[ "$TAG" == *ev* ]]; then
+            RELEASE_TITLE="ElementalKeep $TAG (Experimental)"
+            PRERELEASE_FLAG="--prerelease"
+          else
+            RELEASE_TITLE="ElementalKeep $TAG"
+            PRERELEASE_FLAG=""
+          fi
+
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
+
+            if [[ -n "$PRERELEASE_FLAG" ]]; then
+              gh release edit "$TAG" \
+                --title "$RELEASE_TITLE" \
+                --prerelease
+            fi
           else
-            gh release create "$TAG" dist/* \
-              --title "ElementalKeep $TAG" \
-              --generate-notes
+            if [[ -n "$PRERELEASE_FLAG" ]]; then
+              gh release create "$TAG" dist/* \
+                --title "$RELEASE_TITLE" \
+                --generate-notes \
+                --prerelease
+            else
+              gh release create "$TAG" dist/* \
+                --title "$RELEASE_TITLE" \
+                --generate-notes
+            fi
           fi
