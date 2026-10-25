@@ -134,6 +134,40 @@ def _draw_quick_action_tooltip(
     surface.blit(text, text.get_rect(center=tooltip.center))
 
 
+def _multiplayer_attack_panel_rect(surface: pygame.Surface) -> pygame.Rect:
+    panel = pygame.Rect(665, 170, 470, 300)
+    panel.clamp_ip(surface.get_rect())
+    return panel
+
+
+def _send_multiplayer_attack(action, selected_attack_element, player, multiplayer):
+    element = (
+        selected_attack_element
+        if action in {"elemental_chance", "change_weather"}
+        else None
+    )
+    if action in {"elemental_chance", "change_weather"} and (
+        element is None or player.crops.get(element, 0) <= 0
+    ):
+        return "Harvest an elemental crop first."
+    if action in MULTIPLAYER_COIN_COSTS and player.coins < MULTIPLAYER_COIN_COSTS[action]:
+        return "Not enough coins for that attack."
+    if multiplayer is None:
+        return "Multiplayer attacks are unavailable."
+    try:
+        multiplayer.send_action(
+            action, element.name if element is not None else None
+        )
+    except MultiplayerError as error:
+        return str(error)
+
+    if action in MULTIPLAYER_COIN_COSTS:
+        player.deduct_coins(MULTIPLAYER_COIN_COSTS[action])
+    elif element is not None:
+        player.crops[element] -= 1
+    return "Attack sent for the next wave."
+
+
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Play Elemental Keep.")
     parser.add_argument(
@@ -384,6 +418,36 @@ def main(argv: Sequence[str] | None = None) -> None:
                                     available[0] if available else None
                                 )
                     continue
+                if shop_open:
+                    shop.handle_event(event, player, farm, house, screen)
+                    continue
+                if turrets.modal_slot is not None:
+                    turrets.handle_event(event, player, screen)
+                    continue
+                if multiplayer_panel_open:
+                    panel = _multiplayer_attack_panel_rect(screen)
+                    attack_actions = (
+                        "extra_enemies",
+                        "tougher_enemies",
+                        "elemental_chance",
+                        "change_weather",
+                    )
+                    for index, action in enumerate(attack_actions, start=2):
+                        row = pygame.Rect(
+                            panel.x + 10,
+                            panel.y + 25 + index * 42,
+                            panel.width - 20,
+                            42,
+                        )
+                        if row.collidepoint(event.pos):
+                            multiplayer_status = _send_multiplayer_attack(
+                                action,
+                                selected_attack_element,
+                                player,
+                                multiplayer,
+                            )
+                            break
+                continue
             elif confirm_exit and event.type == pygame.KEYDOWN:
                 if event.key in (pygame.K_y, pygame.K_RETURN):
                     confirm_exit = False
@@ -512,33 +576,12 @@ def main(argv: Sequence[str] | None = None) -> None:
                         pygame.K_3: "elemental_chance",
                         pygame.K_4: "change_weather",
                     }[event.key]
-                    element = (
-                        selected_attack_element
-                        if action in {"elemental_chance", "change_weather"}
-                        else None
+                    multiplayer_status = _send_multiplayer_attack(
+                        action,
+                        selected_attack_element,
+                        player,
+                        multiplayer,
                     )
-                    if action in {"elemental_chance", "change_weather"} and (
-                        element is None or player.crops.get(element, 0) <= 0
-                    ):
-                        multiplayer_status = "Harvest an elemental crop first."
-                    elif (
-                        action in MULTIPLAYER_COIN_COSTS
-                        and player.coins < MULTIPLAYER_COIN_COSTS[action]
-                    ):
-                        multiplayer_status = "Not enough coins for that attack."
-                    elif multiplayer is not None:
-                        try:
-                            multiplayer.send_action(
-                                action, element.name if element is not None else None
-                            )
-                        except MultiplayerError as error:
-                            multiplayer_status = str(error)
-                        else:
-                            if action in MULTIPLAYER_COIN_COSTS:
-                                player.deduct_coins(MULTIPLAYER_COIN_COSTS[action])
-                            else:
-                                player.crops[element] -= 1
-                            multiplayer_status = "Attack sent for the next wave."
             elif (
                 event.type == pygame.KEYDOWN
                 and event.key == pygame.K_h
@@ -548,7 +591,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
                 turrets.show_ranges = not turrets.show_ranges
             elif turrets.modal_slot is not None:
-                turrets.handle_event(event, player)
+                turrets.handle_event(event, player, screen)
             elif controlling_house_turret and event.type == pygame.KEYDOWN:
                 if event.key in (pygame.K_f, pygame.K_ESCAPE):
                     controlling_house_turret = False
@@ -560,7 +603,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                     shop_open = False
                     shop.clear_status()
                 else:
-                    shop.handle_event(event, player, farm, house)
+                    shop.handle_event(event, player, farm, house, screen)
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
                 roof = house.turret_control_rect()
                 if roof.collidepoint(player.pos):
@@ -798,7 +841,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         if hud_visible:
             draw_inventory_hud(screen, player, wave_number, enemies_defeated)
         if multiplayer is not None and multiplayer_panel_open:
-            panel = pygame.Rect(665, 170, 470, 300)
+            panel = _multiplayer_attack_panel_rect(screen)
             pygame.draw.rect(screen, (35, 40, 50), panel, border_radius=10)
             pygame.draw.rect(screen, (215, 220, 230), panel, 2, border_radius=10)
             crop_count = (
