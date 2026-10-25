@@ -79,6 +79,26 @@ def _create_game(screen, player_type):
     return farm, player
 
 
+def _draw_quick_action_button(
+    surface: pygame.Surface,
+    rect: pygame.Rect,
+    icon: pygame.Surface,
+    *,
+    enabled: bool,
+    hovered: bool,
+) -> None:
+    background = (67, 86, 69) if enabled else (65, 65, 65)
+    border = (225, 230, 215) if enabled and hovered else (145, 150, 145)
+    pygame.draw.rect(surface, background, rect, border_radius=9)
+    pygame.draw.rect(surface, border, rect, 2, border_radius=9)
+    icon_rect = icon.get_rect(center=rect.center)
+    surface.blit(icon, icon_rect)
+    if not enabled:
+        overlay = pygame.Surface(icon_rect.size, pygame.SRCALPHA)
+        overlay.fill((75, 75, 75, 155))
+        surface.blit(overlay, icon_rect)
+
+
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Play Elemental Keep.")
     parser.add_argument(
@@ -102,6 +122,37 @@ def main(argv: Sequence[str] | None = None) -> None:
         return
 
     multiplayer = menus.multiplayer_client if menus.game_mode == "multiplayer" else None
+    quick_action_size = 56
+    quick_action_y = screen.get_height() - quick_action_size - 18
+    quick_action_buttons = {
+        "store": pygame.Rect(16, quick_action_y, quick_action_size, quick_action_size),
+        "hud": pygame.Rect(78, quick_action_y, quick_action_size, quick_action_size),
+        "turret": pygame.Rect(
+            140, quick_action_y, quick_action_size, quick_action_size
+        ),
+        "attack": pygame.Rect(
+            202, quick_action_y, quick_action_size, quick_action_size
+        ),
+    }
+    emoji_font = pygame.font.SysFont("Noto Color Emoji", 38)
+    quick_action_icons = {
+        "store": pygame.transform.smoothscale(
+            pygame.image.load(
+                os.path.join(
+                    config.IMAGES_DIR, "settings-and-gameplay", "store-icon.png"
+                )
+            ).convert_alpha(),
+            (42, 42),
+        ),
+        "hud": emoji_font.render("📦", True, (255, 255, 255)),
+        "turret": pygame.transform.smoothscale(
+            pygame.image.load(
+                os.path.join(config.IMAGES_DIR, "turrets", "standard-turret.png")
+            ).convert_alpha(),
+            (42, 42),
+        ),
+        "attack": emoji_font.render("⚔️", True, (255, 255, 255)),
+    }
     farm, player = _create_game(screen, menus.store.player_image_number())
     shop = ShopMenu()
     house = House(screen)
@@ -244,6 +295,46 @@ def main(argv: Sequence[str] | None = None) -> None:
             if event.type == pygame.QUIT:
                 running = False
                 break
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                clicked_action = next(
+                    (
+                        action
+                        for action, rect in quick_action_buttons.items()
+                        if rect.collidepoint(event.pos)
+                    ),
+                    None,
+                )
+                if clicked_action is not None:
+                    actions_enabled = (
+                        not confirm_exit
+                        and not farm.planting
+                        and turrets.modal_slot is None
+                        and not controlling_house_turret
+                        and game_over_dialog is None
+                        and house.health > 0
+                    )
+                    if actions_enabled:
+                        if clicked_action == "store":
+                            shop_open = not shop_open
+                            shop.clear_status()
+                        elif clicked_action == "hud":
+                            hud_visible = not hud_visible
+                        elif clicked_action == "turret" and turrets.can_interact(
+                            player
+                        ):
+                            turrets.interact(player)
+                        elif clicked_action == "attack" and multiplayer is not None:
+                            multiplayer_panel_open = not multiplayer_panel_open
+                            available = [
+                                crop
+                                for crop, count in player.crops.items()
+                                if count > 0
+                            ]
+                            if selected_attack_element not in available:
+                                selected_attack_element = (
+                                    available[0] if available else None
+                                )
+                    continue
             elif confirm_exit and event.type == pygame.KEYDOWN:
                 if event.key in (pygame.K_y, pygame.K_RETURN):
                     confirm_exit = False
@@ -445,10 +536,15 @@ def main(argv: Sequence[str] | None = None) -> None:
             break
 
         game_paused = (
-            shop_open
-            or confirm_exit
-            or farm.planting
-            or turrets.modal_slot is not None
+            (
+                multiplayer is None
+                and (
+                    shop_open
+                    or confirm_exit
+                    or farm.planting
+                    or turrets.modal_slot is not None
+                )
+            )
             or house.health <= 0
             or game_over_dialog is not None
         )
@@ -652,6 +748,32 @@ def main(argv: Sequence[str] | None = None) -> None:
                 screen.blit(text, (panel.x + 18, panel.y + 25 + index * 42))
         if shop_open:
             shop.draw(screen, font, player, farm, house)
+        actions_enabled = (
+            not confirm_exit
+            and not farm.planting
+            and turrets.modal_slot is None
+            and not controlling_house_turret
+            and game_over_dialog is None
+            and house.health > 0
+        )
+        turret_action_available = actions_enabled and turrets.can_interact(player)
+        quick_action_availability = {
+            "store": actions_enabled,
+            "hud": actions_enabled,
+            "turret": turret_action_available,
+            "attack": actions_enabled and multiplayer is not None,
+        }
+        mouse_position = pygame.mouse.get_pos()
+        for action, rect in quick_action_buttons.items():
+            if action == "attack" and multiplayer is None:
+                continue
+            _draw_quick_action_button(
+                screen,
+                rect,
+                quick_action_icons[action],
+                enabled=quick_action_availability[action],
+                hovered=rect.collidepoint(mouse_position),
+            )
         if confirm_exit:
             draw_exit_confirmation(screen, font)
         if game_over_dialog is not None:

@@ -310,8 +310,9 @@ class MenuSystem:
                 if event.type == pygame.QUIT:
                     if self.state == "settings":
                         self._save_sound_preferences()
-                    if getattr(self, "multiplayer_client", None) is not None:
-                        self.multiplayer_client.close()
+                    multiplayer_client = getattr(self, "multiplayer_client", None)
+                    if multiplayer_client is not None:
+                        multiplayer_client.close()
                         self.multiplayer_client = None
                     self.running = False
                     break

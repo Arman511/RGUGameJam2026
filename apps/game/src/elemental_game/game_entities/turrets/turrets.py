@@ -269,9 +269,7 @@ class TurretSystem:
                 if index < self.STARTING_SLOT_COUNT:
                     y = round(
                         y_top
-                        + (y_bottom - y_top)
-                        * (index + 0.5)
-                        / self.STARTING_SLOT_COUNT
+                        + (y_bottom - y_top) * (index + 0.5) / self.STARTING_SLOT_COUNT
                     )
                 else:
                     offset = self.UNLOCKED_SLOT_Y_OFFSETS[
@@ -286,7 +284,7 @@ class TurretSystem:
                 refreshed.append(slot)
         self.slots = refreshed
 
-    def interact(self, player) -> bool:
+    def available_interaction_slot(self, player) -> TurretSlot | None:
         self._refresh_slots(player)
         candidates = [
             slot
@@ -295,11 +293,20 @@ class TurretSystem:
             <= self.INTERACTION_RADIUS
         ]
         if not candidates:
-            return False
-        self.modal_slot = min(
+            return None
+        return min(
             candidates,
             key=lambda slot: pygame.Vector2(slot.center).distance_to(player.pos),
         )
+
+    def can_interact(self, player) -> bool:
+        return self.available_interaction_slot(player) is not None
+
+    def interact(self, player) -> bool:
+        slot = self.available_interaction_slot(player)
+        if slot is None:
+            return False
+        self.modal_slot = slot
         self.modal_selection = 0
         self.status_message = ""
         return True
@@ -362,9 +369,7 @@ class TurretSystem:
 
     def update(self, dt: float, enemies) -> None:
         self.projectiles = [
-            projectile
-            for projectile in self.projectiles
-            if not projectile.update(dt)
+            projectile for projectile in self.projectiles if not projectile.update(dt)
         ]
         for slot in self.slots:
             turret = slot.turret
