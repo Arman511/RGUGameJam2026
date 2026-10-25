@@ -55,10 +55,33 @@ def test_clearing_every_third_wave_opens_tier_reward(monkeypatch) -> None:
     assert isinstance(game.seed_tier_reward, SeedTierReward)
 
 
-def test_big_boss_wave_starts_boss_music(monkeypatch) -> None:
+def test_normal_boss_wave_does_not_start_boss_music(monkeypatch) -> None:
     game = make_session(
         WaveUpdate(started_wave=3),
         wave_number=3,
+        wave_sequence=["boss"],
+    )
+    monkeypatch.setattr(
+        gameplay_module.EnemyController,
+        "update",
+        lambda *_args: ([], 0),
+    )
+    tracks = []
+    monkeypatch.setattr(
+        gameplay_module,
+        "play_background_music",
+        lambda track, **_kwargs: tracks.append(track) or True,
+    )
+
+    game.update(1.0, paused=False, music_volume=1.0)
+
+    assert tracks == ["enemies"]
+
+
+def test_big_boss_wave_starts_boss_music(monkeypatch) -> None:
+    game = make_session(
+        WaveUpdate(started_wave=6),
+        wave_number=6,
         wave_sequence=["big_boss"],
     )
     monkeypatch.setattr(

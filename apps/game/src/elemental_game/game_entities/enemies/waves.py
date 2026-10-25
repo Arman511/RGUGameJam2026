@@ -7,7 +7,11 @@ from typing import ClassVar
 import pygame
 from elemental_game import config
 from elemental_game.config import IMAGES_DIR, WINDOW_WIDTH
-from elemental_game.game_entities.enemies.enemies import OPPOSING_ELEMENTS, EnemyState
+from elemental_game.game_entities.enemies.enemies import (
+    ENEMY_DEFS,
+    OPPOSING_ELEMENTS,
+    EnemyState,
+)
 from elemental_game.types.crop import CropType
 from elemental_game.types.weather import WeatherTypes
 
@@ -29,6 +33,7 @@ ENEMY_KEYS_BY_ELEMENT = {
 }
 ENEMY_GROWTH_RATE = 1.08
 ENEMY_HEALTH_GROWTH_RATE = 1.08
+BOSS_KEYS = frozenset({"boss", "big_boss"})
 
 
 @dataclass(frozen=True)
@@ -50,12 +55,14 @@ def build_wave_sequence(
         raise ValueError("wave_number must be positive")
     if extra_enemies < 0:
         raise ValueError("extra_enemies cannot be negative")
-    if wave_number % 3 == 0:
+    if wave_number >= 3:
+        normal_bosses = ["boss"] * max(1, wave_number // 10)
+        big_bosses = ["big_boss"] if wave_number > 3 and wave_number % 3 == 0 else []
         regulars = ["runner"] * max(2, wave_number // 2) + ["brute"] * max(
             2, wave_number // 3
         )
         elites = ["elite_fire", "elite_earth"][: max(1, wave_number // 10)]
-        wave = ["big_boss", *elites, *regulars]
+        wave = [*normal_bosses, *big_bosses, *elites, *regulars]
     elif wave_number == 1:
         wave = ["swarmer", "swarmer", "swarmer"]
     elif wave_number == 2:
@@ -76,14 +83,13 @@ def build_wave_sequence(
         wave.extend(
             [elite_types[(wave_number - 3) % len(elite_types)]] * (1 + wave_number // 4)
         )
-    boss_keys = {"boss", "big_boss"}
-    boss = wave[:1] if wave and wave[0] in boss_keys else []
-    non_boss_enemies = wave[len(boss) :]
+    bosses = [enemy for enemy in wave if enemy in BOSS_KEYS]
+    non_boss_enemies = [enemy for enemy in wave if enemy not in BOSS_KEYS]
     target_count = math.ceil(
         len(non_boss_enemies) * ENEMY_GROWTH_RATE ** (wave_number - 1)
     )
     if non_boss_enemies:
-        wave = boss + [
+        wave = bosses + [
             non_boss_enemies[index % len(non_boss_enemies)]
             for index in range(target_count)
         ]
@@ -247,12 +253,17 @@ class Waves:
                 screen.get_height() - 55,
                 max(80, house_center_y + (self.wave_spawned % 5 - 2) * 65),
             )
-            spawn_x = -30 if self.wave_spawned % 2 == 0 else screen.get_width() + 30
+            enemy_key = self.wave_sequence[self.wave_spawned]
+            if ENEMY_DEFS[enemy_key].is_boss:
+                spawn_x = random.choice((-30, screen.get_width() + 30))
+            else:
+                spawn_x = -30 if self.wave_spawned % 2 == 0 else screen.get_width() + 30
             enemy = EnemyState.create(
-                self.wave_sequence[self.wave_spawned],
+                enemy_key,
                 (spawn_x, spawn_y),
                 wave_number=self.wave_number,
             )
+            enemy.spawn_side = "left" if spawn_x < 0 else "right"
             health_multiplier = self.active_health_multiplier * (
                 ENEMY_HEALTH_GROWTH_RATE ** (self.wave_number - 1)
             )

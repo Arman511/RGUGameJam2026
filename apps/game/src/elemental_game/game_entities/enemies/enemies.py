@@ -10,7 +10,7 @@ import pygame
 from elemental_game import config
 from elemental_game.config import IMAGES_DIR
 from elemental_game.game_entities.crops.crops import CropType
-from elemental_game.game_entities.turrets.turrets import TURRET_DEFS
+from elemental_game.game_entities.turrets.turrets import TURRET_DEFS, TurretInstance
 from elemental_game.types.player import PlayerType
 from elemental_game.types.seed import SeedType
 
@@ -21,9 +21,11 @@ ELITE_SEED_TIER_WEIGHTS = (30, 40, 30)
 def seed_tier_drop_weights(max_tier: int, *, elite: bool = False) -> tuple[float, ...]:
     base_weights = ELITE_SEED_TIER_WEIGHTS if elite else REGULAR_SEED_TIER_WEIGHTS
     return tuple(
-        base_weights[tier - 1]
-        if tier <= len(base_weights)
-        else base_weights[-1] * 0.25 ** (tier - len(base_weights))
+        (
+            base_weights[tier - 1]
+            if tier <= len(base_weights)
+            else base_weights[-1] * 0.25 ** (tier - len(base_weights))
+        )
         for tier in range(1, max_tier + 1)
     )
 
@@ -41,6 +43,8 @@ class EnemyDefinition:
     is_boss: bool = False
     is_elite: bool = False
     knockback_resistance: float = 0.0
+    boss_house_damage_percent: int | None = None
+    boss_turret_damage_percent: int | None = None
 
 
 ENEMY_DEFS: dict[str, EnemyDefinition] = {
@@ -158,6 +162,8 @@ ENEMY_DEFS: dict[str, EnemyDefinition] = {
         30,
         is_boss=True,
         knockback_resistance=0.75,
+        boss_house_damage_percent=10,
+        boss_turret_damage_percent=20,
     ),
     "big_boss": EnemyDefinition(
         "big_boss",
@@ -170,6 +176,8 @@ ENEMY_DEFS: dict[str, EnemyDefinition] = {
         60,
         is_boss=True,
         knockback_resistance=0.9,
+        boss_house_damage_percent=20,
+        boss_turret_damage_percent=30,
     ),
 }
 
@@ -208,6 +216,7 @@ class EnemyState:
     base_speed: float | None = None
     slow_amount: float = 0.0
     target_turret: bool | None = None
+    spawn_side: str | None = None
 
     @classmethod
     def create(cls, key: str, position, *, wave_number: int = 0) -> EnemyState:
@@ -215,11 +224,13 @@ class EnemyState:
         resistance = (
             min(0.95, 0.7 + 0.02 * max(0, wave_number // 3 - 1))
             if key == "big_boss"
-            else min(0.9, 0.45 + 0.02 * max(0, wave_number // 3 - 1))
-            if definition.is_boss
-            else 0.5
-            if definition.is_elite
-            else 0.0
+            else (
+                min(0.9, 0.45 + 0.02 * max(0, wave_number // 3 - 1))
+                if definition.is_boss
+                else 0.5
+                if definition.is_elite
+                else 0.0
+            )
         )
         return cls(
             key=key,
@@ -399,18 +410,33 @@ class EnemyController:
                 target_slot = turrets.boss_target(enemy.pos, destination)
             else:
                 if enemy.target_turret is None:
-                    nearest_slot = turrets.nearest_turret(enemy.pos)
+                    nearest_slot = turrets.nearest_turret(
+                        enemy.pos,
+                        enemy.spawn_side,
+                    )
                     enemy.target_turret = (
                         nearest_slot is not None and random.random() < 0.3
                     )
                 target_slot = (
-                    turrets.nearest_turret(enemy.pos) if enemy.target_turret else None
+                    turrets.nearest_turret(enemy.pos, enemy.spawn_side)
+                    if enemy.target_turret
+                    else None
                 )
             if target_slot is not None and target_slot.turret is not None:
                 destination = pygame.Vector2(target_slot.center)
                 if enemy.pos.distance_to(destination) <= 44:
                     if enemy.attack_cooldown <= 0:
-                        damage = enemy.damage * 2 if enemy.is_boss else enemy.damage
+                        if enemy.is_boss:
+                            damage_percent = enemy.definition.boss_turret_damage_percent
+                            if damage_percent is None:
+                                raise ValueError(
+                                    "Boss turret damage percentage is not configured."
+                                )
+                            damage = math.ceil(
+                                TurretInstance.MAX_HEALTH * damage_percent / 100
+                            )
+                        else:
+                            damage = enemy.damage
                         enemy_element = enemy.definition.element
                         turret_element = TURRET_DEFS[target_slot.turret.key].element
                         if (
@@ -427,7 +453,16 @@ class EnemyController:
             if enemy.pos.distance_to(destination) > 55:
                 enemy.move_towards(destination, seconds)
             elif enemy.attack_cooldown <= 0:
-                house.take_damage(enemy.damage)
+                if enemy.is_boss:
+                    damage_percent = enemy.definition.boss_house_damage_percent
+                    if damage_percent is None:
+                        raise ValueError(
+                            "Boss house damage percentage is not configured."
+                        )
+                    damage = math.ceil(house.max_hp * damage_percent / 100)
+                else:
+                    damage = enemy.damage
+                house.take_damage(damage)
                 enemy.attack_cooldown = 1.0
 
         survivors = []

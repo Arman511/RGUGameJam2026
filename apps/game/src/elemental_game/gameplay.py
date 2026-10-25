@@ -117,8 +117,7 @@ class GameSession:
             track = (
                 "boss"
                 if any(
-                    enemy_key in {"boss", "big_boss"}
-                    for enemy_key in self.waves.wave_sequence
+                    enemy_key == "big_boss" for enemy_key in self.waves.wave_sequence
                 )
                 else "enemies"
             )

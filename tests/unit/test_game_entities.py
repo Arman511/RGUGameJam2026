@@ -3,6 +3,7 @@ from unittest.mock import Mock
 
 import pygame
 from elemental_game.game_entities.enemies import enemies as enemies_module
+from elemental_game.game_entities.enemies import waves as waves_module
 from elemental_game.game_entities.enemies.enemies import (
     ELITE_SEED_TIER_WEIGHTS,
     ENEMY_DEFS,
@@ -143,7 +144,7 @@ def test_wave_sequences_grow_and_use_known_enemies() -> None:
     wave = build_wave_sequence(4)
     assert build_wave_sequence(2) == ["swarmer"] * 4 + ["brute", "swarmer"]
     assert len(build_wave_sequence(3)) == 7
-    assert len(build_wave_sequence(6)) == 10
+    assert len(build_wave_sequence(6)) == 11
     assert len(wave) > len(build_wave_sequence(2))
     assert set(wave) <= ENEMY_DEFS.keys()
 
@@ -168,13 +169,48 @@ def test_enemy_health_scales_by_wave_and_stacks_with_wave_bonus() -> None:
 
 def test_boss_wave_contains_known_enemy_types() -> None:
     wave = build_wave_sequence(9)
-    assert wave[0] == "big_boss"
+    assert "boss" in wave
+    assert "big_boss" in wave
     assert set(wave) <= ENEMY_DEFS.keys()
 
 
-def test_every_third_wave_starts_with_a_big_boss() -> None:
-    for wave_number in (3, 6, 9, 12):
-        assert build_wave_sequence(wave_number)[0] == "big_boss"
+def test_wave_three_has_the_normal_boss_then_big_bosses_appear_every_three_waves() -> (
+    None
+):
+    assert build_wave_sequence(3)[0] == "boss"
+    assert "big_boss" not in build_wave_sequence(3)
+    for wave_number in (6, 9, 12):
+        assert build_wave_sequence(wave_number)[0] == "boss"
+        assert build_wave_sequence(wave_number).count("big_boss") == 1
+    assert [build_wave_sequence(wave).count("boss") for wave in (3, 10, 20, 30)] == [
+        1,
+        1,
+        2,
+        3,
+    ]
+
+
+def test_bosses_spawn_on_random_sides(monkeypatch) -> None:
+    waves = Waves.__new__(Waves)
+    waves.wave_elapsed = 0.0
+    waves.wave_sequence = ["boss", "big_boss"]
+    waves.wave_spawned = 0
+    waves.wave_number = 6
+    waves.active_health_multiplier = 1.0
+    house = Mock()
+    house.return_rect.return_value = pygame.Rect(0, 0, 100, 100)
+    screen = pygame.Surface((200, 200))
+    spawn_positions = iter((-30, screen.get_width() + 30))
+    monkeypatch.setattr(
+        waves_module.random,
+        "choice",
+        lambda _positions: next(spawn_positions),
+    )
+
+    bosses = waves._spawn_due_enemies(30.0, screen, house)
+
+    assert [boss.pos.x for boss in bosses] == [-30, 230]
+    assert [boss.spawn_side for boss in bosses] == ["left", "right"]
 
 
 def test_big_boss_has_triple_health_higher_resistance_and_boss_status() -> None:
@@ -328,7 +364,7 @@ def test_turret_does_no_damage_to_same_element_enemies() -> None:
     assert enemy.health == enemy.max_health
 
 
-def test_elites_are_resistant_and_bosses_appear_every_third_wave() -> None:
+def test_elites_are_resistant_and_boss_schedule_is_preserved() -> None:
     elite = EnemyState.create("elite_fire", (0, 0))
     boss = EnemyState.create("boss", (0, 0))
 
@@ -337,9 +373,9 @@ def test_elites_are_resistant_and_bosses_appear_every_third_wave() -> None:
 
     assert elite.health == elite.max_health - 5
     assert boss.health == boss.max_health - 6
-    assert build_wave_sequence(3)[0] == "big_boss"
+    assert build_wave_sequence(3)[0] == "boss"
     assert build_wave_sequence(2)[0] != "boss"
-    assert build_wave_sequence(6)[0] == "big_boss"
+    assert build_wave_sequence(6)[0] == "boss"
 
 
 def test_turret_plot_unlock_costs_increase_from_ten_to_forty_coins() -> None:
@@ -457,6 +493,41 @@ def test_boss_damage_reduces_turret_health() -> None:
     assert slot.turret.health == 60
 
 
+def test_boss_damage_is_a_percentage_of_house_max_health(monkeypatch) -> None:
+    house = Mock()
+    house.max_hp = 250
+    house.return_rect.return_value = pygame.Rect(-50, -50, 100, 100)
+    turrets = Mock()
+    turrets.boss_target.return_value = None
+    monkeypatch.setattr(pygame.key, "get_pressed", lambda: ())
+    boss = EnemyState.create("boss", (0, 0))
+
+    EnemyController.update(
+        0.1, [boss], house, turrets, Mock(), pygame.Surface((100, 100)), False
+    )
+
+    house.take_damage.assert_called_once_with(25)
+
+
+def test_big_boss_damage_is_a_percentage_of_turret_max_health(monkeypatch) -> None:
+    house = Mock()
+    house.return_rect.return_value = pygame.Rect(250, -50, 100, 100)
+    slot = TurretSlot("left", 0, (40, 0), TurretInstance("flame_turret"))
+    turrets = Mock()
+    turrets.boss_target.return_value = slot
+    monkeypatch.setattr(pygame.key, "get_pressed", lambda: ())
+    boss = EnemyState.create("big_boss", (0, 0))
+
+    EnemyController.update(
+        0.1, [boss], house, turrets, Mock(), pygame.Surface((100, 100)), False
+    )
+
+    turrets.damage_slot.assert_called_once_with(
+        slot,
+        math.ceil(TurretInstance.MAX_HEALTH * 0.3),
+    )
+
+
 def test_regular_enemy_uses_house_or_turret_target_chance(monkeypatch) -> None:
     house = Mock()
     house.return_rect.return_value = pygame.Rect(900, 900, 100, 100)
@@ -477,6 +548,40 @@ def test_regular_enemy_uses_house_or_turret_target_chance(monkeypatch) -> None:
     enemy = EnemyState.create("swarmer", (0, 0))
     monkeypatch.setattr(enemies_module.random, "random", lambda: 0.3)
     EnemyController.update(0.1, [enemy], house, turrets, Mock(), screen, False)
+
+    assert enemy.target_turret is False
+    assert enemy.pos.x > 0
+    assert enemy.pos.y > 0
+
+
+def test_normal_enemies_only_target_turrets_on_their_spawn_side(monkeypatch) -> None:
+    house = Mock()
+    house.return_rect.return_value = pygame.Rect(900, 900, 100, 100)
+    left_turret = TurretSlot("left", 0, (-100, 0), TurretInstance("flame_turret"))
+    right_turret = TurretSlot("right", 0, (20, 0), TurretInstance("flame_turret"))
+    turrets = TurretSystem.__new__(TurretSystem)
+    turrets.slots = [left_turret, right_turret]
+    turrets.update = Mock()
+    turrets.damage_slot = Mock()
+    monkeypatch.setattr(pygame.key, "get_pressed", lambda: ())
+    monkeypatch.setattr(enemies_module.random, "random", lambda: 0.1)
+
+    enemy = EnemyState.create("swarmer", (0, 0))
+    enemy.spawn_side = "left"
+    EnemyController.update(
+        0.1, [enemy], house, turrets, Mock(), pygame.Surface((1000, 1000)), False
+    )
+
+    assert enemy.target_turret is True
+    assert enemy.pos.x < 0
+    turrets.damage_slot.assert_not_called()
+
+    turrets.slots = [right_turret]
+    enemy = EnemyState.create("swarmer", (0, 0))
+    enemy.spawn_side = "left"
+    EnemyController.update(
+        0.1, [enemy], house, turrets, Mock(), pygame.Surface((1000, 1000)), False
+    )
 
     assert enemy.target_turret is False
     assert enemy.pos.x > 0

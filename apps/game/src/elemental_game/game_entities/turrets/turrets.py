@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import os
 from dataclasses import dataclass
-from typing import Protocol
+from typing import ClassVar, Protocol
 
 import pygame
 from elemental_game.config import (
@@ -34,8 +34,9 @@ class TurretDefinition:
 
 @dataclass
 class TurretInstance:
+    MAX_HEALTH: ClassVar[int] = 100
     key: str
-    health: int = 100
+    health: int = MAX_HEALTH
     cooldown: float = 0.0
     level: int = 0
     fire_rate_level: int = 0
@@ -510,8 +511,12 @@ class TurretSystem:
             return True
         return False
 
-    def nearest_turret(self, position):
-        active = [slot for slot in self.slots if slot.turret is not None]
+    def nearest_turret(self, position, side: str | None = None):
+        active = [
+            slot
+            for slot in self.slots
+            if slot.turret is not None and (side is None or slot.side == side)
+        ]
         if not active:
             return None
         return min(
