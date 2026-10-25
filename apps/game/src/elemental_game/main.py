@@ -235,59 +235,18 @@ def main(argv: Sequence[str] | None = None) -> None:
                 and event.type == pygame.MOUSEBUTTONDOWN
                 and event.button == 1
             ):
-                clicked_action = next(
-                    (
-                        action
-                        for action, rect in game_renderer.quick_action_buttons.items()
-                        if rect.collidepoint(event.pos)
-                    ),
-                    None,
+                mouse_result = game.handle_mouse_event(
+                    event,
+                    game_renderer.quick_action_buttons,
                 )
-                if clicked_action is not None:
-                    if clicked_action == "turret" and game.turrets.modal_slot is not None:
-                        game.turrets.toggle_interaction(game.player)
-                        continue
-                    actions_enabled = (
-                        not game.confirm_exit
-                        and not game.farm.planting
-                        and game.turrets.modal_slot is None
-                        and not game.controlling_house_turret
-                        and game_over_dialog is None
-                        and game.house.health > 0
-                    )
-                    if actions_enabled:
-                        if clicked_action == "store":
-                            game.shop_open = not game.shop_open
-                            game.shop.clear_status()
-                        elif clicked_action == "hud":
-                            game.hud_visible = not game.hud_visible
-                        elif clicked_action == "plant_radius":
-                            game.player.cycle_plant_radius()
-                        elif clicked_action == "radar":
-                            game.turrets.show_ranges = not game.turrets.show_ranges
-                        elif clicked_action == "turret":
-                            game.turrets.toggle_interaction(game.player)
-                        elif clicked_action == "attack" and multiplayer is not None:
-                            multiplayer_panel_open = not multiplayer_panel_open
-                            available = [
-                                crop
-                                for crop, count in game.player.crops.items()
-                                if count > 0
-                            ]
-                            if selected_attack_element not in available:
-                                selected_attack_element = (
-                                    available[0] if available else None
-                                )
-                    continue
-                if game.shop_open:
-                    game.shop.handle_event(
-                        event, game.player, game.farm, game.house, screen
-                    )
-                    continue
-                if game.turrets.modal_slot is not None:
-                    game.turrets.handle_event(event, game.player, screen)
-                    continue
-                if multiplayer_panel_open:
+                if mouse_result == "attack" and multiplayer is not None:
+                    multiplayer_panel_open = not multiplayer_panel_open
+                    available = [
+                        crop for crop, count in game.player.crops.items() if count > 0
+                    ]
+                    if selected_attack_element not in available:
+                        selected_attack_element = available[0] if available else None
+                elif mouse_result is None and multiplayer_panel_open:
                     panel = multiplayer_attack_panel_rect(screen)
                     attack_actions = (
                         "extra_enemies",
