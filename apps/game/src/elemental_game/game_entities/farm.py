@@ -65,7 +65,7 @@ class Farm:
         self.soil_img = pygame.transform.scale(soil_img, (TILE_SIZE, TILE_SIZE))
         self.seedling_img = pygame.transform.scale(seedling_img, (TILE_SIZE, TILE_SIZE))
         self.locked_soil_img = pygame.transform.scale(
-            locked_soil_img, (self.TILE_SIZE, self.TILE_SIZE)
+            locked_soil_img, (TILE_SIZE-2, TILE_SIZE-2)
         )
         self.fertilizers = {}
 
