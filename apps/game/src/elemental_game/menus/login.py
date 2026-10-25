@@ -8,6 +8,7 @@ from .common import (
     ERROR_TEXT,
     GUEST_BUTTON,
     LOGIN_BUTTON,
+    MENU_FRAME_PANEL,
     REGISTER_BUTTON,
     open_registration_page,
 )
@@ -78,7 +79,7 @@ class LoginMenuMixin(MenuContext):
         self.state = "menu"
 
     def _draw_login(self) -> None:
-        self._draw_panel(pygame.Rect(115, 75, 570, 115))
+        self._draw_panel(MENU_FRAME_PANEL)
         self._draw_title("Elemental Keep", 110)
         self._draw_text("Log in or skip to play as a guest.", 400, 170)
         self.login_username.draw(self.screen, self.font)

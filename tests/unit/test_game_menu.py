@@ -144,6 +144,10 @@ def test_menu_layout_scales_and_centers_for_configured_window() -> None:
     assert layout.rect(menus.PLAY_BUTTON).center == layout.point((265, 234))
 
 
+def test_leaderboard_filter_is_horizontally_centered() -> None:
+    assert menus.LEADERBOARD_FILTER_RECT.centerx == menus.MENU_DESIGN_WIDTH // 2
+
+
 def test_settings_toggle_gameplay_hints() -> None:
     app = menus.MenuSystem.__new__(menus.MenuSystem)
     app.layout = menus.MenuLayout(800, 600)
@@ -158,6 +162,12 @@ def test_settings_toggle_gameplay_hints() -> None:
 
     app._handle_settings_event(click_event)
     assert app.hints_enabled is True
+
+
+def test_settings_player_selector_is_aligned_and_separated_from_clear_button() -> None:
+    assert menus.PLAYER_PREVIOUS_BUTTON.centery == menus.PLAYER_SELECT_PANEL.centery
+    assert menus.PLAYER_NEXT_BUTTON.centery == menus.PLAYER_SELECT_PANEL.centery
+    assert menus.CLEAR_LEADERBOARD_BUTTON.top - menus.PLAYER_SELECT_PANEL.bottom >= 10
 
 
 def test_host_fetches_server_timeout_before_creating_room(monkeypatch) -> None:
@@ -239,11 +249,26 @@ def test_help_instructions_and_expired_room_message_fit_their_panel() -> None:
 
     app._draw_help()
 
+    app._draw_panel.assert_called_once_with(menus.MENU_FRAME_PANEL)
+    assert menus.MENU_FRAME_PANEL == pygame.Rect(5, 60, 775, 475)
+    assert menus.MENU_FRAME_PANEL.width > menus.MENU_FRAME_PANEL.height
+    assert menus.MENU_FRAME_PANEL.contains(menus.HELP_BACK_BUTTON)
+    assert menus.MENU_FRAME_PANEL.contains(menus.SAVE_SETTINGS_BUTTON)
+    assert menus.MENU_FRAME_PANEL.contains(pygame.Rect(115, 70, 570, 45))
     instruction_calls = app._draw_text.call_args_list
     assert instruction_calls
-    assert all(app.font.size(call.args[0])[0] <= 520 for call in instruction_calls)
     assert all(
-        call.args[2] + app.font.get_linesize() // 2 < menus.HELP_BACK_BUTTON.top
+        call.kwargs["text_font"].size(call.args[0])[0] <= 680
+        for call in instruction_calls
+    )
+    assert all(
+        call.kwargs["text_font"].get_height() < app.font.get_height()
+        for call in instruction_calls
+    )
+    assert min(call.args[2] for call in instruction_calls) >= 145
+    assert all(
+        call.args[2] + call.kwargs["text_font"].get_linesize() // 2
+        < menus.HELP_BACK_BUTTON.top
         for call in instruction_calls
     )
     assert app.font.size("Room expired. No player joined.")[0] <= 520
@@ -369,7 +394,60 @@ def test_local_leaderboard_scroll_uses_visible_row_count() -> None:
     app.leaderboard_scroll = 0
     app._handle_leaderboard_event(pygame.event.Event(pygame.MOUSEWHEEL, {"y": -99}))
 
-    assert app.leaderboard_scroll == 5
+    assert app.leaderboard_scroll == 6
+
+
+def test_leaderboard_scroll_hint_does_not_overlap_visible_records() -> None:
+    from pathlib import Path
+
+    class Filter:
+        value = ""
+
+        def draw(self, surface, font) -> None:
+            return None
+
+    pygame.font.init()
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.layout = menus.MenuLayout(800, 600)
+    app.font = pygame.font.Font(
+        str(Path(menus.ASSETS_DIR) / "font" / "pixelfont.ttf"), 28
+    )
+    app.screen = pygame.Surface((800, 600))
+    app.leaderboard_filter = Filter()
+    app.leaderboard_rows = [
+        {
+            "run_id": f"run-{index}",
+            "username": f"player-{index}",
+            "final_wave": index,
+            "survival_time": index,
+            "enemies_defeated": index,
+        }
+        for index in range(10)
+    ]
+    app.leaderboard_scroll = 0
+    app.revealed_usernames = set()
+    app._draw_panel = Mock()
+    app._draw_text = Mock()
+    app._draw_button = Mock()
+
+    app._draw_leaderboard()
+
+    row_calls = [
+        call
+        for call in app._draw_text.call_args_list
+        if call.args[0].startswith("player-")
+    ]
+    hint_call = next(
+        call
+        for call in app._draw_text.call_args_list
+        if call.args[0] == "Scroll to see more runs"
+    )
+    hint_top = app.font.render(hint_call.args[0], True, (245, 245, 245)).get_rect(
+        center=(400, hint_call.args[2])
+    ).top
+
+    assert row_calls
+    assert max(call.args[2] + app.font.get_linesize() for call in row_calls) <= hint_top
 
 
 def test_game_over_saves_guest_run_locally_and_requests_username() -> None:

@@ -4,10 +4,15 @@ from typing import Any
 
 import pygame
 
-from .common import LEADERBOARD_BACK_BUTTON, MUTED_TEXT, censor_username
+from .common import (
+    LEADERBOARD_BACK_BUTTON,
+    MENU_FRAME_PANEL,
+    MUTED_TEXT,
+    censor_username,
+)
 from .context import MenuContext
 
-LEADERBOARD_VISIBLE_ROWS = 10
+LEADERBOARD_VISIBLE_ROWS = 9
 LEADERBOARD_COLUMNS = (145, 330, 435, 565)
 
 
@@ -63,8 +68,7 @@ class LeaderboardMenuMixin(MenuContext):
         ]
 
     def _draw_leaderboard(self) -> None:
-        self._draw_panel(pygame.Rect(125, 30, 550, 480))
-        self._draw_panel(pygame.Rect(125, 30, 550, 480))
+        self._draw_panel(MENU_FRAME_PANEL)
         self.leaderboard_filter.draw(self.screen, self.font)
         labels = ("Username", "Waves", "Time (s)", "Enemies")
         labels = ("Username", "Waves", "Time (s)", "Enemies")
@@ -98,5 +102,5 @@ class LeaderboardMenuMixin(MenuContext):
         if not rows:
             self._draw_text("No local runs match this filter.", 400, 245)
         elif len(rows) > LEADERBOARD_VISIBLE_ROWS:
-            self._draw_text("Scroll to see more runs", 400, 475, color=MUTED_TEXT)
+            self._draw_text("Scroll to see more runs", 400, 470, color=MUTED_TEXT)
         self._draw_button("Back", LEADERBOARD_BACK_BUTTON)

@@ -12,6 +12,7 @@ from .common import (
     EXIT_BUTTON,
     HELP_BUTTON,
     LEADERBOARD_BUTTON,
+    MENU_FRAME_PANEL,
     MULTIPLAYER_BACK_BUTTON,
     ONLINE_PLAYER_BUTTON,
     PLAY_BUTTON,
@@ -92,7 +93,7 @@ class MainMenuMixin(MenuContext):
                 self.state = "menu"
 
     def _draw_menu(self) -> None:
-        self._draw_panel(pygame.Rect(120, 65, 560, 460))
+        self._draw_panel(MENU_FRAME_PANEL)
         self._draw_title("Elemental Keep", 105)
         identity = (
             f"Signed in as {self.username}" if self.username else "Playing as Guest"

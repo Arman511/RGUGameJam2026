@@ -242,8 +242,9 @@ class MenuSystem(
         color: tuple[int, int, int] = TEXT,
         center: bool = True,
         x: int | None = None,
+        text_font: pygame.font.Font | None = None,
     ) -> None:
-        text = self.font.render(label, True, color)
+        text = (text_font or self.font).render(label, True, color)
         anchor = self.layout.point(
             (center_x if center else x if x is not None else center_x, y)
         )

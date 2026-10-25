@@ -67,6 +67,7 @@ class MenuContext(Protocol):
         color: tuple[int, int, int] = (245, 245, 245),
         center: bool = True,
         x: int | None = None,
+        text_font: pygame.font.Font | None = None,
     ) -> None: ...
 
     def _draw_title(self, label: str, y: int) -> None: ...

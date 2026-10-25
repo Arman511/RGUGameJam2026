@@ -4,7 +4,9 @@ import math
 
 import pygame
 
-from .common import HELP_BACK_BUTTON
+from elemental_game.config import FONT_PATH
+
+from .common import HELP_BACK_BUTTON, MENU_FRAME_PANEL
 from .context import MenuContext
 
 
@@ -20,8 +22,11 @@ class HelpMenuMixin(MenuContext):
             self.state = "menu"
 
     def _draw_help(self) -> None:
-        self._draw_panel(pygame.Rect(100, 45, 600, 510))
-        self._draw_title("Controls", 75)
+        self._draw_panel(MENU_FRAME_PANEL)
+        self._draw_title("Controls", 95)
+        help_font = pygame.font.Font(
+            FONT_PATH, max(1, round(24 * self.layout.scale))
+        )
         help_items = (
             "Move: WASD / arrow keys",
             "F: interact, plant, or build",
@@ -34,20 +39,27 @@ class HelpMenuMixin(MenuContext):
             "2-player: V attacks; Q/E selects crop; 1-4 sends",
             "ESC: cancel or go back",
         )
-        content_width = self.layout.rect(pygame.Rect(140, 0, 520, 1)).width
+        content_width = self.layout.rect(pygame.Rect(60, 0, 680, 1)).width
         help_lines = []
         for item in help_items:
             line = ""
             for word in item.split():
                 candidate = f"{line} {word}".strip()
-                if line and self.font.size(candidate)[0] > content_width:
+                if line and help_font.size(candidate)[0] > content_width:
                     help_lines.append(line)
                     line = word
                 else:
                     line = candidate
             if line:
                 help_lines.append(line)
-        line_spacing = max(30, math.ceil(self.font.get_linesize() / self.layout.scale))
+        line_spacing = max(
+            26, math.ceil(help_font.get_linesize() / self.layout.scale)
+        )
         for index, line in enumerate(help_lines):
-            self._draw_text(line, 400, 120 + index * line_spacing)
+            self._draw_text(
+                line,
+                400,
+                145 + index * line_spacing,
+                text_font=help_font,
+            )
         self._draw_button("Back", HELP_BACK_BUTTON)

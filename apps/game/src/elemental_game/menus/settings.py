@@ -9,10 +9,12 @@ from .common import (
     CLEAR_CONFIRM_BUTTON,
     CLEAR_LEADERBOARD_BUTTON,
     HINTS_TOGGLE_BUTTON,
+    MENU_FRAME_PANEL,
     MUSIC_SLIDER,
     MUTED_TEXT,
     PLAYER_NEXT_BUTTON,
     PLAYER_PREVIOUS_BUTTON,
+    PLAYER_SELECT_PANEL,
     SAVE_SETTINGS_BUTTON,
     SFX_SLIDER,
 )
@@ -80,10 +82,11 @@ class SettingsMenuMixin(MenuContext):
                 self.state = "settings"
 
     def _draw_settings(self) -> None:
-        self._draw_panel(pygame.Rect(115, 30, 570, 65))
+        self._draw_panel(MENU_FRAME_PANEL)
+        self._draw_panel(pygame.Rect(115, 70, 570, 45))
         self._draw_panel(pygame.Rect(115, 115, 570, 195))
-        self._draw_panel(pygame.Rect(115, 320, 570, 120))
-        self._draw_title("Settings", 65)
+        self._draw_panel(PLAYER_SELECT_PANEL)
+        self._draw_title("Settings", 95)
         self._draw_text("Audio", 145, 132, center=False)
         self._draw_text("Music volume", 150, 160, center=False)
         self._draw_slider(MUSIC_SLIDER, self.preferences["music_volume"])
@@ -97,13 +100,18 @@ class SettingsMenuMixin(MenuContext):
         self._draw_button("<", PLAYER_PREVIOUS_BUTTON)
         preview = self.player_previews[self.player_type]
         self.screen.blit(
-            preview, preview.get_rect(center=self.layout.point((389, 380)))
+            preview,
+            preview.get_rect(
+                center=self.layout.point((389, PLAYER_SELECT_PANEL.centery))
+            ),
         )
-        self._draw_text(self.player_type.name.title(), 555, 380)
+        self._draw_text(
+            self.player_type.name.title(), 555, PLAYER_SELECT_PANEL.centery
+        )
         self._draw_button(">", PLAYER_NEXT_BUTTON)
         self._draw_button("Clear local leaderboard", CLEAR_LEADERBOARD_BUTTON)
         if self.notice_message:
-            self._draw_text(self.notice_message, 400, 520, color=MUTED_TEXT)
+            self._draw_text(self.notice_message, 400, 465, color=MUTED_TEXT)
         self._draw_button("Save", SAVE_SETTINGS_BUTTON)
 
     def _draw_clear_confirmation(self) -> None:
