@@ -92,7 +92,7 @@ class GameSession:
         if not paused and not self.game_over:
             self.run_elapsed += seconds
         allow_movement_with_plant_selector = (
-            self.farm.planting
+            getattr(self.farm, "planting", False)
             and not self.planting_phase
             and not self.shop_open
             and not self.confirm_exit

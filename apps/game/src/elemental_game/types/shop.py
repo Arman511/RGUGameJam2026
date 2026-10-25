@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from elemental_game.types.crop import CropType
+from elemental_game.types.seed import SeedType
 
 
 @dataclass(frozen=True)
@@ -40,6 +41,13 @@ class PlantRadiusUpgrade:
 
 @dataclass(frozen=True)
 class SellAllCrops:
+    count: int
+
+
+@dataclass(frozen=True)
+class SellSeed:
+    seed_type: SeedType
+    tier: int
     count: int
 
 

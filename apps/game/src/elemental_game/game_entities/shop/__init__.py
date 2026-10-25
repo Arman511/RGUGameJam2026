@@ -5,6 +5,7 @@ from elemental_game.types.shop import (
     LandUpgrade,
     PlantRadiusUpgrade,
     SellAllCrops,
+    SellSeed,
     TurretSlotUpgrade,
 )
 
@@ -17,6 +18,7 @@ __all__ = [
     "LandUpgrade",
     "PlantRadiusUpgrade",
     "SellAllCrops",
+    "SellSeed",
     "ShopMenu",
     "TurretSlotUpgrade",
 ]

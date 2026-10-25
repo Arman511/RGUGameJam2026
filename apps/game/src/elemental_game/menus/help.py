@@ -33,6 +33,7 @@ class HelpMenuMixin(MenuContext):
             "Shop: M; tabs: TAB / SHIFT+TAB",
             "Shop selection: W/S, UP/DOWN, or mouse wheel",
             "Buy seeds: Q/E tier; A/D or LEFT/RIGHT quantity (1/10/100)",
+            "Sell items: U or click to filter crops, seeds, or all",
             "Turret menu: W/S, arrows, or wheel select; SPACE/ENTER confirm",
             "Turret range display: O",
             "House turret: F at house; A/D aim; SPACE fire; red laser shows aim",

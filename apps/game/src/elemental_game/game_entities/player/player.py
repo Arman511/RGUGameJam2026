@@ -22,6 +22,7 @@ class Player:
         self.pos = pygame.Vector2(pos)  # centre of the player
         self.unlocked_seed_tiers = {seed_type: 1 for seed_type in SeedType}
         self.seeds = {seed_type: {"tier1": 0} for seed_type in SeedType}
+        self.seed_sale_coin_thirds = 0
         self.coins = 5
         self.crops = {}
         self.unlocked_quadrants = set(self.STARTING_UNLOCKED_QUADRANTS)
@@ -124,6 +125,36 @@ class Player:
                 self.crops[crop_type] = 0
         return sold_count
 
+    def sell_seed(self, seed_type: SeedType, tier: int, amount: int = 1) -> int:
+        tier_key = f"tier{tier}"
+        if (
+            seed_type not in self.seeds
+            or not isinstance(tier, int)
+            or isinstance(tier, bool)
+            or tier < 1
+            or not isinstance(amount, int)
+            or isinstance(amount, bool)
+            or amount < 1
+            or self.seeds[seed_type].get(tier_key, 0) < amount
+        ):
+            return 0
+
+        total_thirds = getattr(
+            self, "seed_sale_coin_thirds", 0
+        ) + amount * self.seed_tier_cost(tier)
+        proceeds, self.seed_sale_coin_thirds = divmod(total_thirds, 3)
+        self.seeds[seed_type][tier_key] -= amount
+        self.coins += proceeds
+        return proceeds
+
+    def seed_sale_proceeds(self, tier: int, amount: int = 1) -> int:
+        if not isinstance(amount, int) or isinstance(amount, bool) or amount < 1:
+            return 0
+        total_thirds = getattr(
+            self, "seed_sale_coin_thirds", 0
+        ) + amount * self.seed_tier_cost(tier)
+        return total_thirds // 3
+
     def cycle_plant_radius(self) -> int:
         self.plant_radius_active = (
             self.plant_radius_active % max(1, self.plant_radius) + 1
@@ -170,6 +201,7 @@ class Player:
     def reset(self):
         self.unlocked_seed_tiers = {seed_type: 1 for seed_type in SeedType}
         self.seeds = {seed_type: {"tier1": 0} for seed_type in SeedType}
+        self.seed_sale_coin_thirds = 0
         self.coins = 5
         self.crops = {}
         self.unlocked_quadrants = set(self.STARTING_UNLOCKED_QUADRANTS)

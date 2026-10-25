@@ -10,6 +10,7 @@ from elemental_game.types.shop import (
     LandUpgrade,
     PlantRadiusUpgrade,
     SellAllCrops,
+    SellSeed,
     TurretSlotUpgrade,
 )
 from elemental_game.ui_assets import get_coin_icon
@@ -81,10 +82,22 @@ class ShopRenderer:
             ShopRenderer._draw_fitted(
                 surface,
                 font,
-                f"A/D or LEFT/RIGHT: change sell quantity",
+                f"A/D or LEFT/RIGHT: quantity ({menu.sell_quantity})",
                 (220, 220, 220),
                 (panel.x + 20, panel.y + 123),
                 panel.width - 40,
+            )
+            filter_rect = ShopRenderer._sell_filter_rect(panel)
+            filter_label = f"Filter: {menu.sell_filter.title()} (U / click)"
+            pygame.draw.rect(surface, (67, 86, 69), filter_rect, border_radius=4)
+            pygame.draw.rect(surface, (225, 225, 225), filter_rect, 1, border_radius=4)
+            ShopRenderer._draw_fitted(
+                surface,
+                font,
+                filter_label,
+                (255, 230, 120),
+                (filter_rect.x + 8, filter_rect.y + 3),
+                filter_rect.width - 16,
             )
 
         options = menu._visible_options(player, house)
@@ -92,7 +105,7 @@ class ShopRenderer:
             messages = {
                 "buy": "No seeds available",
                 "upgrade": "All land unlocked; buy fertilizer below",
-                "sell": "No crops to sell",
+                "sell": "No items available with this filter",
             }
             ShopRenderer._draw_fitted(
                 surface,
@@ -105,7 +118,7 @@ class ShopRenderer:
                     + (
                         190
                         if menu.mode == "buy" and not menu.selecting_quadrant
-                        else 160
+                        else 190
                         if menu.mode == "sell" and not menu.selecting_quadrant
                         else 125
                     ),
@@ -165,6 +178,14 @@ class ShopRenderer:
                 label = (
                     f"{crop_type.name.title()} Crop    {menu.sell_quantity}x    "
                     f"{menu.sell_quantity * 3} coins    ({inventory_count})"
+                )
+            elif isinstance(option, SellSeed):
+                proceeds = player.seed_sale_proceeds(
+                    option.tier, menu.sell_quantity
+                )
+                label = (
+                    f"{option.seed_type.name.title()} T{option.tier} Seed    "
+                    f"{menu.sell_quantity}x    {proceeds} coins    ({option.count})"
                 )
             elif isinstance(option, SellAllCrops):
                 label = (
@@ -233,11 +254,15 @@ class ShopRenderer:
         return panel
 
     @staticmethod
+    def _sell_filter_rect(panel):
+        return pygame.Rect(panel.x + 16, panel.y + 143, panel.width - 32, 26)
+
+    @staticmethod
     def _list_y(menu, panel):
         if menu.mode == "buy" and not menu.selecting_quadrant:
             return panel.y + 175
         if menu.mode == "sell" and not menu.selecting_quadrant:
-            return panel.y + 160
+            return panel.y + 175
         return panel.y + 130
 
     @staticmethod

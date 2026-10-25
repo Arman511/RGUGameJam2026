@@ -11,6 +11,7 @@ from elemental_game.types.shop import (
     LandUpgrade,
     PlantRadiusUpgrade,
     SellAllCrops,
+    SellSeed,
     TurretSlotUpgrade,
     UpgradeOption,
 )
@@ -29,6 +30,7 @@ class ShopMenu:
     MODES = ("buy", "upgrade", "sell")
     SELL_QUANTITIES = (1, 10, 100)
     BUY_QUANTITIES = (1, 10, 100)
+    SELL_FILTERS = ("crops", "seeds", "all")
     CROP_TYPES = (
         CropType.FIRE,
         CropType.WATER,
@@ -44,6 +46,7 @@ class ShopMenu:
         self.tier = 1
         self.buy_quantity = 1
         self.sell_quantity = 1
+        self.sell_filter = "crops"
         self.selecting_quadrant = False
         self.pending_fertilizer = None
         self._status_message = ""
@@ -104,6 +107,8 @@ class ShopMenu:
             self._move_selection(-1, player, house)
         elif event.key in (pygame.K_DOWN, pygame.K_s):
             self._move_selection(1, player, house)
+        elif self.mode == "sell" and event.key == pygame.K_u:
+            self._cycle_sell_filter(player)
         elif self.mode == "buy" and event.key == pygame.K_q:
             self.tier = max(1, self.tier - 1)
             self._clamp_selection(player)
@@ -138,6 +143,13 @@ class ShopMenu:
 
     def _handle_mouse_click(self, position, player, farm, house, surface) -> None:
         panel = ShopRenderer._panel_rect(surface)
+        if (
+            self.mode == "sell"
+            and not self.selecting_quadrant
+            and ShopRenderer._sell_filter_rect(panel).collidepoint(position)
+        ):
+            self._cycle_sell_filter(player)
+            return
         options = self._visible_options(player, house)
         list_y = ShopRenderer._list_y(self, panel)
         scroll_offset = (
@@ -169,7 +181,11 @@ class ShopMenu:
         if not options:
             self.selected = 0
             if self.mode == "sell":
-                self.status_message = "No crops to sell."
+                self.status_message = (
+                    "No crops to sell."
+                    if self.sell_filter == "crops"
+                    else "No items to sell."
+                )
             return
         self.selected = min(max(self.selected, 0), len(options) - 1)
 
@@ -178,17 +194,33 @@ class ShopMenu:
             seed_type = SeedType[crop_type.name]
             if not player.buy_seed(seed_type, self.tier, self.buy_quantity):
                 self.status_message = (
-                    f"Need {player.seed_tier_cost(self.tier) * self.buy_quantity} "
+                    f"Need "
+                    f"{player.seed_tier_cost(self.tier) * self.buy_quantity} "
                     "coins for that purchase."
                 )
         elif self.mode == "sell":
-            crop_type = options[self.selected]
-            if isinstance(crop_type, SellAllCrops):
+            option = options[self.selected]
+            if isinstance(option, SellSeed):
+                if option.count < self.sell_quantity:
+                    self.status_message = (
+                        f"Not enough {option.seed_type.name.title()} T{option.tier} "
+                        f"seeds ({option.count} available)."
+                    )
+                else:
+                    proceeds = player.sell_seed(
+                        option.seed_type, option.tier, self.sell_quantity
+                    )
+                    self.status_message = (
+                        f"Sold {self.sell_quantity} {option.seed_type.name.title()} "
+                        f"T{option.tier} seed(s) for {proceeds} coins."
+                    )
+            elif isinstance(option, SellAllCrops):
                 sold_count = player.sell_all_crops()
                 self.status_message = (
                     f"Sold {sold_count} crops for {sold_count * 3} coins."
                 )
             else:
+                crop_type = option
                 available = player.crops.get(crop_type, 0)
                 if available < self.sell_quantity:
                     self.status_message = (
@@ -203,7 +235,7 @@ class ShopMenu:
                     )
             self.selected = min(
                 self.selected,
-                max(0, len(self._crop_options(player)) - 1),
+                max(0, len(self._sell_options(player)) - 1),
             )
         elif self.mode == "upgrade":
             option = options[self.selected]
@@ -344,11 +376,48 @@ class ShopMenu:
             crops.append(SellAllCrops(sum(player.crops.values())))
         return crops
 
+    def _seed_options(self, player) -> list[SellSeed]:
+        options = []
+        for crop_type in self.CROP_TYPES:
+            seed_type = SeedType[crop_type.name]
+            for tier_key, count in sorted(
+                player.seeds.get(seed_type, {}).items(),
+                key=lambda item: int(item[0].removeprefix("tier")),
+            ):
+                if count > 0:
+                    options.append(
+                        SellSeed(seed_type, int(tier_key.removeprefix("tier")), count)
+                    )
+        return options
+
+    def _sell_options(self, player):
+        crop_options = self._crop_options(player)
+        seed_options = self._seed_options(player)
+        if self.sell_filter == "crops":
+            return crop_options
+        if self.sell_filter == "seeds":
+            return seed_options
+        return [*crop_options, *seed_options]
+
+    def _cycle_sell_filter(self, player) -> None:
+        index = self.SELL_FILTERS.index(self.sell_filter)
+        self.sell_filter = self.SELL_FILTERS[(index + 1) % len(self.SELL_FILTERS)]
+        self.selected = 0
+        self.scroll_offset = 0
+        if self.sell_filter == "crops":
+            self.status_message = "Sell filter: crops."
+        elif self.sell_filter == "seeds":
+            self.status_message = "Sell filter: seeds."
+        else:
+            self.status_message = "Sell filter: all."
+
     def _visible_options(self, player, house=None):
         if self.selecting_quadrant:
             return self._unlocked_quadrants(player)
         if self.mode == "upgrade":
             return self._upgrade_options(player, house)
+        if self.mode == "sell":
+            return self._sell_options(player)
         return self._crop_options(player)
 
     def _upgrade_options(self, player, house=None) -> list[UpgradeOption]:
@@ -405,9 +474,11 @@ class ShopMenu:
 
     def _options(
         self, player, house=None
-    ) -> Sequence[CropType | UpgradeOption | SellAllCrops]:
+    ) -> Sequence[CropType | UpgradeOption | SellAllCrops | SellSeed]:
         if self.mode == "upgrade":
             return self._upgrade_options(player, house)
+        if self.mode == "sell":
+            return self._sell_options(player)
         return self._crop_options(player)
 
     def _unlocked_quadrants(self, player):

@@ -1201,6 +1201,69 @@ def test_shop_rejects_selected_quantity_larger_than_inventory() -> None:
     assert shop.status_message == "Not enough Water crops (4 available)."
 
 
+def test_sell_filter_cycles_crops_seeds_all_by_key_and_click() -> None:
+    player = make_player()
+    player.add_crop(CropType.FIRE, 1)
+    player.add_seed(SeedType.WATER, "tier1", 2)
+    shop = ShopMenu()
+    shop.mode = "sell"
+
+    assert shop.sell_filter == "crops"
+    shop.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_u}),
+        player,
+        make_farm(),
+    )
+    assert shop.sell_filter == "seeds"
+    assert [(item.seed_type, item.tier) for item in shop._visible_options(player)] == [
+        (SeedType.WATER, 1)
+    ]
+
+    surface = pygame.Surface((800, 600))
+    filter_rect = ShopRenderer._sell_filter_rect(ShopRenderer._panel_rect(surface))
+    shop.handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": filter_rect.center}
+        ),
+        player,
+        make_farm(),
+        surface=surface,
+    )
+    assert shop.sell_filter == "all"
+    options = shop._visible_options(player)
+    assert CropType.FIRE in options
+    assert any(getattr(item, "seed_type", None) is SeedType.WATER for item in options)
+
+
+def test_selling_three_tier_one_seeds_pays_one_coin_across_sales() -> None:
+    player = make_player()
+    player.coins = 0
+    player.add_seed(SeedType.FIRE, "tier1", 3)
+
+    assert player.sell_seed(SeedType.FIRE, 1) == 0
+    assert player.sell_seed(SeedType.FIRE, 1) == 0
+    assert player.sell_seed(SeedType.FIRE, 1) == 1
+    assert player.coins == 1
+    assert player.seeds[SeedType.FIRE]["tier1"] == 0
+
+
+def test_selling_seed_quantity_uses_tier_buy_price_for_payout() -> None:
+    player = make_player()
+    player.coins = 0
+    player.add_seed(SeedType.FIRE, "tier3", 10)
+    shop = ShopMenu()
+    shop.mode = "sell"
+    shop.sell_filter = "seeds"
+    shop.sell_quantity = 10
+    shop.selected = 0
+
+    shop._activate_selection(player, make_farm())
+
+    assert player.coins == 13
+    assert player.seeds[SeedType.FIRE]["tier3"] == 0
+    assert "for 13 coins" in shop.status_message
+
+
 def test_lightning_planting_option_fits_inside_the_screen() -> None:
     player = make_player()
     player.add_seed(SeedType.LIGHTNING, "tier3", 2)
