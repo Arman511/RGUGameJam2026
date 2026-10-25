@@ -169,7 +169,6 @@ def main(argv: Sequence[str] | None = None) -> None:
             202, quick_action_y, quick_action_size, quick_action_size
         ),
     }
-    emoji_font = pygame.font.SysFont("Noto Color Emoji", 38)
     quick_action_icons = {
         "store": pygame.transform.smoothscale(
             pygame.image.load(
@@ -179,14 +178,24 @@ def main(argv: Sequence[str] | None = None) -> None:
             ).convert_alpha(),
             (42, 42),
         ),
-        "hud": emoji_font.render("📦", True, (255, 255, 255)),
+        "hud": pygame.transform.smoothscale(
+            pygame.image.load(
+                os.path.join(config.IMAGES_DIR, "settings-and-gameplay", "hud.png")
+            ).convert_alpha(),
+            (42, 42),
+        ),
         "turret": pygame.transform.smoothscale(
             pygame.image.load(
                 os.path.join(config.IMAGES_DIR, "turrets", "standard-turret.png")
             ).convert_alpha(),
             (42, 42),
         ),
-        "attack": emoji_font.render("⚔️", True, (255, 255, 255)),
+        "attack": pygame.transform.smoothscale(
+            pygame.image.load(
+                os.path.join(config.IMAGES_DIR, "settings-and-gameplay", "attack.png")
+            ).convert_alpha(),
+            (42, 42),
+        ),
     }
     farm, player = _create_game(screen, menus.store.player_image_number())
     shop = ShopMenu()
@@ -330,7 +339,11 @@ def main(argv: Sequence[str] | None = None) -> None:
             if event.type == pygame.QUIT:
                 running = False
                 break
-            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            elif (
+                game_over_dialog is None
+                and event.type == pygame.MOUSEBUTTONDOWN
+                and event.button == 1
+            ):
                 clicked_action = next(
                     (
                         action
@@ -688,7 +701,9 @@ def main(argv: Sequence[str] | None = None) -> None:
                         if enemy.attack_cooldown <= 0:
                             turrets.damage_slot(boss_slot, enemy.damage * 2)
                             enemy.attack_cooldown = 1.0
-                        continue
+                    else:
+                        enemy.move_towards(destination, seconds)
+                    continue
                 if enemy.pos.distance_to(destination) > 55:
                     enemy.move_towards(destination, seconds)
                 elif enemy.attack_cooldown <= 0:

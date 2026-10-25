@@ -291,7 +291,7 @@ def test_guest_can_finish_game_over_without_entering_a_username() -> None:
 
     dialog.handle_event(
         pygame.event.Event(
-            pygame.MOUSEBUTTONDOWN,
+            pygame.MOUSEBUTTONUP,
             {"button": 1, "pos": dialog._button_rect(1).center},
         )
     )
@@ -335,11 +335,14 @@ def test_successful_publish_completes_game_over_dialog_immediately() -> None:
     assert dialog.done
 
 
-def test_multiplayer_game_over_requires_local_menu_button_click() -> None:
+def test_multiplayer_game_over_keeps_mouse_dismissal_immediate(
+    monkeypatch,
+) -> None:
     from elemental_game.screen_rendering.multiplayer_game_over import (
         MultiplayerGameOverDialog,
     )
 
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 1000)
     pygame.font.init()
     dialog = MultiplayerGameOverDialog(
         pygame.Surface((800, 600)),
@@ -353,11 +356,36 @@ def test_multiplayer_game_over_requires_local_menu_button_click() -> None:
 
     dialog.handle_event(
         pygame.event.Event(
-            pygame.MOUSEBUTTONDOWN,
+            pygame.MOUSEBUTTONUP,
             {"button": 1, "pos": dialog._menu_button_rect().center},
         )
     )
 
+    assert dialog.done
+
+
+def test_multiplayer_game_over_keyboard_dismissal_waits_half_second(
+    monkeypatch,
+) -> None:
+    from elemental_game.screen_rendering.multiplayer_game_over import (
+        MultiplayerGameOverDialog,
+    )
+
+    ticks = 1000
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: ticks)
+    pygame.font.init()
+    dialog = MultiplayerGameOverDialog(
+        pygame.Surface((800, 600)),
+        pygame.font.Font(None, 22),
+        "victory",
+    )
+
+    ticks = 1499
+    dialog.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_RETURN}))
+    assert not dialog.done
+
+    ticks = 1500
+    dialog.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_RETURN}))
     assert dialog.done
 
 

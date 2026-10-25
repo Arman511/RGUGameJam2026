@@ -98,7 +98,7 @@ class GameOverDialog:
                     pygame.K_RETURN,
                 )
                 or (
-                    event.type == pygame.MOUSEBUTTONDOWN
+                    event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP)
                     and event.button == 1
                     and self._button_rect(1).collidepoint(event.pos)
                 )
@@ -113,14 +113,14 @@ class GameOverDialog:
                 event.type == pygame.KEYDOWN
                 and event.key == pygame.K_RETURN
                 or (
-                    event.type == pygame.MOUSEBUTTONDOWN
+                    event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP)
                     and event.button == 1
                     and self._button_rect(0).collidepoint(event.pos)
                 )
             ):
                 self._save_guest_username()
             elif (
-                event.type == pygame.MOUSEBUTTONDOWN
+                event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP)
                 and event.button == 1
                 and self._button_rect(1).collidepoint(event.pos)
             ):
@@ -134,7 +134,10 @@ class GameOverDialog:
                 self._finish()
             elif event.key in (pygame.K_RETURN, pygame.K_y):
                 self._publish_or_sign_in()
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+        elif (
+            event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP)
+            and event.button == 1
+        ):
             if self._button_rect(0).collidepoint(event.pos):
                 self._publish_or_sign_in()
             elif self._button_rect(1).collidepoint(event.pos):
@@ -181,7 +184,10 @@ class GameOverDialog:
             elif event.key == pygame.K_ESCAPE:
                 self.state = "publish"
                 self.status_message = ""
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+        elif (
+            event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP)
+            and event.button == 1
+        ):
             if self._button_rect(0).collidepoint(event.pos):
                 self._login_and_publish()
             elif self._button_rect(1).collidepoint(event.pos):

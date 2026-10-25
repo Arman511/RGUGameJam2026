@@ -16,6 +16,7 @@ class MultiplayerGameOverDialog:
         self.font = font
         self.result = result
         self.done = False
+        self.keyboard_dismissal_at = pygame.time.get_ticks() + 500
         if result == "defeat":
             play_sfx("explosion")
 
@@ -32,7 +33,11 @@ class MultiplayerGameOverDialog:
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if (
-            event.type == pygame.MOUSEBUTTONDOWN
+            event.type == pygame.KEYDOWN
+            and event.key in (pygame.K_RETURN, pygame.K_ESCAPE)
+            and pygame.time.get_ticks() >= self.keyboard_dismissal_at
+        ) or (
+            event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP)
             and event.button == 1
             and self._menu_button_rect().collidepoint(event.pos)
         ):
