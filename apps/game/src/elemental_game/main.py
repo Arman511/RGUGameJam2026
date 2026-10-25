@@ -91,6 +91,21 @@ def _draw_quick_action_button(
     border = (225, 230, 215) if enabled and hovered else (145, 150, 145)
     pygame.draw.rect(surface, background, rect, border_radius=9)
     pygame.draw.rect(surface, border, rect, 2, border_radius=9)
+    max_icon_width = rect.width - 14
+    max_icon_height = rect.height - 14
+    scale = min(
+        max_icon_width / icon.get_width(),
+        max_icon_height / icon.get_height(),
+        1.0,
+    )
+    if scale < 1:
+        icon = pygame.transform.smoothscale(
+            icon,
+            (
+                max(1, round(icon.get_width() * scale)),
+                max(1, round(icon.get_height() * scale)),
+            ),
+        )
     icon_rect = icon.get_rect(center=rect.center)
     surface.blit(icon, icon_rect)
     if not enabled:
