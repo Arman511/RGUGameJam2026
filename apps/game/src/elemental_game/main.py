@@ -757,6 +757,12 @@ def main(argv: Sequence[str] | None = None) -> None:
             phase_icons["planting" if planting_phase else "enemy"],
             phase_icon_position,
         )
+        if planting_phase:
+            instruction_label = font.render("Buy plants in the shop!", True, (0, 0, 0))
+            screen.blit(
+                instruction_label,
+                instruction_label.get_rect(midtop=(screen.get_width() // 2, 10)),
+            )
         timer = font.render(
             f"{phase_label}  {max(0, phase_remaining):.0f}s",
             True,
