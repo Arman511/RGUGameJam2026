@@ -289,8 +289,14 @@ class MenuSystem:
                     if self.state == "settings":
                         self._save_sound_preferences()
                     self.running = False
+                    break
                 else:
                     self._handle_event(event)
+
+                if not self.running:
+                    break
+            if not self.running:
+                break
 
             self._draw()
             pygame.display.flip()

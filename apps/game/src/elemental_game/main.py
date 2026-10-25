@@ -1,7 +1,6 @@
 import argparse
 import math
 import os
-import random
 from collections.abc import Sequence
 from uuid import uuid4
 
@@ -9,7 +8,11 @@ import pygame
 
 from elemental_game import config
 from elemental_game.audio import play_background_music
-from elemental_game.game_entities.enemies.enemies import EnemyState, load_enemy_images
+from elemental_game.game_entities.enemies.enemies import (
+    EnemyState,
+    load_enemy_images,
+    roll_enemy_seed_drop,
+)
 from elemental_game.game_entities.enemies.waves import Waves, build_wave_sequence
 from elemental_game.game_entities.farm import Farm
 from elemental_game.game_entities.house import House
@@ -21,7 +24,6 @@ from elemental_game.screen_rendering.exit_confirmation import draw_exit_confirma
 from elemental_game.screen_rendering.game_over import GameOverDialog
 from elemental_game.screen_rendering.hud import draw_inventory_hud
 from elemental_game.types.player import PlayerType
-from elemental_game.types.seed import SeedType
 
 # Initialise pygame attributes and use a larger audio buffer to reduce
 # underruns on slower audio backends such as WSL.
@@ -50,6 +52,10 @@ def _create_game(screen, player_type):
         ),
     )
     player = Player(player_type=PlayerType(player_type))
+    player.pos = pygame.Vector2(
+        farm.origin[0] + farm.cols * config.TILE_SIZE / 2,
+        farm.origin[1] - player.height / 2,
+    )
     return farm, player
 
 
@@ -70,6 +76,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     else:
         running = menus.run()
 
+    if not running:
+        pygame.quit()
+        return
+
     farm, player = _create_game(screen, menus.store.player_image_number())
     shop = ShopMenu()
     house = House(screen)
@@ -86,6 +96,20 @@ def main(argv: Sequence[str] | None = None) -> None:
         ),
         "enemy": pygame.transform.smoothscale(enemy_images["swarmer"], (48, 48)),
     }
+    enemy_marker_background = pygame.Surface((60, 60), pygame.SRCALPHA)
+    pygame.draw.rect(
+        enemy_marker_background,
+        (24, 32, 46, 185),
+        enemy_marker_background.get_rect(),
+        border_radius=9,
+    )
+    pygame.draw.rect(
+        enemy_marker_background,
+        (145, 165, 190, 190),
+        enemy_marker_background.get_rect(),
+        1,
+        border_radius=9,
+    )
     waves = Waves(house)
     farm.weather_crop_type = waves.crop_type
     shop_open = False
@@ -122,6 +146,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+                break
             elif confirm_exit and event.type == pygame.KEYDOWN:
                 if event.key in (pygame.K_y, pygame.K_RETURN):
                     confirm_exit = False
@@ -201,6 +226,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                     and not shop.selecting_quadrant
                 ):
                     shop_open = False
+                    shop.clear_status()
                 else:
                     shop.handle_event(event, player, farm, house)
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
@@ -219,8 +245,12 @@ def main(argv: Sequence[str] | None = None) -> None:
                 confirm_exit = True
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_m:
                 shop_open = True
+                shop.clear_status()
             elif event.type == pygame.KEYDOWN:
                 farm.handle_event(event, player)
+
+        if not running:
+            break
 
         game_paused = (
             shop_open
@@ -235,6 +265,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         if not game_paused and not controlling_house_turret:
             player.update(seconds)
         farm.update(seconds)
+        shop.update(seconds)
 
         if not game_paused:
             phase_remaining -= seconds
@@ -271,7 +302,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                     spawn_x = -30 if wave_spawned % 2 == 0 else screen.get_width() + 30
                     enemies.append(EnemyState.create(key, (spawn_x, spawn_y)))
                     wave_spawned += 1
-                if phase_remaining <= 0:
+                if phase_remaining <= 0 and not enemies:
                     planting_phase = True
                     phase_remaining = config.PLANTING_PHASE_DURATION
                     play_background_music(
@@ -302,7 +333,11 @@ def main(argv: Sequence[str] | None = None) -> None:
                 enemy.update_status_effects(seconds)
                 enemy.attack_cooldown = max(0.0, enemy.attack_cooldown - seconds)
                 destination = pygame.Vector2(house.return_rect().center)
-                boss_slot = turrets.nearest_turret(enemy.pos) if enemy.is_boss else None
+                boss_slot = (
+                    turrets.boss_target(enemy.pos, destination)
+                    if enemy.is_boss
+                    else None
+                )
                 if boss_slot is not None:
                     destination = pygame.Vector2(boss_slot.center)
                     if enemy.pos.distance_to(destination) <= 44:
@@ -323,8 +358,9 @@ def main(argv: Sequence[str] | None = None) -> None:
                     enemies_defeated += 1
                     seed_amount = math.ceil(config.ENEMY_SEED_DROP_MULTIPLIER)
                     if seed_amount > 0:
+                        seed_type, seed_tier = roll_enemy_seed_drop(enemy)
                         player.add_seed(
-                            random.choice(tuple(SeedType)), "tier1", seed_amount
+                            seed_type, seed_tier, seed_amount
                         )
                 else:
                     survivors.append(enemy)
@@ -335,18 +371,21 @@ def main(argv: Sequence[str] | None = None) -> None:
         house.draw(screen)
         waves.draw_weather(screen)
         farm.draw(screen, font, tile, player)
+        turrets.draw(screen, font, player)
         for enemy in enemies:
             enemy.draw(screen, enemy_images)
-        turrets.draw(screen, font, player)
         house.turret.draw_projectiles(screen)
         if not controlling_house_turret:
             player.draw(screen)
         farm.draw_menu(screen, font)
         turrets.draw_modal(screen, font, player)
         phase_label = "PLANTING" if planting_phase else f"WAVE {wave_number}"
+        phase_icon_position = (20, 12)
+        if not planting_phase:
+            screen.blit(enemy_marker_background, (14, 6))
         screen.blit(
             phase_icons["planting" if planting_phase else "enemy"],
-            (20, 12),
+            phase_icon_position,
         )
         timer = font.render(
             f"{phase_label}  {max(0, phase_remaining):.0f}s",

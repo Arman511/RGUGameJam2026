@@ -36,6 +36,7 @@ UpgradeOption = LandUpgrade | FertilizerUpgrade | TurretSlotUpgrade | HouseUpgra
 class ShopMenu:
     ITEM_H = 30
     FERTILIZER_COST = 10
+    STATUS_DURATION = 5.0
     CONFIRM_KEYS = (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE, pygame.K_f)
     MODES = ("buy", "upgrade", "sell")
     FERTILIZER_TYPES = (
@@ -60,7 +61,27 @@ class ShopMenu:
         self.tier = 1
         self.selecting_quadrant = False
         self.pending_fertilizer = None
+        self._status_message = ""
+        self.status_timer = 0.0
+
+    @property
+    def status_message(self) -> str:
+        return self._status_message
+
+    @status_message.setter
+    def status_message(self, message: str) -> None:
+        self._status_message = message
+        self.status_timer = self.STATUS_DURATION if message else 0.0
+
+    def clear_status(self) -> None:
         self.status_message = ""
+
+    def update(self, dt: float) -> None:
+        if not self._status_message:
+            return
+        self.status_timer = max(0.0, self.status_timer - dt)
+        if self.status_timer == 0:
+            self._status_message = ""
 
     def handle_event(self, event, player, farm, house=None):
         if event.type != pygame.KEYDOWN:
@@ -306,15 +327,18 @@ class ShopMenu:
             )
 
         if self.mode == "upgrade" and not self.selecting_quadrant:
-            notice = "Fertilizer lasts 60s; replaces the quadrant's current fertilizer"
-            self._draw_fitted(
-                surface,
-                font,
-                notice,
-                (220, 220, 220),
-                (panel.x + 20, panel.bottom - 52),
-                panel.width - 40,
-            )
+            for line, y_offset in (
+                ("Matching crops: double yield for 60s.", 75),
+                ("Replaces current fertilizer in that quadrant.", 51),
+            ):
+                self._draw_fitted(
+                    surface,
+                    font,
+                    line,
+                    (220, 220, 220),
+                    (panel.x + 20, panel.bottom - y_offset),
+                    panel.width - 40,
+                )
         if self.status_message:
             self._draw_fitted(
                 surface,

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from unittest.mock import Mock
+
 import pygame
 from elemental_game import menus
 from elemental_game.api_client.http import APIError
@@ -275,3 +277,36 @@ def test_exit_button_closes_menu_without_starting_game() -> None:
 
     assert not app.start_game
     assert not app.running
+
+
+def test_menu_quit_does_not_draw_a_final_frame(monkeypatch) -> None:
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.clock = Mock()
+    app.preferences = {"music_volume": 0.5}
+    app.state = "menu"
+    app.layout = menus.MenuLayout(800, 600)
+    app.start_game = False
+    app._draw = Mock()
+    flip = Mock()
+
+    monkeypatch.setattr(menus, "play_background_music", Mock())
+    monkeypatch.setattr(pygame.display, "flip", flip)
+
+    events = (
+        pygame.event.Event(pygame.QUIT),
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            {
+                "button": 1,
+                "pos": app.layout.rect(menus.EXIT_BUTTON).center,
+            },
+        ),
+    )
+    for event in events:
+        app._handle_event = Mock(wraps=app._handle_event)
+        monkeypatch.setattr(pygame.event, "get", lambda event=event: [event])
+
+        assert not app.run()
+        app._draw.assert_not_called()
+
+    flip.assert_not_called()

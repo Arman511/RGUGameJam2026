@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import math
 import os
+import random
 from dataclasses import dataclass, field
 
 import pygame
 from elemental_game.config import IMAGES_DIR
 from elemental_game.game_entities.crops.crops import CropType
+from elemental_game.types.seed import SeedType
+
+REGULAR_SEED_TIER_WEIGHTS = (50, 45, 15)
+ELITE_SEED_TIER_WEIGHTS = (30, 40, 30)
+SEED_TIERS = ("tier1", "tier2", "tier3")
 
 
 @dataclass(frozen=True)
@@ -254,6 +260,20 @@ class EnemyState:
                 bar.height,
             ),
         )
+
+
+def roll_enemy_seed_drop(enemy: EnemyState) -> tuple[SeedType, str]:
+    element = enemy.definition.element
+    if element is None:
+        return random.choice(tuple(SeedType)), "tier1"
+
+    weights = (
+        ELITE_SEED_TIER_WEIGHTS
+        if enemy.definition.is_elite
+        else REGULAR_SEED_TIER_WEIGHTS
+    )
+    tier = random.choices(SEED_TIERS, weights=weights, k=1)[0]
+    return SeedType[element.name], tier
 
 
 def load_enemy_images() -> dict[str, pygame.Surface]:

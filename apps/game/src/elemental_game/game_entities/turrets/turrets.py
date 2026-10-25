@@ -213,6 +213,8 @@ class TurretSystem:
     CLOSE_RANGE = 74
     RANGE = ELEMENTAL_TURRET_RANGE
     UPGRADE_BASE_COST = 5
+    STARTING_SLOT_COUNT = 3
+    UNLOCKED_SLOT_Y_OFFSETS = (-36, 36)
 
     def __init__(self, farm):
         self.farm = farm
@@ -255,12 +257,7 @@ class TurretSystem:
         x_right = self.farm.origin[0] + self.farm.cols * TILE_SIZE + TILE_SIZE // 2 + 40
         y_top = self.farm.origin[1] - 105
         y_bottom = self.farm.origin[1] + self.farm.rows * TILE_SIZE
-
-        def positions(count):
-            return [
-                round(y_top + (y_bottom - y_top) * (index + 0.5) / count)
-                for index in range(count)
-            ]
+        house_level = self.farm.origin[1] - 125
 
         existing = {(slot.side, slot.index): slot for slot in self.slots}
         refreshed = []
@@ -268,7 +265,19 @@ class TurretSystem:
             ("left", x_left, left_count),
             ("right", x_right, right_count),
         ):
-            for index, y in enumerate(positions(count)):
+            for index in range(count):
+                if index < self.STARTING_SLOT_COUNT:
+                    y = round(
+                        y_top
+                        + (y_bottom - y_top)
+                        * (index + 0.5)
+                        / self.STARTING_SLOT_COUNT
+                    )
+                else:
+                    offset = self.UNLOCKED_SLOT_Y_OFFSETS[
+                        index - self.STARTING_SLOT_COUNT
+                    ]
+                    y = round(house_level + offset)
                 slot = existing.get((side, index))
                 if slot is None:
                     slot = TurretSlot(side, index, (x, y))
@@ -425,6 +434,15 @@ class TurretSystem:
             active, key=lambda slot: pygame.Vector2(slot.center).distance_to(position)
         )
 
+    def boss_target(self, position, house_position):
+        slot = self.nearest_turret(position)
+        if slot is None:
+            return None
+        enemy_position = pygame.Vector2(position)
+        turret_distance = enemy_position.distance_to(slot.center)
+        house_distance = enemy_position.distance_to(house_position)
+        return slot if turret_distance < house_distance else None
+
     def draw(self, surface, font, player) -> None:
         self._refresh_slots(player)
         range_overlay = None
@@ -438,6 +456,7 @@ class TurretSystem:
             rect = self._soil.get_rect(center=slot.center)
             if slot.turret is None:
                 surface.blit(self._soil, rect)
+                pygame.draw.rect(surface, (225, 195, 125), rect, 2, border_radius=5)
                 continue
             surface.blit(self._images[slot.turret.key], rect)
             if slot.turret.level:
@@ -445,16 +464,16 @@ class TurretSystem:
                 surface.blit(label, (rect.x, rect.y - label.get_height()))
             health_width = TILE_SIZE
             pygame.draw.rect(
-                surface, (90, 25, 25), (rect.x, rect.bottom - 4, health_width, 4)
+                surface, (90, 25, 25), (rect.x, rect.bottom - 6, health_width, 6)
             )
             pygame.draw.rect(
                 surface,
                 (70, 210, 80),
                 (
                     rect.x,
-                    rect.bottom - 4,
+                    rect.bottom - 6,
                     health_width * max(0, slot.turret.health) / 100,
-                    4,
+                    6,
                 ),
             )
         for projectile in self.projectiles:

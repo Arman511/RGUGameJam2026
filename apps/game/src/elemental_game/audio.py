@@ -17,17 +17,19 @@ SOUND_EFFECTS = {
     "planting": "planting.wav",
     "punch": "punch.wav",
 }
+MUSIC_TRANSITION_MS = 700
 
 _loaded_sounds: dict[str, pygame.mixer.Sound] = {}
 _loaded_music_tracks: dict[str, pygame.mixer.Sound] = {}
 _current_background_track: str | None = None
+_current_background_channel_index: int | None = None
 
 
-def _background_channel():
+def _background_channels():
     if pygame.mixer.get_init() is None:
         return None
-    pygame.mixer.set_reserved(1)
-    return pygame.mixer.Channel(0)
+    pygame.mixer.set_reserved(2)
+    return pygame.mixer.Channel(0), pygame.mixer.Channel(1)
 
 
 def initialise_audio() -> bool:
@@ -42,37 +44,53 @@ def initialise_audio() -> bool:
 
 
 def play_background_music(track: str = "background", *, volume: float = 1.0) -> bool:
-    global _current_background_track
+    global _current_background_channel_index, _current_background_track
 
-    channel = _background_channel()
-    if channel is None:
-        return False
     if track not in BACKGROUND_TRACKS:
         raise ValueError(f"Unknown background track: {track}")
+    channels = _background_channels()
+    if channels is None:
+        return False
+    volume = _clamp_volume(volume)
 
     try:
-        if track == _current_background_track and channel.get_busy():
-            channel.set_volume(_clamp_volume(volume))
-            return True
+        if _current_background_channel_index is not None:
+            current_channel = channels[_current_background_channel_index]
+            if track == _current_background_track and current_channel.get_busy():
+                current_channel.set_volume(volume)
+                return True
 
         sound = _loaded_music_tracks.get(track)
         if sound is None:
             sound = pygame.mixer.Sound(str(AUDIO_DIR / BACKGROUND_TRACKS[track]))
             _loaded_music_tracks[track] = sound
-        channel.stop()
-        channel.set_volume(_clamp_volume(volume))
-        channel.play(sound, loops=-1)
+
+        next_index = (
+            0
+            if _current_background_channel_index is None
+            else 1 - _current_background_channel_index
+        )
+        next_channel = channels[next_index]
+        if _current_background_channel_index is not None:
+            current_channel = channels[_current_background_channel_index]
+            if current_channel.get_busy():
+                current_channel.fadeout(MUSIC_TRANSITION_MS)
+        next_channel.stop()
+        next_channel.set_volume(volume)
+        next_channel.play(sound, loops=-1, fade_ms=MUSIC_TRANSITION_MS)
     except (OSError, pygame.error) as exc:
         print(f"Could not play background music: {exc}")
         return False
+
     _current_background_track = track
+    _current_background_channel_index = next_index
     return True
 
 
 def set_background_music_volume(volume: float) -> None:
-    channel = _background_channel()
-    if channel is not None:
-        channel.set_volume(_clamp_volume(volume))
+    channels = _background_channels()
+    if channels is not None and _current_background_channel_index is not None:
+        channels[_current_background_channel_index].set_volume(_clamp_volume(volume))
 
 
 def play_sfx(name: str, *, volume: float = 1.0) -> bool:

@@ -1,8 +1,12 @@
 import pygame
+from elemental_game.game_entities.enemies import enemies as enemies_module
 from elemental_game.game_entities.enemies.enemies import (
+    ELITE_SEED_TIER_WEIGHTS,
     ENEMY_DEFS,
     OPPOSING_ELEMENTS,
+    REGULAR_SEED_TIER_WEIGHTS,
     EnemyState,
+    roll_enemy_seed_drop,
 )
 from elemental_game.game_entities.enemies.waves import (
     ENEMY_KEYS_BY_ELEMENT,
@@ -24,6 +28,7 @@ from elemental_game.game_entities.turrets.turrets import (
     TurretSystem,
 )
 from elemental_game.types.crop import CropType
+from elemental_game.types.seed import SeedType
 from elemental_game.types.weather import WeatherTypes
 
 
@@ -54,6 +59,36 @@ def test_ice_and_lightning_enemies_use_their_own_sprites() -> None:
     assert ENEMY_DEFS["elite_ice"].image == "enemy_ice.png"
     assert ENEMY_DEFS["lightning"].image == "enemy_lightning.png"
     assert ENEMY_DEFS["elite_lightning"].image == "enemy_lightning.png"
+
+
+def test_regular_elemental_enemy_drops_matching_seed_with_weighted_tier(
+    monkeypatch,
+) -> None:
+    enemy = EnemyState.create("ice", (0, 0))
+    calls = []
+
+    def choose_tier(population, *, weights, k):
+        calls.append((population, weights, k))
+        return ["tier2"]
+
+    monkeypatch.setattr(enemies_module.random, "choices", choose_tier)
+
+    assert roll_enemy_seed_drop(enemy) == (SeedType.ICE, "tier2")
+    assert calls == [(("tier1", "tier2", "tier3"), REGULAR_SEED_TIER_WEIGHTS, 1)]
+
+
+def test_elite_elemental_enemy_uses_elite_tier_weights(monkeypatch) -> None:
+    enemy = EnemyState.create("elite_lightning", (0, 0))
+    calls = []
+
+    def choose_tier(population, *, weights, k):
+        calls.append((population, weights, k))
+        return ["tier3"]
+
+    monkeypatch.setattr(enemies_module.random, "choices", choose_tier)
+
+    assert roll_enemy_seed_drop(enemy) == (SeedType.LIGHTNING, "tier3")
+    assert calls == [(("tier1", "tier2", "tier3"), ELITE_SEED_TIER_WEIGHTS, 1)]
 
 
 def test_enemy_movement_stops_at_zero_distance() -> None:
@@ -196,6 +231,58 @@ def test_turret_slots_are_outside_both_farm_edges() -> None:
         for slot in system.slots
         if slot.side == "right"
     )
+
+
+def test_unlocked_turret_plot_is_added_to_the_map_slots() -> None:
+    from types import SimpleNamespace
+
+    player = Player.__new__(Player)
+    player.turret_slots_unlocked = 0
+    system = TurretSystem.__new__(TurretSystem)
+    system.farm = SimpleNamespace(origin=(475, 399), cols=6, rows=6)
+    system.slots = []
+
+    system._refresh_slots(player)
+    starting_centers = {
+        (slot.side, slot.index): slot.center for slot in system.slots
+    }
+    player.turret_slots_unlocked = 4
+    system._refresh_slots(player)
+
+    assert len(system.slots) == 10
+    assert all(
+        slot.center == starting_centers[(slot.side, slot.index)]
+        for slot in system.slots
+        if slot.index < 3
+    )
+    assert {
+        (slot.side, slot.index): slot.center[1]
+        for slot in system.slots
+        if slot.index >= 3
+    } == {
+        ("left", 3): 238,
+        ("left", 4): 310,
+        ("right", 3): 238,
+        ("right", 4): 310,
+    }
+
+
+def test_boss_targets_a_turret_only_when_it_is_closer_than_the_house() -> None:
+    system = TurretSystem.__new__(TurretSystem)
+    slot = TurretSlot("left", 0, (40, 0), TurretInstance("flame_turret"))
+    system.slots = [slot]
+
+    assert system.boss_target((0, 0), (100, 0)) is slot
+    assert system.boss_target((0, 0), (30, 0)) is None
+
+
+def test_boss_damage_reduces_turret_health() -> None:
+    system = TurretSystem.__new__(TurretSystem)
+    slot = TurretSlot("left", 0, (40, 0), TurretInstance("flame_turret"))
+
+    assert system.damage_slot(slot, 40) is False
+    assert slot.turret is not None
+    assert slot.turret.health == 60
 
 
 def test_manual_turret_can_hit_targets_at_unlimited_range() -> None:

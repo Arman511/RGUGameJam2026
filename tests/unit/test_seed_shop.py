@@ -241,9 +241,9 @@ def test_planting_without_seeds_shows_market_reminder() -> None:
     assert farm.notice_timer > 0
 
 
-def test_planting_offers_only_owned_seed_tiers_and_consumes_selection() -> None:
+def test_planting_with_multiple_tiers_of_one_crop_type_shows_the_menu() -> None:
     player = make_player()
-    player.add_seed(SeedType.FIRE, "tier1", 1)
+    player.add_seed(SeedType.FIRE, "tier2", 1)
     player.add_seed(SeedType.FIRE, "tier3", 2)
     farm = make_farm()
     player.pos = pygame.Vector2(25, 25)
@@ -252,10 +252,9 @@ def test_planting_offers_only_owned_seed_tiers_and_consumes_selection() -> None:
 
     assert farm.planting
     assert [option[:3] for option in farm.menu.options] == [
-        (CropType.FIRE, 1, 1),
+        (CropType.FIRE, 2, 1),
         (CropType.FIRE, 3, 2),
     ]
-
     farm.handle_event(
         pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_DOWN}), player
     )
@@ -264,11 +263,61 @@ def test_planting_offers_only_owned_seed_tiers_and_consumes_selection() -> None:
     )
 
     planted_crop = farm.grid[0][0]
+    assert not farm.planting
     assert planted_crop is not None
     assert planted_crop.crop_type is CropType.FIRE
     assert planted_crop.tier == 3
+    assert player.seeds[SeedType.FIRE]["tier2"] == 1
     assert player.seeds[SeedType.FIRE]["tier3"] == 1
+
+
+def test_planting_with_one_crop_and_tier_skips_the_menu() -> None:
+    player = make_player()
+    player.add_seed(SeedType.FIRE, "tier3", 1)
+    farm = make_farm()
+    player.pos = pygame.Vector2(25, 25)
+
+    farm.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_f}), player)
+
+    planted_crop = farm.grid[0][0]
     assert not farm.planting
+    assert planted_crop is not None
+    assert planted_crop.crop_type is CropType.FIRE
+    assert planted_crop.tier == 3
+    assert player.seeds[SeedType.FIRE]["tier3"] == 0
+
+
+def test_planting_with_multiple_crop_types_still_shows_the_menu() -> None:
+    player = make_player()
+    player.add_seed(SeedType.WATER, "tier2", 1)
+    player.add_seed(SeedType.FIRE, "tier1", 1)
+    farm = make_farm()
+    player.pos = pygame.Vector2(25, 25)
+
+    farm.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_f}), player)
+
+    assert farm.planting
+    assert farm.grid[0][0] is None
+
+
+def test_shop_status_message_expires_after_five_seconds() -> None:
+    shop = ShopMenu()
+    shop.status_message = "Elemental turret plot unlocked."
+
+    shop.update(4.9)
+    assert shop.status_message == "Elemental turret plot unlocked."
+
+    shop.update(0.1)
+    assert shop.status_message == ""
+
+
+def test_reopening_shop_can_clear_previous_status_message() -> None:
+    shop = ShopMenu()
+    shop.status_message = "Elemental turret plot unlocked."
+
+    shop.clear_status()
+
+    assert shop.status_message == ""
 
 
 def test_farm_plays_sfx_only_after_successful_planting_and_harvesting(

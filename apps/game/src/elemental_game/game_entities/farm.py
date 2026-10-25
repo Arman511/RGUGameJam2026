@@ -217,8 +217,16 @@ class Farm:
                 self._harvest_for_player(*tile, player)
             elif crop is None and self.quadrant_at(*tile) in player.unlocked_quadrants:
                 self.menu.move_to(tile, self.tile_rect(*tile).bottomleft, player)
-                self.planting = bool(self.menu.options)
-                if not self.planting:
+                if self.menu.options:
+                    self.notice_timer = 0.0
+                if len(self.menu.options) == 1:
+                    self._plant_selection(
+                        player, self.menu.selected_crop(), tile
+                    )
+                    self.planting = False
+                else:
+                    self.planting = len(self.menu.options) > 1
+                if not self.planting and not self.menu.options:
                     self.notice_message = (
                         "Buy seeds in the market first. Press M to open the market."
                     )
@@ -234,20 +242,16 @@ class Farm:
             elif event.key == pygame.K_DOWN:
                 self.menu.move_selection(1)
             elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
-                selection = self.menu.selected_crop()
-                menu_tile = self.menu.tile
-                if selection is not None and menu_tile is not None:
-                    crop_type, tier = selection
-                    seed_type = SeedType[crop_type.name]
-                    if player.consume_seed(seed_type, tier):
-                        self.plant(
-                            menu_tile[0],
-                            menu_tile[1],
-                            crop_type,
-                            tier,
-                            player,
-                        )
+                self._plant_selection(player, self.menu.selected_crop(), self.menu.tile)
                 self.planting = False
+
+    def _plant_selection(self, player, selection, tile):
+        if selection is None or tile is None:
+            return
+        crop_type, tier = selection
+        seed_type = SeedType[crop_type.name]
+        if player.consume_seed(seed_type, tier):
+            self.plant(tile[0], tile[1], crop_type, tier, player)
 
     def _harvest_for_player(self, row, col, player):
         crop = self.get_crop(row, col)

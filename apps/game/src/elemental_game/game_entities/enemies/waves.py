@@ -97,7 +97,7 @@ class Waves:
         return WEATHER_CROP_TYPES[self.state]
 
     def draw_weather(self, surface):
-        y = 60
+        y = 72
         x = (WINDOW_WIDTH - self.dimensions[0]) - 40
         image = self.weather_images[self.state]
         image_rect = image.get_rect(topleft=(x, y))
