@@ -163,8 +163,8 @@ def test_enemy_health_scales_by_wave_and_stacks_with_wave_bonus() -> None:
 
         return waves._spawn_due_enemies(0, screen, house)[0].health
 
-    assert [spawned_health(wave) for wave in (1, 2, 3, 10)] == [10, 11, 12, 20]
-    assert spawned_health(2, 1.5) == 17
+    assert [spawned_health(wave) for wave in (1, 2, 3, 10)] == [10, 11, 12, 17]
+    assert spawned_health(2, 1.5) == 16
 
 
 def test_boss_wave_contains_known_enemy_types() -> None:
@@ -671,6 +671,8 @@ def test_manual_turret_laser_sight_marks_aim_direction() -> None:
 
     turret.draw_laser_sight(surface, (50, 50))
 
+    assert surface.get_at((77, 50))[:3] == (255, 0, 0)
+    assert surface.get_at((23, 50))[:3] == (0, 0, 0)
     assert surface.get_at((99, 50))[:3] == (255, 230, 230)
 
 
@@ -782,6 +784,51 @@ def test_turret_attack_radius_and_range_upgrades_cost_crops_and_take_effect() ->
     system._confirm_selection(player, slot)
     assert turret.attack_range_level == 1
     assert player.crops[CropType.FIRE] == 4
+
+
+def test_turret_menu_navigation_supports_w_s_and_mouse_wheel() -> None:
+    system = TurretSystem.__new__(TurretSystem)
+    system.modal_slot = TurretSlot("right", 0, (0, 0), None)
+    system.modal_selection = 0
+    player = Mock()
+    screen = pygame.Surface((100, 100))
+
+    system.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, key=pygame.K_s), player, screen
+    )
+    assert system.modal_selection == 1
+
+    system.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, key=pygame.K_w), player, screen
+    )
+    assert system.modal_selection == 0
+
+    system.handle_event(pygame.event.Event(pygame.MOUSEWHEEL, y=-1), player, screen)
+    assert system.modal_selection == 1
+
+    system.handle_event(pygame.event.Event(pygame.MOUSEWHEEL, y=1), player, screen)
+    assert system.modal_selection == 0
+
+
+def test_turret_menu_confirms_purchase_with_space_and_enter() -> None:
+    for key in (pygame.K_SPACE, pygame.K_RETURN):
+        system = TurretSystem.__new__(TurretSystem)
+        slot = TurretSlot("right", 0, (0, 0), None)
+        system.modal_slot = slot
+        system.modal_selection = 0
+        player = Mock()
+        player.crops = {
+            element: definition.resource_cost
+            for element, definition in DEFINITION_BY_ELEMENT.items()
+        }
+
+        system.handle_event(
+            pygame.event.Event(pygame.KEYDOWN, key=key),
+            player,
+            pygame.Surface((100, 100)),
+        )
+
+        assert slot.turret is not None
 
 
 def test_upgraded_turret_attacks_targets_in_extended_radius_and_range() -> None:

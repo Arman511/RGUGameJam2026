@@ -32,7 +32,7 @@ ENEMY_KEYS_BY_ELEMENT = {
     CropType.AIR: "runner",
 }
 ENEMY_GROWTH_RATE = 1.08
-ENEMY_HEALTH_GROWTH_RATE = 1.08
+ENEMY_HEALTH_GROWTH_RATE = 1.06
 BOSS_KEYS = frozenset({"boss", "big_boss"})
 
 

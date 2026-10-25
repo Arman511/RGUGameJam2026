@@ -381,15 +381,26 @@ class TurretSystem:
                     self._confirm_selection(player, slot)
                     return
             return
+        if event.type == pygame.MOUSEWHEEL:
+            if event.y:
+                options = (
+                    list(DEFINITION_BY_ELEMENT)
+                    if slot.turret is None
+                    else UPGRADE_NAMES
+                )
+                direction = -1 if event.y > 0 else 1
+                self.modal_selection = (self.modal_selection + direction) % len(options)
+            return
         if event.type != pygame.KEYDOWN:
             return
         if event.key == pygame.K_ESCAPE:
             self.close_modal()
             return
         options = list(DEFINITION_BY_ELEMENT) if slot.turret is None else UPGRADE_NAMES
-        if event.key in (pygame.K_UP, pygame.K_DOWN):
+        if event.key in (pygame.K_UP, pygame.K_DOWN, pygame.K_w, pygame.K_s):
             self.modal_selection = (
-                self.modal_selection + (1 if event.key == pygame.K_DOWN else -1)
+                self.modal_selection
+                + (1 if event.key in (pygame.K_DOWN, pygame.K_s) else -1)
             ) % len(options)
             return
         if event.key not in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE):
@@ -639,7 +650,9 @@ class TurretSystem:
         )
         surface.blit(
             font.render(
-                "UP/DOWN select  ENTER confirm  ESC close", True, (225, 225, 225)
+                "W/S, UP/DOWN, wheel select  SPACE/ENTER confirm  ESC close",
+                True,
+                (225, 225, 225),
             ),
             (panel.x + 18, panel.y + 48),
         )
@@ -812,7 +825,7 @@ class ManualTurret:
         direction = pygame.Vector2(
             math.cos(math.radians(self.angle)), math.sin(math.radians(self.angle))
         )
-        muzzle = pygame.Vector2(center) - direction * 27
+        muzzle = pygame.Vector2(center) + direction * 27
         reach = math.hypot(*surface.get_size()) * 2
         endpoint = muzzle + direction * reach
         line = surface.get_rect().clipline(

@@ -84,21 +84,64 @@ def test_market_space_key_buys_selected_seed() -> None:
     assert player.seeds[SeedType.FIRE]["tier1"] == 1
 
 
-def test_shop_a_and_d_change_seed_tier() -> None:
+def test_shop_q_and_e_change_seed_tier() -> None:
     player = make_player()
     shop = ShopMenu()
 
     shop.handle_event(
-        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_d}), player, make_farm()
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_e}), player, make_farm()
     )
     assert shop.tier == 2
     shop.handle_event(
-        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_a}), player, make_farm()
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_q}), player, make_farm()
     )
     assert shop.tier == 1
 
 
-def test_shop_tier_selection_is_limited_by_selected_seed_unlocks() -> None:
+def test_shop_buy_quantity_cycles_with_a_d_and_arrows() -> None:
+    player = make_player()
+    shop = ShopMenu()
+
+    for key, expected_quantity in (
+        (pygame.K_d, 10),
+        (pygame.K_RIGHT, 100),
+        (pygame.K_d, 1),
+        (pygame.K_a, 100),
+        (pygame.K_LEFT, 10),
+        (pygame.K_a, 1),
+    ):
+        shop.handle_event(
+            pygame.event.Event(pygame.KEYDOWN, {"key": key}), player, make_farm()
+        )
+        assert shop.buy_quantity == expected_quantity
+
+
+def test_buying_seed_quantity_charges_total_and_adds_all_seeds() -> None:
+    player = make_player()
+    player.coins = 10
+    shop = ShopMenu()
+    shop.buy_quantity = 10
+
+    shop._activate_selection(player, make_farm())
+
+    assert player.coins == 0
+    assert player.seeds[SeedType.FIRE]["tier1"] == 10
+
+
+def test_bulk_seed_purchase_requires_full_amount() -> None:
+    player = make_player()
+    player.coins = 9
+    shop = ShopMenu()
+    shop.buy_quantity = 10
+
+    shop._activate_selection(player, make_farm())
+
+    assert player.coins == 9
+    assert player.seeds[SeedType.FIRE]["tier1"] == 0
+    assert "Need 10 coins" in shop.status_message
+
+
+def test_shop_only_shows_seeds_unlocked_for_the_selected_tier() -> None:
     player = make_player()
     player.unlocked_seed_tiers = {seed_type: 1 for seed_type in SeedType}
     player.unlocked_seed_tiers[SeedType.FIRE] = 3
@@ -106,34 +149,29 @@ def test_shop_tier_selection_is_limited_by_selected_seed_unlocks() -> None:
 
     for _ in range(4):
         shop.handle_event(
-            pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_d}),
+            pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_e}),
             player,
             make_farm(),
         )
     assert shop.tier == 3
+    assert shop._visible_options(player) == [CropType.FIRE]
 
     shop.handle_event(
         pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_s}),
         player,
         make_farm(),
     )
-    assert shop.selected == 1
-    assert shop.tier == 1
-
-    shop.handle_event(
-        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_d}),
-        player,
-        make_farm(),
-    )
-    assert shop.tier == 1
-
-    shop.handle_event(
-        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_w}),
-        player,
-        make_farm(),
-    )
     assert shop.selected == 0
+    assert shop.tier == 3
+
+    shop.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_q}), player, make_farm()
+    )
+    shop.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_q}), player, make_farm()
+    )
     assert shop.tier == 1
+    assert shop._visible_options(player) == list(ShopMenu.CROP_TYPES)
 
 
 def test_player_seed_tiers_unlock_independently_and_costs_double() -> None:
@@ -363,6 +401,41 @@ def test_shop_currency_words_are_rendered_as_coin_icons(monkeypatch) -> None:
     assert not any("coin" in text.lower() for text in rendered_text)
 
 
+def test_buy_shop_controls_have_room_before_seed_list(monkeypatch) -> None:
+    rendered = []
+    monkeypatch.setattr(
+        ShopRenderer,
+        "_draw_fitted",
+        staticmethod(
+            lambda _surface, _font, text, _color, position, _width: rendered.append(
+                (text, position)
+            )
+        ),
+    )
+    shop = ShopMenu()
+    shop._visible_options = lambda *_args: []
+    surface = pygame.Surface((800, 600))
+    panel = ShopRenderer._panel_rect(surface)
+
+    ShopRenderer.draw(
+        shop,
+        surface,
+        pygame.font.Font(None, 20),
+        make_player(),
+        make_farm(),
+    )
+
+    tier_instruction = next(
+        item for item in rendered if item[0] == "Q/E: change seed tier"
+    )
+    quantity_instruction = next(
+        item for item in rendered if item[0] == "A/D or LEFT/RIGHT: change quantity"
+    )
+    assert quantity_instruction[1][1] > tier_instruction[1][1]
+    assert panel.height == 560
+    assert ShopRenderer._list_y(shop, panel) > quantity_instruction[1][1]
+
+
 def test_upgrade_menu_offers_fertilizer_for_every_crop_type() -> None:
     shop = ShopMenu()
     options = shop._upgrade_options(make_player())
@@ -528,6 +601,7 @@ def test_market_plant_radius_upgrades_use_the_requested_costs_and_maximum() -> N
         shop.selected = shop._upgrade_options(player).index(option)
         shop._activate_selection(player, farm)
         assert player.plant_radius == expected_radius
+        assert player.plant_radius_active == expected_radius
 
     assert not any(
         isinstance(option, PlantRadiusUpgrade)
@@ -997,6 +1071,26 @@ def test_open_planting_menu_only_pauses_during_planting_phase() -> None:
     game.waves.planting_phase = True
 
     assert game.single_player_menu_paused
+
+
+def test_player_can_move_with_plant_selector_open_during_enemy_phase() -> None:
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    game = GameSession.__new__(GameSession)
+    game.house = SimpleNamespace(health=100)
+    game.player = Mock()
+    game.farm = SimpleNamespace(planting=True)
+    game.waves = SimpleNamespace(planting_phase=False)
+    game.shop_open = False
+    game.confirm_exit = False
+    game.turrets = SimpleNamespace(modal_slot=None)
+    game.seed_tier_reward = None
+    game.controlling_house_turret = False
+
+    game.update(0.1, paused=True, music_volume=1.0)
+
+    game.player.update.assert_called_once_with(0.1)
 
 
 def test_paused_game_does_not_advance_fertilizer_timers() -> None:

@@ -77,21 +77,24 @@ class Player:
         self.seeds[seed_type].setdefault(f"tier{next_tier}", 0)
         return next_tier
 
-    def buy_seed(self, seed_type, tier):
+    def buy_seed(self, seed_type, tier, amount=1):
         if (
             seed_type not in self.seeds
             or not isinstance(tier, int)
             or isinstance(tier, bool)
             or tier < 1
             or tier > self.max_unlocked_seed_tier(seed_type)
+            or not isinstance(amount, int)
+            or isinstance(amount, bool)
+            or amount < 1
         ):
             return False
-        cost = self.seed_tier_cost(tier)
+        cost = self.seed_tier_cost(tier) * amount
         if self.coins < cost:
             return False
 
         self.coins -= cost
-        self.add_seed(seed_type, f"tier{tier}", 1)
+        self.add_seed(seed_type, f"tier{tier}", amount)
         return True
 
     def consume_seed(self, seed_type, tier):

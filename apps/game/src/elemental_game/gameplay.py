@@ -91,7 +91,18 @@ class GameSession:
     ) -> None:
         if not paused and not self.game_over:
             self.run_elapsed += seconds
-        if not paused and not self.controlling_house_turret:
+        allow_movement_with_plant_selector = (
+            self.farm.planting
+            and not self.planting_phase
+            and not self.shop_open
+            and not self.confirm_exit
+            and self.turrets.modal_slot is None
+            and self.seed_tier_reward is None
+            and not self.game_over
+        )
+        if (not paused or allow_movement_with_plant_selector) and not (
+            self.controlling_house_turret
+        ):
             self.player.update(seconds)
         if paused:
             return

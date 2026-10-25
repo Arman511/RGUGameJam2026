@@ -64,9 +64,17 @@ class ShopRenderer:
             ShopRenderer._draw_fitted(
                 surface,
                 font,
-                "A/D or LEFT/RIGHT: change seed tier",
+                "Q/E: change seed tier",
                 (220, 220, 220),
                 (panel.x + 20, panel.y + 123),
+                panel.width - 40,
+            )
+            ShopRenderer._draw_fitted(
+                surface,
+                font,
+                "A/D or LEFT/RIGHT: change quantity",
+                (220, 220, 220),
+                (panel.x + 20, panel.y + 147),
                 panel.width - 40,
             )
         elif menu.mode == "sell" and not menu.selecting_quadrant:
@@ -95,7 +103,7 @@ class ShopRenderer:
                     panel.x + 20,
                     panel.y
                     + (
-                        165
+                        190
                         if menu.mode == "buy" and not menu.selecting_quadrant
                         else 160
                         if menu.mode == "sell" and not menu.selecting_quadrant
@@ -144,12 +152,12 @@ class ShopRenderer:
                 )
             elif isinstance(option, CropType) and menu.mode == "buy":
                 seed_type = SeedType[option.name]
-                tier = min(menu.tier, player.max_unlocked_seed_tier(seed_type))
+                tier = menu.tier
                 owned = player.seeds[seed_type].get(f"tier{tier}", 0)
-                cost = player.seed_tier_cost(tier)
+                cost = player.seed_tier_cost(tier) * menu.buy_quantity
                 label = (
                     f"{option.name.title()} seed T{tier} - "
-                    f"{cost} coin(s), owned {owned}"
+                    f"{menu.buy_quantity}x, {cost} coins, owned {owned}"
                 )
             elif isinstance(option, CropType) and menu.mode == "sell":
                 crop_type = option
@@ -219,7 +227,7 @@ class ShopRenderer:
             0,
             0,
             min(540, surface.get_width() - 40),
-            min(550, surface.get_height() - 40),
+            min(580, surface.get_height() - 40),
         )
         panel.center = surface.get_rect().center
         return panel
@@ -227,7 +235,7 @@ class ShopRenderer:
     @staticmethod
     def _list_y(menu, panel):
         if menu.mode == "buy" and not menu.selecting_quadrant:
-            return panel.y + 150
+            return panel.y + 175
         if menu.mode == "sell" and not menu.selecting_quadrant:
             return panel.y + 160
         return panel.y + 130

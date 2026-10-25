@@ -24,9 +24,7 @@ class HelpMenuMixin(MenuContext):
     def _draw_help(self) -> None:
         self._draw_panel(MENU_FRAME_PANEL)
         self._draw_title("Controls", 95)
-        help_font = pygame.font.Font(
-            FONT_PATH, max(1, round(24 * self.layout.scale))
-        )
+        help_font = pygame.font.Font(FONT_PATH, max(1, round(20 * self.layout.scale)))
         help_items = (
             "Move: WASD / arrow keys",
             "F: interact, plant, or build",
@@ -34,7 +32,8 @@ class HelpMenuMixin(MenuContext):
             "G: harvest crops",
             "Shop: M; tabs: TAB / SHIFT+TAB",
             "Shop selection: W/S, UP/DOWN, or mouse wheel",
-            "Shop seed tier: A/D or arrow keys",
+            "Buy seeds: Q/E tier; A/D or LEFT/RIGHT quantity (1/10/100)",
+            "Turret menu: W/S, arrows, or wheel select; SPACE/ENTER confirm",
             "Turret range display: O",
             "House turret: F at house; A/D aim; SPACE fire; red laser shows aim",
             "Toggle inventory HUD: H",
@@ -54,9 +53,7 @@ class HelpMenuMixin(MenuContext):
                     line = candidate
             if line:
                 help_lines.append(line)
-        line_spacing = max(
-            26, math.ceil(help_font.get_linesize() / self.layout.scale)
-        )
+        line_spacing = max(22, math.ceil(help_font.get_linesize() / self.layout.scale))
         for index, line in enumerate(help_lines):
             self._draw_text(
                 line,

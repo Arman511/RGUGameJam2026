@@ -28,6 +28,7 @@ class ShopMenu:
     CONFIRM_KEYS = (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE, pygame.K_f)
     MODES = ("buy", "upgrade", "sell")
     SELL_QUANTITIES = (1, 10, 100)
+    BUY_QUANTITIES = (1, 10, 100)
     CROP_TYPES = (
         CropType.FIRE,
         CropType.WATER,
@@ -41,6 +42,7 @@ class ShopMenu:
         self.mode = "buy"
         self.selected = 0
         self.tier = 1
+        self.buy_quantity = 1
         self.sell_quantity = 1
         self.selecting_quadrant = False
         self.pending_fertilizer = None
@@ -102,14 +104,25 @@ class ShopMenu:
             self._move_selection(-1, player, house)
         elif event.key in (pygame.K_DOWN, pygame.K_s):
             self._move_selection(1, player, house)
-        elif self.mode == "buy" and event.key in (pygame.K_LEFT, pygame.K_a):
+        elif self.mode == "buy" and event.key == pygame.K_q:
             self.tier = max(1, self.tier - 1)
-        elif self.mode == "buy" and event.key in (pygame.K_RIGHT, pygame.K_d):
-            self._clamp_selected_tier(player)
+            self._clamp_selection(player)
+        elif self.mode == "buy" and event.key == pygame.K_e:
             self.tier = min(
                 self.tier + 1,
-                self._selected_max_tier(player),
+                max(player.max_unlocked_seed_tier(seed_type) for seed_type in SeedType),
             )
+            self._clamp_selection(player)
+        elif self.mode == "buy" and event.key in (pygame.K_a, pygame.K_LEFT):
+            index = self.BUY_QUANTITIES.index(self.buy_quantity)
+            self.buy_quantity = self.BUY_QUANTITIES[
+                (index - 1) % len(self.BUY_QUANTITIES)
+            ]
+        elif self.mode == "buy" and event.key in (pygame.K_d, pygame.K_RIGHT):
+            index = self.BUY_QUANTITIES.index(self.buy_quantity)
+            self.buy_quantity = self.BUY_QUANTITIES[
+                (index + 1) % len(self.BUY_QUANTITIES)
+            ]
         elif self.mode == "sell" and event.key in (pygame.K_LEFT, pygame.K_a):
             index = self.SELL_QUANTITIES.index(self.sell_quantity)
             self.sell_quantity = self.SELL_QUANTITIES[
@@ -161,11 +174,13 @@ class ShopMenu:
         self.selected = min(max(self.selected, 0), len(options) - 1)
 
         if self.mode == "buy":
-            crop_type = self.CROP_TYPES[self.selected]
+            crop_type = options[self.selected]
             seed_type = SeedType[crop_type.name]
-            tier = self._clamp_selected_tier(player)
-            if not player.buy_seed(seed_type, tier):
-                self.status_message = "Not enough coins."
+            if not player.buy_seed(seed_type, self.tier, self.buy_quantity):
+                self.status_message = (
+                    f"Need {player.seed_tier_cost(self.tier) * self.buy_quantity} "
+                    "coins for that purchase."
+                )
         elif self.mode == "sell":
             crop_type = options[self.selected]
             if isinstance(crop_type, SellAllCrops):
@@ -220,6 +235,7 @@ class ShopMenu:
                 else:
                     player.coins -= option.cost
                     player.plant_radius = option.radius
+                    player.plant_radius_active = option.radius
                     self.status_message = (
                         f"Plant radius increased to {option.radius}x{option.radius}."
                     )
@@ -314,7 +330,11 @@ class ShopMenu:
 
     def _crop_options(self, player) -> list[CropType | SellAllCrops]:
         if self.mode == "buy":
-            return list(self.CROP_TYPES)
+            return [
+                crop_type
+                for crop_type in self.CROP_TYPES
+                if player.max_unlocked_seed_tier(SeedType[crop_type.name]) >= self.tier
+            ]
         crops: list[CropType | SellAllCrops] = [
             crop_type
             for crop_type in self.CROP_TYPES
@@ -410,16 +430,10 @@ class ShopMenu:
                         max_offset,
                         self.selected - self.MAX_VISIBLE_UPGRADES + 1,
                     )
-            elif self.mode == "buy":
-                self._clamp_selected_tier(player)
         else:
             self.selected = 0
             self.scroll_offset = 0
 
-    def _selected_max_tier(self, player) -> int:
-        seed_type = SeedType[self.CROP_TYPES[self.selected].name]
-        return player.max_unlocked_seed_tier(seed_type)
-
-    def _clamp_selected_tier(self, player) -> int:
-        self.tier = min(max(1, self.tier), self._selected_max_tier(player))
-        return self.tier
+    def _clamp_selection(self, player) -> None:
+        options = self._options(player)
+        self.selected = min(max(self.selected, 0), len(options) - 1) if options else 0
