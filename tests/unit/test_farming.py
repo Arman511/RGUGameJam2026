@@ -1,8 +1,11 @@
-import pytest
+from types import SimpleNamespace
 
+import pygame
+import pytest
 from elemental_game.game_entities import farm as farm_module
 from elemental_game.game_entities.farm import Farm
 from elemental_game.types.crop import CropType
+from elemental_game.types.player import PlayerType
 
 
 @pytest.fixture
@@ -43,3 +46,28 @@ def test_harvesting_mature_crop_clears_plot(farm) -> None:
 
     assert farm.harvest(0, 0) is planted_crop
     assert farm.grid[0][0] is None
+
+
+def test_enter_harvests_the_ready_crop_under_the_player(farm) -> None:
+    planted_crop = farm.plant(0, 0, CropType.FIRE)
+    farm.update(planted_crop.GROWTH_TIME)
+    player = SimpleNamespace(
+        pos=farm.tile_rect(0, 0).center,
+        unlocked_quadrants=set(farm.QUADRANTS),
+        harvest_size=1,
+        player_type=PlayerType.FIRE,
+        crops={},
+    )
+
+    def add_crop(crop_type, amount):
+        player.crops[crop_type] = player.crops.get(crop_type, 0) + amount
+
+    player.add_crop = add_crop
+
+    farm.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN),
+        player,
+    )
+
+    assert farm.grid[0][0] is None
+    assert player.crops[CropType.FIRE] >= 1

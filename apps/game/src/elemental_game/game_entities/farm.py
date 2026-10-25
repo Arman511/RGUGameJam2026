@@ -260,7 +260,7 @@ class Farm:
                         "Buy seeds in the market first. Press M to open the market."
                     )
                     self.notice_timer = 2.5
-        elif event.key == pygame.K_g and tile:
+        elif event.key in (pygame.K_g, pygame.K_RETURN) and tile:
             self._harvest_area(tile, player)
 
     def _plant_selection(self, player, selection, tile):
@@ -382,9 +382,13 @@ class CropMenu:
         self.options = []
         for crop_type in CropType:
             seed_type = SeedType[crop_type.name]
-            for tier in (1, 2, 3):
-                count = player.seeds[seed_type][f"tier{tier}"]
-                if count > 0:
+            unlocked_tier = getattr(player, "unlocked_seed_tiers", {}).get(seed_type, 1)
+            for tier_key, count in sorted(
+                player.seeds[seed_type].items(),
+                key=lambda item: int(item[0][4:]),
+            ):
+                tier = int(tier_key[4:])
+                if count > 0 and tier <= unlocked_tier:
                     rect = pygame.Rect(
                         pos[0],
                         pos[1] + len(self.options) * self.ITEM_H,

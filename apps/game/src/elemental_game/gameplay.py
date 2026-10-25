@@ -12,6 +12,7 @@ from elemental_game.game_entities.enemies.waves import Waves
 from elemental_game.game_entities.farm import Farm
 from elemental_game.game_entities.house import House
 from elemental_game.game_entities.player.player import Player
+from elemental_game.game_entities.seed_tier_reward import SeedTierReward
 from elemental_game.game_entities.shop import ShopMenu
 from elemental_game.game_entities.turrets.turrets import TurretSystem
 from elemental_game.game_input import GameInputHandler
@@ -39,6 +40,7 @@ class GameSession:
         self.shop, self.house = ShopMenu(), House(self.screen)
         self.turrets, self.waves = TurretSystem(self.farm), Waves(self.house)
         self.farm.weather_crop_type = self.waves.crop_type
+        self.seed_tier_reward: SeedTierReward | None = None
         self.enemies = []
         self.shop_open = self.hud_visible = self.confirm_exit = False
         self.controlling_house_turret = False
@@ -88,7 +90,10 @@ class GameSession:
         self.farm.update(seconds, grow_crops=self.planting_phase)
         self.shop.update(seconds)
         update = self.waves.update(
-            seconds, self.screen, self.house, len(self.enemies),
+            seconds,
+            self.screen,
+            self.house,
+            len(self.enemies),
             extra_enemies=pending_extra_enemies,
             health_multiplier=pending_health_multiplier,
             elemental_biases=pending_elemental_bias,
@@ -100,13 +105,27 @@ class GameSession:
         if update.started_wave is not None:
             if on_wave_started is not None:
                 on_wave_started(update.started_wave)
-            track = "boss" if update.started_wave % 3 == 0 else "enemies"
+            track = (
+                "boss"
+                if any(
+                    enemy_key in {"boss", "big_boss"}
+                    for enemy_key in self.waves.wave_sequence
+                )
+                else "enemies"
+            )
             play_background_music(track, volume=music_volume)
         elif update.completed:
             play_background_music(volume=music_volume)
+            if self.wave_number >= 3 and self.wave_number % 3 == 0:
+                self.seed_tier_reward = SeedTierReward()
 
         self.enemies, defeated = EnemyController.update(
-            seconds, self.enemies, self.house, self.turrets, self.player,
-            self.screen, self.controlling_house_turret,
+            seconds,
+            self.enemies,
+            self.house,
+            self.turrets,
+            self.player,
+            self.screen,
+            self.controlling_house_turret,
         )
         self.enemies_defeated += defeated

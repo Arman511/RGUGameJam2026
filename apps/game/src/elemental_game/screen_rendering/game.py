@@ -4,7 +4,7 @@ from collections.abc import Sequence
 import pygame
 
 from elemental_game import config
-from elemental_game.game_entities.crops.crops import Crop
+from elemental_game.game_entities.crops.crops import Crop, get_crop_icon
 from elemental_game.game_entities.farm import Farm
 from elemental_game.game_entities.house import HouseState
 from elemental_game.screen_rendering.exit_confirmation import draw_exit_confirmation
@@ -13,6 +13,7 @@ from elemental_game.screen_rendering.hud import draw_inventory_hud
 from elemental_game.types.crop import CropType
 from elemental_game.types.player import PlayerType
 from elemental_game.types.weather import WeatherTypes
+from elemental_game.ui_assets import get_coin_icon
 
 WEATHER_NAMES = {
     WeatherTypes.EARTH: "Meteor Shower",
@@ -271,6 +272,8 @@ class GameScreenRenderer:
         shop,
         confirm_exit,
         game_over_dialog,
+        attack_costs: dict[str, int] | None = None,
+        seed_tier_reward=None,
     ) -> None:
         surface = self.surface
         font = self.font
@@ -375,19 +378,93 @@ class GameScreenRenderer:
                 if selected_attack_element is not None
                 else "none"
             )
-            attack_lines = (
-                "VS ATTACKS  (V / ESC to close)",
-                f"Coins: {player.coins}    Crop: {selected_crop_name} x{crop_count} (Q/E)",
-                "1  Send 4 extra enemies  -  6 coins",
-                "2  Toughen next wave     -  8 coins",
-                "3  Raise elemental odds  -  1 crop",
-                "4  Change enemy weather  -  1 crop",
+            costs = attack_costs or {
+                "extra_enemies": 6,
+                "tougher_enemies": 8,
+                "elemental_chance": 1,
+                "change_weather": 1,
+            }
+            text_color = (245, 245, 245)
+            title = font.render("VS ATTACKS  (V / ESC to close)", True, (255, 230, 150))
+            surface.blit(title, (panel.x + 18, panel.y + 25))
+
+            balance_label = font.render("Coins:", True, text_color)
+            surface.blit(balance_label, (panel.x + 18, panel.y + 67))
+            balance_x = panel.x + 18 + balance_label.get_width() + 6
+            coin_icon = get_coin_icon(font.get_linesize())
+            surface.blit(
+                coin_icon,
+                coin_icon.get_rect(
+                    midleft=(balance_x, panel.y + 67 + font.get_linesize() // 2)
+                ),
             )
-            for index, line in enumerate(attack_lines):
-                text = font.render(
-                    line, True, (255, 230, 150) if index == 0 else (245, 245, 245)
+            balance_text = font.render(str(player.coins), True, text_color)
+            surface.blit(balance_text, (balance_x + coin_icon.get_width() + 4, panel.y + 67))
+
+            crop_label = font.render("Crop:", True, text_color)
+            crop_x = panel.x + 235
+            surface.blit(crop_label, (crop_x, panel.y + 67))
+            selected_crop_x = crop_x + crop_label.get_width() + 6
+            if selected_attack_element is not None:
+                flower_icon = get_crop_icon(
+                    selected_attack_element, font.get_linesize()
                 )
-                surface.blit(text, (panel.x + 18, panel.y + 25 + index * 42))
+                surface.blit(
+                    flower_icon,
+                    flower_icon.get_rect(
+                        midleft=(
+                            selected_crop_x,
+                            panel.y + 67 + font.get_linesize() // 2,
+                        )
+                    ),
+                )
+                selected_crop_x += flower_icon.get_width() + 4
+            selected_crop_text = font.render(
+                f"{selected_crop_name} x{crop_count}", True, text_color
+            )
+            surface.blit(selected_crop_text, (selected_crop_x, panel.y + 67))
+
+            attack_rows = (
+                ("1  Send 4 extra enemies", "extra_enemies", "coin"),
+                ("2  Toughen next wave", "tougher_enemies", "coin"),
+                ("3  Raise elemental odds", "elemental_chance", "crop"),
+                ("4  Change enemy weather", "change_weather", "crop"),
+            )
+            for index, (label, action, resource) in enumerate(attack_rows):
+                y = panel.y + 109 + index * 42
+                rendered_label = font.render(label, True, text_color)
+                surface.blit(rendered_label, (panel.x + 18, y))
+                resource_icon = (
+                    coin_icon
+                    if resource == "coin"
+                    else (
+                        get_crop_icon(selected_attack_element, font.get_linesize())
+                        if selected_attack_element is not None
+                        else None
+                    )
+                )
+                resource_x = panel.x + 300
+                if resource_icon is not None:
+                    surface.blit(
+                        resource_icon,
+                        resource_icon.get_rect(
+                            midleft=(resource_x, y + font.get_linesize() // 2)
+                        ),
+                    )
+                    resource_x += resource_icon.get_width() + 4
+                resource_text = (
+                    str(costs[action])
+                    if resource == "coin"
+                    else (
+                        f"{costs[action]} {selected_crop_name} crop"
+                        if selected_attack_element is not None
+                        else f"{costs[action]} crop"
+                    )
+                )
+                surface.blit(
+                    font.render(resource_text, True, text_color),
+                    (resource_x, y),
+                )
         if shop_open:
             shop.draw(surface, font, player, farm, house)
 
@@ -494,3 +571,5 @@ class GameScreenRenderer:
             draw_exit_confirmation(surface, font)
         if game_over_dialog is not None:
             game_over_dialog.draw()
+        if seed_tier_reward is not None:
+            seed_tier_reward.draw(surface, font, player)

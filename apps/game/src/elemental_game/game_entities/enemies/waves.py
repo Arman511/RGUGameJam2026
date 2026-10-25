@@ -27,6 +27,7 @@ ENEMY_KEYS_BY_ELEMENT = {
     CropType.ICE: "ice",
     CropType.AIR: "runner",
 }
+ENEMY_GROWTH_RATE = 1.08
 
 
 @dataclass(frozen=True)
@@ -53,7 +54,7 @@ def build_wave_sequence(
             2, wave_number // 3
         )
         elites = ["elite_fire", "elite_earth"][: max(1, wave_number // 10)]
-        wave = ["boss", *elites, *regulars]
+        wave = ["big_boss", *elites, *regulars]
     elif wave_number == 1:
         wave = ["swarmer", "swarmer", "swarmer"]
     elif wave_number == 2:
@@ -70,9 +71,21 @@ def build_wave_sequence(
             "elite_air",
             "elite_lightning",
         )
+
         wave.extend(
             [elite_types[(wave_number - 3) % len(elite_types)]] * (1 + wave_number // 4)
         )
+    boss_keys = {"boss", "big_boss"}
+    boss = wave[:1] if wave and wave[0] in boss_keys else []
+    non_boss_enemies = wave[len(boss) :]
+    target_count = math.ceil(
+        len(non_boss_enemies) * ENEMY_GROWTH_RATE ** (wave_number - 1)
+    )
+    if non_boss_enemies:
+        wave = boss + [
+            non_boss_enemies[index % len(non_boss_enemies)]
+            for index in range(target_count)
+        ]
     if weather is not None:
         crop_type = WEATHER_CROP_TYPES[weather]
         counter_element = OPPOSING_ELEMENTS[crop_type]
@@ -177,7 +190,9 @@ class Waves:
             )
 
         spawned_enemies = self._spawn_due_enemies(seconds, screen, house)
-        completed = self.phase_remaining <= 0 and enemy_count + len(spawned_enemies) == 0
+        completed = (
+            self.phase_remaining <= 0 and enemy_count + len(spawned_enemies) == 0
+        )
         if completed:
             self.planting_phase = True
             self.phase_remaining = config.PLANTING_PHASE_DURATION
@@ -219,7 +234,9 @@ class Waves:
         self.wave_elapsed += seconds
         target_spawn_count = min(
             len(self.wave_sequence),
-            int(self.wave_elapsed / config.ENEMY_WAVE_DURATION * len(self.wave_sequence))
+            int(
+                self.wave_elapsed / config.ENEMY_WAVE_DURATION * len(self.wave_sequence)
+            )
             + 1,
         )
         house_center_y = house.return_rect().centery
@@ -229,14 +246,11 @@ class Waves:
                 screen.get_height() - 55,
                 max(80, house_center_y + (self.wave_spawned % 5 - 2) * 65),
             )
-            spawn_x = (
-                -30
-                if self.wave_spawned % 2 == 0
-                else screen.get_width() + 30
-            )
+            spawn_x = -30 if self.wave_spawned % 2 == 0 else screen.get_width() + 30
             enemy = EnemyState.create(
                 self.wave_sequence[self.wave_spawned],
                 (spawn_x, spawn_y),
+                wave_number=self.wave_number,
             )
             if self.active_health_multiplier > 1:
                 enemy.max_health = math.ceil(

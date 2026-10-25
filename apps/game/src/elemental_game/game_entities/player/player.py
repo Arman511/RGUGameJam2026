@@ -20,9 +20,8 @@ class Player:
         image = pygame.image.load(player_type.full_image_path).convert_alpha()
         self.image = pygame.transform.scale(image, (self.width, self.height))
         self.pos = pygame.Vector2(pos)  # centre of the player
-        self.seeds = {
-            seed_type: {"tier1": 0, "tier2": 0, "tier3": 0} for seed_type in SeedType
-        }
+        self.unlocked_seed_tiers = {seed_type: 1 for seed_type in SeedType}
+        self.seeds = {seed_type: {"tier1": 0} for seed_type in SeedType}
         self.coins = 5
         self.crops = {}
         self.unlocked_quadrants = set(self.STARTING_UNLOCKED_QUADRANTS)
@@ -53,17 +52,45 @@ class Player:
     def add_seed(self, seed_type, tier, amount):
         if seed_type not in self.seeds:
             raise ValueError(f"Invalid seed_type: {seed_type}")
-        if tier not in self.seeds[seed_type]:
+        if isinstance(tier, str) and tier.startswith("tier"):
+            tier = int(tier[4:])
+        if not isinstance(tier, int) or isinstance(tier, bool) or tier < 1:
             raise ValueError(f"Invalid tier: {tier}")
-        self.seeds[seed_type][tier] += amount
+        tier_key = f"tier{tier}"
+        self.seeds[seed_type].setdefault(tier_key, 0)
+        self.seeds[seed_type][tier_key] += amount
+
+    @staticmethod
+    def seed_tier_cost(tier: int) -> int:
+        if not isinstance(tier, int) or isinstance(tier, bool) or tier < 1:
+            raise ValueError(f"Invalid tier: {tier}")
+        return 2 ** (tier - 1)
+
+    def max_unlocked_seed_tier(self, seed_type: SeedType) -> int:
+        return getattr(self, "unlocked_seed_tiers", {}).get(seed_type, 1)
+
+    def unlock_next_seed_tier(self, seed_type: SeedType) -> int:
+        if seed_type not in self.seeds:
+            raise ValueError(f"Invalid seed_type: {seed_type}")
+        next_tier = self.max_unlocked_seed_tier(seed_type) + 1
+        self.unlocked_seed_tiers[seed_type] = next_tier
+        self.seeds[seed_type].setdefault(f"tier{next_tier}", 0)
+        return next_tier
 
     def buy_seed(self, seed_type, tier):
-        if seed_type not in self.seeds or tier not in (1, 2, 3):
+        if (
+            seed_type not in self.seeds
+            or not isinstance(tier, int)
+            or isinstance(tier, bool)
+            or tier < 1
+            or tier > self.max_unlocked_seed_tier(seed_type)
+        ):
             return False
-        if self.coins < tier:
+        cost = self.seed_tier_cost(tier)
+        if self.coins < cost:
             return False
 
-        self.coins -= tier
+        self.coins -= cost
         self.add_seed(seed_type, f"tier{tier}", 1)
         return True
 
@@ -137,9 +164,8 @@ class Player:
         return True
 
     def reset(self):
-        self.seeds = {
-            seed_type: {"tier1": 0, "tier2": 0, "tier3": 0} for seed_type in SeedType
-        }
+        self.unlocked_seed_tiers = {seed_type: 1 for seed_type in SeedType}
+        self.seeds = {seed_type: {"tier1": 0} for seed_type in SeedType}
         self.coins = 5
         self.crops = {}
         self.unlocked_quadrants = set(self.STARTING_UNLOCKED_QUADRANTS)

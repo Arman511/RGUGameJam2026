@@ -3,6 +3,7 @@ from elemental_game.game_entities.crops.crops import Crop, CropType
 from elemental_game.game_entities.farm import CropMenu, Farm
 from elemental_game.game_entities.house import House, HouseState
 from elemental_game.game_entities.player.player import Player
+from elemental_game.game_entities.seed_tier_reward import SeedTierReward
 from elemental_game.game_entities.shop import (
     FertilizerUpgrade,
     HarvestSizeUpgrade,
@@ -22,6 +23,7 @@ from elemental_game.types.seed import SeedType
 def make_player():
     player = Player.__new__(Player)
     player.player_type = PlayerType.WATER
+    player.unlocked_seed_tiers = {seed_type: 3 for seed_type in SeedType}
     player.seeds = {
         seed_type: {"tier1": 0, "tier2": 0, "tier3": 0} for seed_type in SeedType
     }
@@ -60,8 +62,12 @@ def test_player_starts_with_five_coins_and_can_buy_tiered_seeds(monkeypatch) -> 
     player = Player(player_type=PlayerType.WATER, pos=(0, 0))
 
     assert player.coins == 5
+    assert player.max_unlocked_seed_tier(SeedType.FIRE) == 1
+    assert not player.buy_seed(SeedType.FIRE, 2)
+    assert player.unlock_next_seed_tier(SeedType.FIRE) == 2
+    assert player.unlock_next_seed_tier(SeedType.FIRE) == 3
     assert player.buy_seed(SeedType.FIRE, 3)
-    assert player.coins == 2
+    assert player.coins == 1
     assert player.seeds[SeedType.FIRE]["tier3"] == 1
     assert not player.buy_seed(SeedType.FIRE, 3)
 
@@ -92,6 +98,93 @@ def test_shop_a_and_d_change_seed_tier() -> None:
     assert shop.tier == 1
 
 
+def test_shop_tier_selection_is_limited_by_selected_seed_unlocks() -> None:
+    player = make_player()
+    player.unlocked_seed_tiers = {seed_type: 1 for seed_type in SeedType}
+    player.unlocked_seed_tiers[SeedType.FIRE] = 3
+    shop = ShopMenu()
+
+    for _ in range(4):
+        shop.handle_event(
+            pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_d}),
+            player,
+            make_farm(),
+        )
+    assert shop.tier == 3
+
+    shop.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_s}),
+        player,
+        make_farm(),
+    )
+    assert shop.selected == 1
+    assert shop.tier == 1
+
+    shop.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_d}),
+        player,
+        make_farm(),
+    )
+    assert shop.tier == 1
+
+    shop.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_w}),
+        player,
+        make_farm(),
+    )
+    assert shop.selected == 0
+    assert shop.tier == 1
+
+
+def test_player_seed_tiers_unlock_independently_and_costs_double() -> None:
+    player = make_player()
+    player.coins = 20
+    player.unlocked_seed_tiers = {seed_type: 1 for seed_type in SeedType}
+    player.unlocked_seed_tiers[SeedType.FIRE] = 4
+
+    assert [player.seed_tier_cost(tier) for tier in range(1, 5)] == [1, 2, 4, 8]
+    assert player.buy_seed(SeedType.FIRE, 4)
+    assert player.seeds[SeedType.FIRE]["tier4"] == 1
+    assert not player.buy_seed(SeedType.WATER, 2)
+    assert player.max_unlocked_seed_tier(SeedType.WATER) == 1
+
+
+def test_boss_reward_unlocks_the_selected_element_only() -> None:
+    player = make_player()
+    player.unlocked_seed_tiers = {seed_type: 1 for seed_type in SeedType}
+    reward = SeedTierReward()
+
+    reward.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_s}),
+        player,
+        pygame.Surface((1280, 768)),
+    )
+    selected = reward.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_RETURN}),
+        player,
+        pygame.Surface((1280, 768)),
+    )
+
+    assert selected is SeedType.WATER
+    assert player.max_unlocked_seed_tier(SeedType.WATER) == 2
+    assert player.max_unlocked_seed_tier(SeedType.FIRE) == 1
+
+
+def test_boss_reward_modal_draws_element_choices(pygame_display) -> None:
+    from elemental_game.types.seed import SeedType
+
+    pygame.font.init()
+    player = make_player()
+    player.unlocked_seed_tiers = {seed_type: 1 for seed_type in SeedType}
+    reward = SeedTierReward()
+
+    reward.draw(
+        pygame.Surface((1280, 768)),
+        pygame.font.Font(None, 22),
+        player,
+    )
+
+
 def test_market_mouse_wheel_moves_selection_up_and_down() -> None:
     player = make_player()
     shop = ShopMenu()
@@ -105,6 +198,13 @@ def test_market_mouse_wheel_moves_selection_up_and_down() -> None:
         pygame.event.Event(pygame.MOUSEWHEEL, {"y": 1}), player, make_farm()
     )
     assert shop.selected == 0
+
+
+def test_new_crop_tiers_keep_the_same_growth_duration() -> None:
+    tier_one = Crop(CropType.FIRE, (0, 0), tier=1)
+    tier_five = Crop(CropType.FIRE, (0, 1), tier=5)
+
+    assert tier_one.GROWTH_TIME == tier_five.GROWTH_TIME
 
 
 def test_open_market_receives_mouse_wheel_events() -> None:
@@ -224,6 +324,43 @@ def test_upgrade_help_only_appears_when_a_fertilizer_is_selected(monkeypatch) ->
     shop.draw(surface, font, player, farm)
     assert "Matching crops: double yield for 60s." not in rendered_text
     assert "Replaces current fertilizer in that quadrant." not in rendered_text
+
+
+def test_shop_currency_words_are_rendered_as_coin_icons(monkeypatch) -> None:
+    from elemental_game.game_entities.shop import renderer as shop_renderer
+
+    pygame.font.init()
+    font_renderer = pygame.font.Font(None, 20)
+    rendered_text = []
+    coin_sizes = []
+    icon = pygame.Surface((20, 20), pygame.SRCALPHA)
+
+    class Font:
+        def get_linesize(self):
+            return font_renderer.get_linesize()
+
+        def size(self, text):
+            return font_renderer.size(text)
+
+        def render(self, text, antialias, color):
+            rendered_text.append(text)
+            return font_renderer.render(text, antialias, color)
+
+    monkeypatch.setattr(
+        shop_renderer, "get_coin_icon", lambda size: coin_sizes.append(size) or icon
+    )
+
+    ShopRenderer._draw_fitted(
+        pygame.Surface((400, 60)),
+        Font(),
+        "Market Coins: 10; buy for 5 coins",
+        (255, 255, 255),
+        (0, 0),
+        400,
+    )
+
+    assert coin_sizes == [font_renderer.get_linesize()] * 2
+    assert not any("coin" in text.lower() for text in rendered_text)
 
 
 def test_upgrade_menu_offers_fertilizer_for_every_crop_type() -> None:
@@ -564,15 +701,15 @@ def test_house_upgrades_are_available_in_shop_and_cost_more_after_each_use() -> 
 
     shop._purchase_house_upgrade(option_for("turret_damage"), player, house)
     assert house.turret.damage_level == 1
-    assert option_for("turret_damage").cost == 20
+    assert option_for("turret_damage").cost == 13
 
     shop._purchase_house_upgrade(option_for("max_health"), player, house)
     assert house.max_hp == 125
-    assert option_for("max_health").cost == 50
+    assert option_for("max_health").cost == 32
 
     shop._purchase_house_upgrade(option_for("repair"), player, house)
     assert house.health > 62
-    assert option_for("repair").cost == 20
+    assert option_for("repair").cost == 13
 
 
 def test_planting_without_seeds_shows_market_reminder() -> None:
@@ -617,6 +754,19 @@ def test_planting_with_multiple_tiers_of_one_crop_type_shows_the_menu() -> None:
     assert planted_crop.tier == 3
     assert player.seeds[SeedType.FIRE]["tier2"] == 1
     assert player.seeds[SeedType.FIRE]["tier3"] == 1
+
+
+def test_planting_menu_includes_unbounded_seed_tiers() -> None:
+    player = make_player()
+    player.unlocked_seed_tiers[SeedType.FIRE] = 7
+    player.add_seed(SeedType.FIRE, "tier7", 1)
+    farm = make_farm()
+    player.pos = pygame.Vector2(25, 25)
+
+    farm.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_f}), player)
+
+    assert farm.grid[0][0] is not None
+    assert farm.grid[0][0].tier == 7
 
 
 def test_planting_menu_w_and_s_move_selection() -> None:

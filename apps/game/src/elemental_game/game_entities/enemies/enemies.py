@@ -3,17 +3,29 @@ from __future__ import annotations
 import math
 import os
 import random
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 import pygame
 from elemental_game import config
 from elemental_game.config import IMAGES_DIR
 from elemental_game.game_entities.crops.crops import CropType
+from elemental_game.game_entities.turrets.turrets import TURRET_DEFS
+from elemental_game.types.player import PlayerType
 from elemental_game.types.seed import SeedType
 
 REGULAR_SEED_TIER_WEIGHTS = (50, 45, 15)
 ELITE_SEED_TIER_WEIGHTS = (30, 40, 30)
-SEED_TIERS = ("tier1", "tier2", "tier3")
+
+
+def seed_tier_drop_weights(max_tier: int, *, elite: bool = False) -> tuple[float, ...]:
+    base_weights = ELITE_SEED_TIER_WEIGHTS if elite else REGULAR_SEED_TIER_WEIGHTS
+    return tuple(
+        base_weights[tier - 1]
+        if tier <= len(base_weights)
+        else base_weights[-1] * 0.25 ** (tier - len(base_weights))
+        for tier in range(1, max_tier + 1)
+    )
 
 
 @dataclass(frozen=True)
@@ -147,6 +159,18 @@ ENEMY_DEFS: dict[str, EnemyDefinition] = {
         is_boss=True,
         knockback_resistance=0.75,
     ),
+    "big_boss": EnemyDefinition(
+        "big_boss",
+        "Elemental Colossus",
+        "finalboss.png",
+        None,
+        600,
+        25,
+        30,
+        60,
+        is_boss=True,
+        knockback_resistance=0.9,
+    ),
 }
 
 OPPOSING_ELEMENTS = {
@@ -180,14 +204,23 @@ class EnemyState:
     distance: float = 0.0
     attack_cooldown: float = 0.0
     slow_timer: float = 0.0
-    resistance: float = 1.0
+    resistance: float = 0.0
     base_speed: float | None = None
     slow_amount: float = 0.0
+    target_turret: bool | None = None
 
     @classmethod
-    def create(cls, key: str, position) -> EnemyState:
+    def create(cls, key: str, position, *, wave_number: int = 0) -> EnemyState:
         definition = ENEMY_DEFS[key]
-        resistance = 0.45 if definition.is_boss else 0.5 if definition.is_elite else 1.0
+        resistance = (
+            min(0.95, 0.75 + 0.02 * max(0, wave_number // 3 - 1))
+            if key == "big_boss"
+            else min(0.9, 0.5 + 0.02 * max(0, wave_number // 3 - 1))
+            if definition.is_boss
+            else 0.5
+            if definition.is_elite
+            else 0.0
+        )
         return cls(
             key=key,
             health=definition.max_health,
@@ -217,8 +250,8 @@ class EnemyState:
         if element is not None and self.definition.element is element:
             return
         multiplier = 1.0
-        if element is not None and self.resistance < 1:
-            multiplier = self.resistance
+        if self.resistance > 0:
+            multiplier = 1.0 - self.resistance
         elif self.definition.element is not None and element is not None:
             strong_against, weak_against = TURRET_MATCHUPS[element]
             if self.definition.element is strong_against:
@@ -285,18 +318,46 @@ class EnemyState:
         )
 
 
-def roll_enemy_seed_drop(enemy: EnemyState) -> tuple[SeedType, str]:
+def roll_enemy_seed_drop(
+    enemy: EnemyState,
+    unlocked_tiers: Mapping[SeedType, int] | None = None,
+) -> tuple[SeedType, str]:
     element = enemy.definition.element
     if element is None:
-        return random.choice(tuple(SeedType)), "tier1"
+        seed_type = random.choice(tuple(SeedType))
+    else:
+        seed_type = SeedType[element.name]
 
-    weights = (
+    base_weights = (
         ELITE_SEED_TIER_WEIGHTS
         if enemy.definition.is_elite
         else REGULAR_SEED_TIER_WEIGHTS
     )
-    tier = random.choices(SEED_TIERS, weights=weights, k=1)[0]
-    return SeedType[element.name], tier
+    max_tier = (
+        unlocked_tiers.get(seed_type, 1)
+        if unlocked_tiers is not None
+        else len(base_weights)
+    )
+    tiers = [f"tier{tier}" for tier in range(1, max_tier + 1)]
+    tier_weights = seed_tier_drop_weights(
+        max_tier,
+        elite=enemy.definition.is_elite,
+    )
+    tier = random.choices(tiers, weights=tier_weights, k=1)[0]
+    return seed_type, tier
+
+
+def boss_seed_drop(
+    enemy: EnemyState,
+    player_type: PlayerType,
+    unlocked_tiers: Mapping[SeedType, int] | None = None,
+) -> tuple[SeedType, str, int]:
+    if not enemy.is_boss:
+        raise ValueError("Boss seed drops require a boss enemy.")
+    seed_type = SeedType[player_type.name]
+    tier_offset = 2 if enemy.key == "big_boss" else 1
+    tier = (unlocked_tiers or {}).get(seed_type, 1) + tier_offset
+    return seed_type, f"tier{tier}", 3
 
 
 class EnemyController:
@@ -334,16 +395,31 @@ class EnemyController:
             enemy.update_status_effects(seconds)
             enemy.attack_cooldown = max(0.0, enemy.attack_cooldown - seconds)
             destination = pygame.Vector2(house_rect.center)
-            boss_slot = (
-                turrets.boss_target(enemy.pos, destination)
-                if enemy.is_boss
-                else None
-            )
-            if boss_slot is not None:
-                destination = pygame.Vector2(boss_slot.center)
+            if enemy.is_boss:
+                target_slot = turrets.boss_target(enemy.pos, destination)
+            else:
+                if enemy.target_turret is None:
+                    nearest_slot = turrets.nearest_turret(enemy.pos)
+                    enemy.target_turret = (
+                        nearest_slot is not None and random.random() < 0.3
+                    )
+                target_slot = (
+                    turrets.nearest_turret(enemy.pos) if enemy.target_turret else None
+                )
+            if target_slot is not None and target_slot.turret is not None:
+                destination = pygame.Vector2(target_slot.center)
                 if enemy.pos.distance_to(destination) <= 44:
                     if enemy.attack_cooldown <= 0:
-                        turrets.damage_slot(boss_slot, enemy.damage * 2)
+                        damage = enemy.damage * 2 if enemy.is_boss else enemy.damage
+                        enemy_element = enemy.definition.element
+                        turret_element = TURRET_DEFS[target_slot.turret.key].element
+                        if (
+                            not enemy.is_boss
+                            and enemy_element is not None
+                            and TURRET_MATCHUPS[enemy_element][0] is turret_element
+                        ):
+                            damage = math.ceil(damage * 1.5)
+                        turrets.damage_slot(target_slot, damage)
                         enemy.attack_cooldown = 1.0
                 else:
                     enemy.move_towards(destination, seconds)
@@ -360,10 +436,20 @@ class EnemyController:
             if enemy.health <= 0:
                 player.coins += enemy.reward
                 defeated += 1
-                seed_amount = math.ceil(config.ENEMY_SEED_DROP_MULTIPLIER)
-                if seed_amount > 0:
-                    seed_type, seed_tier = roll_enemy_seed_drop(enemy)
+                if enemy.is_boss:
+                    seed_type, seed_tier, seed_amount = boss_seed_drop(
+                        enemy,
+                        player.player_type,
+                        getattr(player, "unlocked_seed_tiers", None),
+                    )
                     player.add_seed(seed_type, seed_tier, seed_amount)
+                else:
+                    seed_amount = math.ceil(config.ENEMY_SEED_DROP_MULTIPLIER)
+                    if seed_amount > 0:
+                        seed_type, seed_tier = roll_enemy_seed_drop(
+                            enemy, getattr(player, "unlocked_seed_tiers", None)
+                        )
+                        player.add_seed(seed_type, seed_tier, seed_amount)
             else:
                 survivors.append(enemy)
         return survivors, defeated
@@ -375,6 +461,14 @@ def load_enemy_images() -> dict[str, pygame.Surface]:
         image = pygame.image.load(
             os.path.join(IMAGES_DIR, "enemy", definition.image)
         ).convert_alpha()
-        size = 82 if definition.is_boss else 48 if definition.is_elite else 42
+        size = (
+            164
+            if key == "big_boss"
+            else 82
+            if definition.is_boss
+            else 48
+            if definition.is_elite
+            else 42
+        )
         images[key] = pygame.transform.smoothscale(image, (size, size))
     return images

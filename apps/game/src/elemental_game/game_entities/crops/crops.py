@@ -32,8 +32,8 @@ class Crop:
     def __init__(self, crop_type, pos, tier=1):
         if not isinstance(crop_type, CropType):
             raise TypeError(f"crop_type must be a CropType, got {crop_type!r}")
-        if tier not in (1, 2, 3):
-            raise ValueError(f"tier must be 1, 2, or 3, got {tier!r}")
+        if not isinstance(tier, int) or isinstance(tier, bool) or tier < 1:
+            raise ValueError(f"tier must be a positive integer, got {tier!r}")
         self.crop_type = crop_type
         self.tier = tier
         self.image = self.CROP_APPEARANCE[crop_type]

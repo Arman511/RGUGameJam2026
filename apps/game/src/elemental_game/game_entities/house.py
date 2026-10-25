@@ -1,9 +1,15 @@
+import math
 import os
 from enum import Enum
 from typing import ClassVar
 
 import pygame
-from elemental_game.config import FARM_HEIGHT, IMAGES_DIR, WINDOW_WIDTH
+from elemental_game.config import (
+    FARM_HEIGHT,
+    IMAGES_DIR,
+    UPGRADE_COST_GROWTH_MULTIPLIER,
+    WINDOW_WIDTH,
+)
 from elemental_game.game_entities.turrets.turrets import ManualTurret
 
 
@@ -96,11 +102,11 @@ class House:
 
     @property
     def next_health_upgrade_cost(self) -> int:
-        return 25 * (self.health_upgrade_count + 1)
+        return math.ceil(25 * UPGRADE_COST_GROWTH_MULTIPLIER**self.health_upgrade_count)
 
     @property
     def next_repair_cost(self) -> int:
-        return 10 * (self.repair_count + 1)
+        return math.ceil(10 * UPGRADE_COST_GROWTH_MULTIPLIER**self.repair_count)
 
     def repair(self) -> None:
         self.health = min(self.max_hp, round(self.health + self.max_hp * 0.25))

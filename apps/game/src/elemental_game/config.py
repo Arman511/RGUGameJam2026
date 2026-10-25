@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,6 +18,7 @@ SFX_ACTION_DELAY = 0.25
 PLANTING_PHASE_DURATION = 60.0
 ENEMY_WAVE_DURATION = 30.0
 TURRET_SLOT_UNLOCK_COSTS = (10, 20, 30, 40)
+UPGRADE_COST_GROWTH_MULTIPLIER = 1.25
 ELEMENTAL_TURRET_RANGE = 220.0
 ENEMY_SEED_DROP_MULTIPLIER = 1.0
 ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")

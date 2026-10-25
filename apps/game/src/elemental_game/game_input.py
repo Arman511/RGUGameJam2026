@@ -14,6 +14,13 @@ class GameInputHandler:
 
     def handle_event(self, event: pygame.event.Event) -> None:
         game = self.game
+        if getattr(game, "seed_tier_reward", None) is not None:
+            seed_type = game.seed_tier_reward.handle_event(
+                event, game.player, game.screen
+            )
+            if seed_type is not None:
+                game.seed_tier_reward = None
+            return
         keydown = event.type == pygame.KEYDOWN
         key = event.key if keydown else None
 
@@ -65,6 +72,13 @@ class GameInputHandler:
         quick_action_buttons: dict[str, pygame.Rect],
     ) -> str | None:
         game = self.game
+        if getattr(game, "seed_tier_reward", None) is not None:
+            seed_type = game.seed_tier_reward.handle_event(
+                event, game.player, game.screen
+            )
+            if seed_type is not None:
+                game.seed_tier_reward = None
+            return "handled"
         action = next(
             (name for name, rect in quick_action_buttons.items()
              if rect.collidepoint(event.pos)),

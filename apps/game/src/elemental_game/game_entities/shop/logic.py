@@ -93,6 +93,7 @@ class ShopMenu:
                 (self.MODES.index(self.mode) + step) % len(self.MODES)
             ]
             self.selected = 0
+            self.tier = 1
             self.scroll_offset = 0
             self.status_message = ""
         elif event.key in (pygame.K_UP, pygame.K_w):
@@ -100,9 +101,13 @@ class ShopMenu:
         elif event.key in (pygame.K_DOWN, pygame.K_s):
             self._move_selection(1, player, house)
         elif self.mode == "buy" and event.key in (pygame.K_LEFT, pygame.K_a):
-            self.tier = (self.tier - 2) % 3 + 1
+            self.tier = max(1, self.tier - 1)
         elif self.mode == "buy" and event.key in (pygame.K_RIGHT, pygame.K_d):
-            self.tier = self.tier % 3 + 1
+            self._clamp_selected_tier(player)
+            self.tier = min(
+                self.tier + 1,
+                self._selected_max_tier(player),
+            )
         elif event.key in self.CONFIRM_KEYS:
             self._activate_selection(player, farm, house)
 
@@ -145,7 +150,10 @@ class ShopMenu:
 
         if self.mode == "buy":
             crop_type = self.CROP_TYPES[self.selected]
-            player.buy_seed(SeedType[crop_type.name], self.tier)
+            seed_type = SeedType[crop_type.name]
+            tier = self._clamp_selected_tier(player)
+            if not player.buy_seed(seed_type, tier):
+                self.status_message = "Not enough coins."
         elif self.mode == "sell":
             crop_type = options[self.selected]
             if isinstance(crop_type, SellAllCrops):
@@ -379,6 +387,16 @@ class ShopMenu:
                         max_offset,
                         self.selected - self.MAX_VISIBLE_UPGRADES + 1,
                     )
+            elif self.mode == "buy":
+                self._clamp_selected_tier(player)
         else:
             self.selected = 0
             self.scroll_offset = 0
+
+    def _selected_max_tier(self, player) -> int:
+        seed_type = SeedType[self.CROP_TYPES[self.selected].name]
+        return player.max_unlocked_seed_tier(seed_type)
+
+    def _clamp_selected_tier(self, player) -> int:
+        self.tier = min(max(1, self.tier), self._selected_max_tier(player))
+        return self.tier

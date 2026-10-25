@@ -13,6 +13,10 @@ from elemental_game.gameplay import GameSession
 from elemental_game.instance_lock import GameInstanceLock
 from elemental_game.menus import MenuSystem
 from elemental_game.multiplayer import MultiplayerError
+from elemental_game.multiplayer_attacks import (
+    AttackCostTracker,
+    send_multiplayer_attack,
+)
 from elemental_game.screen_rendering.game import (
     GameScreenRenderer,
     multiplayer_attack_panel_rect,
@@ -24,7 +28,6 @@ from elemental_game.screen_rendering.multiplayer_game_over import (
 from elemental_game.types.crop import CropType
 from elemental_game.types.weather import WeatherTypes
 
-MULTIPLAYER_COIN_COSTS = {"extra_enemies": 6, "tougher_enemies": 8}
 _game_instance_lock = GameInstanceLock()
 try:
     if not _game_instance_lock.acquire():
@@ -43,35 +46,6 @@ pygame.display.set_icon(pygame.image.load(os.path.join(config.ASSETS_DIR, "icon.
 screen = pygame.display.set_mode((config.WINDOW_WIDTH, config.WINDOW_HEIGHT))
 clock = pygame.time.Clock()
 font = pygame.font.Font(os.path.join(config.ASSETS_DIR, "font", "pixelfont.ttf"), 22)
-
-
-def _send_multiplayer_attack(action, selected_attack_element, player, multiplayer):
-    element = (
-        selected_attack_element
-        if action in {"elemental_chance", "change_weather"}
-        else None
-    )
-    if action in {"elemental_chance", "change_weather"} and (
-        element is None or player.crops.get(element, 0) <= 0
-    ):
-        return "Harvest an elemental crop first."
-    if (
-        action in MULTIPLAYER_COIN_COSTS
-        and player.coins < MULTIPLAYER_COIN_COSTS[action]
-    ):
-        return "Not enough coins for that attack."
-    if multiplayer is None:
-        return "Multiplayer attacks are unavailable."
-    try:
-        multiplayer.send_action(action, element.name if element is not None else None)
-    except MultiplayerError as error:
-        return str(error)
-
-    if action in MULTIPLAYER_COIN_COSTS:
-        player.deduct_coins(MULTIPLAYER_COIN_COSTS[action])
-    elif element is not None:
-        player.crops[element] -= 1
-    return "Attack sent for the next wave."
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -111,6 +85,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         (crop for crop, count in game.player.crops.items() if count > 0),
         None,
     )
+    attack_costs = AttackCostTracker()
+    attack_costs.set_phase(game.wave_number, game.planting_phase)
     multiplayer_result_sent = False
 
     def reset_run() -> None:
@@ -128,6 +104,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         pending_elemental_bias = {}
         pending_weather = None
         multiplayer_result_sent = False
+        attack_costs.reset()
+        attack_costs.set_phase(game.wave_number, game.planting_phase)
 
     def notify_wave_started(started_wave: int) -> None:
         nonlocal multiplayer_status, pending_extra_enemies
@@ -220,6 +198,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 game_over_dialog = MultiplayerGameOverDialog(screen, font, "defeat")
             multiplayer_result_sent = True
         tile = game.farm.tile_at_pixel(*game.player.pos)
+        attack_costs.set_phase(game.wave_number, game.planting_phase)
 
         # Handle keyboard and mouse inputs.
         for event in pygame.event.get():
@@ -262,11 +241,12 @@ def main(argv: Sequence[str] | None = None) -> None:
                             42,
                         )
                         if row.collidepoint(event.pos):
-                            multiplayer_status = _send_multiplayer_attack(
+                            multiplayer_status = send_multiplayer_attack(
                                 action,
                                 selected_attack_element,
                                 game.player,
                                 multiplayer,
+                                attack_costs,
                             )
                             break
                 continue
@@ -312,6 +292,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 and event.key == pygame.K_v
                 and multiplayer is not None
                 and game_over_dialog is None
+                and game.seed_tier_reward is None
             ):
                 multiplayer_panel_open = not multiplayer_panel_open
                 available = [
@@ -319,7 +300,11 @@ def main(argv: Sequence[str] | None = None) -> None:
                 ]
                 if selected_attack_element not in available:
                     selected_attack_element = available[0] if available else None
-            elif multiplayer_panel_open and event.type == pygame.KEYDOWN:
+            elif (
+                multiplayer_panel_open
+                and event.type == pygame.KEYDOWN
+                and game.seed_tier_reward is None
+            ):
                 if event.key in (pygame.K_ESCAPE, pygame.K_v):
                     multiplayer_panel_open = False
                 elif event.key in (pygame.K_q, pygame.K_e):
@@ -343,11 +328,12 @@ def main(argv: Sequence[str] | None = None) -> None:
                         pygame.K_3: "elemental_chance",
                         pygame.K_4: "change_weather",
                     }[event.key]
-                    multiplayer_status = _send_multiplayer_attack(
+                    multiplayer_status = send_multiplayer_attack(
                         action,
                         selected_attack_element,
                         game.player,
                         multiplayer,
+                        attack_costs,
                     )
             else:
                 game.handle_event(event)
@@ -365,6 +351,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                     or game.turrets.modal_slot is not None
                 )
             )
+            or game.seed_tier_reward is not None
             or game.house.health <= 0
             or game_over_dialog is not None
         )
@@ -403,6 +390,8 @@ def main(argv: Sequence[str] | None = None) -> None:
             shop=game.shop,
             confirm_exit=game.confirm_exit,
             game_over_dialog=game_over_dialog,
+            attack_costs=attack_costs.costs(),
+            seed_tier_reward=game.seed_tier_reward,
         )
         pygame.display.flip()
 

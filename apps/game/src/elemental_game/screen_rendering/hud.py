@@ -6,6 +6,7 @@ from elemental_game import config
 from elemental_game.game_entities.crops.crops import get_crop_icon
 from elemental_game.types.crop import CropType
 from elemental_game.types.seed import SeedType
+from elemental_game.ui_assets import get_coin_icon
 
 
 def draw_inventory_hud(surface, player, current_wave: int, enemies_killed: int):
@@ -15,9 +16,10 @@ def draw_inventory_hud(surface, player, current_wave: int, enemies_killed: int):
     panel = pygame.Surface((460, 270), pygame.SRCALPHA)
     panel.fill((25, 28, 35, 225))
     pygame.draw.rect(panel, (225, 225, 225), panel.get_rect(), 2)
+    panel.blit(get_coin_icon(20), (12, 8))
     panel.blit(
-        hud_font.render(f"Coins: {player.coins}", True, (255, 230, 120)),
-        (12, 8),
+        hud_font.render(str(player.coins), True, (255, 230, 120)),
+        (38, 8),
     )
     panel.blit(
         hud_font.render(f"Current wave: {current_wave}", True, (255, 255, 255)),
@@ -29,24 +31,19 @@ def draw_inventory_hud(surface, player, current_wave: int, enemies_killed: int):
     )
 
     for index, crop_type in enumerate(CropType):
-        seeds = player.seeds[SeedType[crop_type.name]]
         crop_count = player.crops.get(crop_type, 0)
         row_y = 70 + index * 28
         row_center_y = row_y + 14
         crop_icon = get_crop_icon(crop_type, 22)
         panel.blit(
             crop_icon,
-            crop_icon.get_rect(midleft=(12, row_center_y)),
-        )
-        panel.blit(
-            crop_icon,
             crop_icon.get_rect(midleft=(310, row_center_y)),
         )
         row_text = (
-            (crop_type.name.title(), 40),
             (
-                f"T1: {seeds['tier1']}   T2: {seeds['tier2']}   T3: {seeds['tier3']}",
-                130,
+                f"{crop_type.name.title()} T"
+                f"{getattr(player, 'unlocked_seed_tiers', {}).get(SeedType[crop_type.name], 1)}",
+                40,
             ),
             (str(crop_count), 338),
         )

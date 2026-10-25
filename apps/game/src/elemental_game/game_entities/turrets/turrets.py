@@ -6,7 +6,12 @@ from dataclasses import dataclass
 from typing import Protocol
 
 import pygame
-from elemental_game.config import ELEMENTAL_TURRET_RANGE, IMAGES_DIR, TILE_SIZE
+from elemental_game.config import (
+    ELEMENTAL_TURRET_RANGE,
+    IMAGES_DIR,
+    TILE_SIZE,
+    UPGRADE_COST_GROWTH_MULTIPLIER,
+)
 from elemental_game.game_entities.crops.crops import CropType, get_crop_icon
 
 
@@ -240,7 +245,7 @@ class TurretSystem:
     ATTACK_RANGE_PER_LEVEL = 40
     UPGRADE_BASE_COST = 5
     STARTING_SLOT_COUNT = 3
-    UNLOCKED_SLOT_Y_OFFSETS = (-36, 36)
+    UNLOCKED_SLOT_Y_OFFSETS = (-56, 16)
 
     def __init__(self, farm):
         self.farm = farm
@@ -276,6 +281,12 @@ class TurretSystem:
     def available_slot_count(player) -> tuple[int, int]:
         additional = player.turret_slots_unlocked
         return 3 + (additional + 1) // 2, 3 + additional // 2
+
+    @classmethod
+    def upgrade_cost(cls, turret: TurretInstance) -> int:
+        return math.ceil(
+            cls.UPGRADE_BASE_COST * UPGRADE_COST_GROWTH_MULTIPLIER**turret.level
+        )
 
     def _refresh_slots(self, player) -> None:
         left_count, right_count = self.available_slot_count(player)
@@ -407,7 +418,7 @@ class TurretSystem:
             return
 
         upgrade_index = self.modal_selection
-        cost = self.UPGRADE_BASE_COST * (slot.turret.level + 1)
+        cost = self.upgrade_cost(slot.turret)
         element = TURRET_DEFS[slot.turret.key].element
         if player.crops.get(element, 0) < cost:
             self.status_message = f"Need {cost} {element.name.lower()} crops."
@@ -648,7 +659,7 @@ class TurretSystem:
             crop_type = TURRET_DEFS[turret.key].element
             element = crop_type.name.lower()
             available_crops = player.crops.get(crop_type, 0)
-            cost = self.UPGRADE_BASE_COST * (turret.level + 1)
+            cost = self.upgrade_cost(turret)
             upgrade_levels = (
                 turret.fire_rate_level,
                 turret.damage_level,
@@ -658,9 +669,7 @@ class TurretSystem:
                 turret.attack_range_level,
             )
             labels = [
-                (
-                    f"{name} (x{level}) - {cost} {element}, have {available_crops}"
-                )
+                (f"{name} (x{level}) - {cost} {element}, have {available_crops}")
                 for name, level in zip(UPGRADE_NAMES[:-1], upgrade_levels)
             ] + ["Destroy turret"]
             resource_elements = [crop_type] * len(UPGRADE_NAMES[:-1]) + [None]
@@ -763,7 +772,7 @@ class ManualTurret:
                 position=pygame.Vector2(origin) - direction * 27,
                 direction=direction,
                 image=self.projectile_image,
-                damage=10 + 5 * self.damage_level,
+                damage=5 + 5 * self.damage_level,
                 speed=self.PROJECTILE_SPEED,
             )
         )
@@ -785,7 +794,10 @@ class ManualTurret:
 
     @property
     def next_upgrade_cost(self) -> int:
-        return self.UPGRADE_BASE_COST * (self.damage_level + self.fire_rate_level + 1)
+        upgrade_count = self.damage_level + self.fire_rate_level
+        return math.ceil(
+            self.UPGRADE_BASE_COST * UPGRADE_COST_GROWTH_MULTIPLIER**upgrade_count
+        )
 
     def draw(self, surface, center) -> None:
         rotated = pygame.transform.rotate(self.image, -self.angle - 90)

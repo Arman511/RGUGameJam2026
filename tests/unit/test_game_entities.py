@@ -1,3 +1,6 @@
+import math
+from unittest.mock import Mock
+
 import pygame
 from elemental_game.game_entities.enemies import enemies as enemies_module
 from elemental_game.game_entities.enemies.enemies import (
@@ -5,8 +8,12 @@ from elemental_game.game_entities.enemies.enemies import (
     ENEMY_DEFS,
     OPPOSING_ELEMENTS,
     REGULAR_SEED_TIER_WEIGHTS,
+    EnemyController,
     EnemyState,
+    boss_seed_drop,
+    load_enemy_images,
     roll_enemy_seed_drop,
+    seed_tier_drop_weights,
 )
 from elemental_game.game_entities.enemies.waves import (
     ENEMY_KEYS_BY_ELEMENT,
@@ -74,7 +81,7 @@ def test_regular_elemental_enemy_drops_matching_seed_with_weighted_tier(
     monkeypatch.setattr(enemies_module.random, "choices", choose_tier)
 
     assert roll_enemy_seed_drop(enemy) == (SeedType.ICE, "tier2")
-    assert calls == [(("tier1", "tier2", "tier3"), REGULAR_SEED_TIER_WEIGHTS, 1)]
+    assert calls == [(["tier1", "tier2", "tier3"], REGULAR_SEED_TIER_WEIGHTS, 1)]
 
 
 def test_elite_elemental_enemy_uses_elite_tier_weights(monkeypatch) -> None:
@@ -88,7 +95,34 @@ def test_elite_elemental_enemy_uses_elite_tier_weights(monkeypatch) -> None:
     monkeypatch.setattr(enemies_module.random, "choices", choose_tier)
 
     assert roll_enemy_seed_drop(enemy) == (SeedType.LIGHTNING, "tier3")
-    assert calls == [(("tier1", "tier2", "tier3"), ELITE_SEED_TIER_WEIGHTS, 1)]
+    assert calls == [(["tier1", "tier2", "tier3"], ELITE_SEED_TIER_WEIGHTS, 1)]
+
+
+def test_enemy_seed_drop_never_exceeds_that_element_unlocked_tier(
+    monkeypatch,
+) -> None:
+    enemy = EnemyState.create("ice", (0, 0))
+    calls = []
+
+    def choose_tier(population, *, weights, k):
+        calls.append((population, weights, k))
+        return ["tier2"]
+
+    monkeypatch.setattr(enemies_module.random, "choices", choose_tier)
+
+    assert roll_enemy_seed_drop(enemy, {SeedType.ICE: 2}) == (
+        SeedType.ICE,
+        "tier2",
+    )
+    assert calls == [(["tier1", "tier2"], (50, 45), 1)]
+
+
+def test_enemy_seed_drop_weight_drops_sharply_for_newly_unlocked_tiers() -> None:
+    weights = seed_tier_drop_weights(5)
+
+    assert weights == (50, 45, 15, 3.75, 0.9375)
+    assert weights[3] < weights[2] / 3
+    assert weights[4] < weights[3] / 3
 
 
 def test_enemy_movement_stops_at_zero_distance() -> None:
@@ -107,15 +141,67 @@ def test_enemy_movement_stops_at_zero_distance() -> None:
 
 def test_wave_sequences_grow_and_use_known_enemies() -> None:
     wave = build_wave_sequence(4)
-    assert build_wave_sequence(2) == ["swarmer"] * 4 + ["brute"]
+    assert build_wave_sequence(2) == ["swarmer"] * 4 + ["brute", "swarmer"]
+    assert len(build_wave_sequence(3)) == 7
+    assert len(build_wave_sequence(6)) == 10
     assert len(wave) > len(build_wave_sequence(2))
     assert set(wave) <= ENEMY_DEFS.keys()
 
 
 def test_boss_wave_contains_known_enemy_types() -> None:
     wave = build_wave_sequence(9)
-    assert wave[0] == "boss"
+    assert wave[0] == "big_boss"
     assert set(wave) <= ENEMY_DEFS.keys()
+
+
+def test_every_third_wave_starts_with_a_big_boss() -> None:
+    for wave_number in (3, 6, 9, 12):
+        assert build_wave_sequence(wave_number)[0] == "big_boss"
+
+
+def test_big_boss_has_triple_health_higher_resistance_and_boss_status() -> None:
+    boss = EnemyState.create("big_boss", (0, 0))
+
+    assert boss.max_health == 3 * ENEMY_DEFS["boss"].max_health
+    assert boss.resistance == 0.75
+    assert EnemyState.create("boss", (0, 0)).resistance == 0.5
+    assert boss.is_boss
+    boss.take_damage(10, CropType.FIRE)
+    assert boss.health == boss.max_health - 3
+
+
+def test_boss_resistance_increases_per_boss_wave_and_is_capped() -> None:
+    assert EnemyState.create("boss", (0, 0), wave_number=6).resistance == 0.52
+    assert EnemyState.create("big_boss", (0, 0), wave_number=6).resistance == 0.77
+    assert EnemyState.create("boss", (0, 0), wave_number=100).resistance == 0.9
+    assert EnemyState.create("big_boss", (0, 0), wave_number=100).resistance == 0.95
+
+
+def test_bosses_drop_three_seeds_above_player_element_unlock() -> None:
+    unlocked_tiers = {SeedType.FIRE: 4}
+    assert boss_seed_drop(
+        EnemyState.create("boss", (0, 0)), PlayerType.FIRE, unlocked_tiers
+    ) == (
+        SeedType.FIRE,
+        "tier5",
+        3,
+    )
+    assert boss_seed_drop(
+        EnemyState.create("big_boss", (0, 0)), PlayerType.FIRE, unlocked_tiers
+    ) == (
+        SeedType.FIRE,
+        "tier6",
+        3,
+    )
+
+
+def test_big_boss_sprite_is_double_the_normal_boss_size(pygame_display) -> None:
+    images = load_enemy_images()
+
+    assert images["big_boss"].get_size() == (
+        images["boss"].get_width() * 2,
+        images["boss"].get_height() * 2,
+    )
 
 
 def test_multiplayer_modifiers_add_enemy_count_and_elemental_bias() -> None:
@@ -224,9 +310,9 @@ def test_elites_are_resistant_and_bosses_appear_every_third_wave() -> None:
 
     assert elite.health == elite.max_health - 5
     assert boss.health == boss.max_health - 5
-    assert build_wave_sequence(3)[0] == "boss"
+    assert build_wave_sequence(3)[0] == "big_boss"
     assert build_wave_sequence(2)[0] != "boss"
-    assert build_wave_sequence(6)[0] == "boss"
+    assert build_wave_sequence(6)[0] == "big_boss"
 
 
 def test_turret_plot_unlock_costs_increase_from_ten_to_forty_coins() -> None:
@@ -319,10 +405,10 @@ def test_unlocked_turret_plot_is_added_to_the_map_slots() -> None:
         for slot in system.slots
         if slot.index >= 3
     } == {
-        ("left", 3): 238,
-        ("left", 4): 310,
-        ("right", 3): 238,
-        ("right", 4): 310,
+        ("left", 3): 218,
+        ("left", 4): 290,
+        ("right", 3): 218,
+        ("right", 4): 290,
     }
 
 
@@ -342,6 +428,65 @@ def test_boss_damage_reduces_turret_health() -> None:
     assert system.damage_slot(slot, 40) is False
     assert slot.turret is not None
     assert slot.turret.health == 60
+
+
+def test_regular_enemy_uses_house_or_turret_target_chance(monkeypatch) -> None:
+    house = Mock()
+    house.return_rect.return_value = pygame.Rect(900, 900, 100, 100)
+    turrets = Mock()
+    turrets.nearest_turret.return_value = TurretSlot(
+        "left", 0, (100, 0), TurretInstance("flame_turret")
+    )
+    screen = pygame.Surface((1000, 1000))
+    monkeypatch.setattr(pygame.key, "get_pressed", lambda: ())
+    enemy = EnemyState.create("swarmer", (0, 0))
+
+    monkeypatch.setattr(enemies_module.random, "random", lambda: 0.29)
+    EnemyController.update(0.1, [enemy], house, turrets, Mock(), screen, False)
+
+    assert enemy.target_turret is True
+    assert enemy.pos.y == 0
+
+    enemy = EnemyState.create("swarmer", (0, 0))
+    monkeypatch.setattr(enemies_module.random, "random", lambda: 0.3)
+    EnemyController.update(0.1, [enemy], house, turrets, Mock(), screen, False)
+
+    assert enemy.target_turret is False
+    assert enemy.pos.x > 0
+    assert enemy.pos.y > 0
+
+
+def test_enemy_without_turrets_falls_back_to_house(monkeypatch) -> None:
+    house = Mock()
+    house.return_rect.return_value = pygame.Rect(-50, -50, 100, 100)
+    turrets = Mock()
+    turrets.nearest_turret.return_value = None
+    monkeypatch.setattr(pygame.key, "get_pressed", lambda: ())
+    enemy = EnemyState.create("swarmer", (0, 0))
+
+    EnemyController.update(
+        0.1, [enemy], house, turrets, Mock(), pygame.Surface((100, 100)), False
+    )
+
+    assert enemy.target_turret is False
+    house.take_damage.assert_called_once_with(enemy.damage)
+
+
+def test_enemy_damages_turrets_more_when_elementally_strong(monkeypatch) -> None:
+    house = Mock()
+    house.return_rect.return_value = pygame.Rect(900, 900, 100, 100)
+    slot = TurretSlot("left", 0, (40, 0), TurretInstance("wind_turbine"))
+    turrets = Mock()
+    turrets.nearest_turret.return_value = slot
+    monkeypatch.setattr(pygame.key, "get_pressed", lambda: ())
+    monkeypatch.setattr(enemies_module.random, "random", lambda: 0.1)
+    enemy = EnemyState.create("fire", (0, 0))
+
+    EnemyController.update(
+        0.1, [enemy], house, turrets, Mock(), pygame.Surface((100, 100)), False
+    )
+
+    turrets.damage_slot.assert_called_once_with(slot, math.ceil(enemy.damage * 1.5))
 
 
 def test_manual_turret_can_hit_targets_at_unlimited_range() -> None:
@@ -376,7 +521,13 @@ def test_manual_turret_can_hit_targets_at_unlimited_range() -> None:
 
     assert enemy.health == enemy.max_health
     assert len(turret.projectiles) == 1
+    assert turret.projectiles[0].damage == 5
     assert turret.projectiles[0].image is turret.projectile_image
+    slime = EnemyState.create("swarmer", (0, 0))
+    slime.take_damage(turret.projectiles[0].damage)
+    assert slime.health == 5
+    slime.take_damage(turret.projectiles[0].damage)
+    assert slime.health == 0
     turret.update(10, [enemy], (0, 0), 0, False)
     assert enemy.health < enemy.max_health
 
@@ -488,7 +639,7 @@ def test_turret_attack_radius_and_range_upgrades_cost_crops_and_take_effect() ->
     system.modal_selection = UPGRADE_NAMES.index("Attack range")
     system._confirm_selection(player, slot)
     assert turret.attack_range_level == 1
-    assert player.crops[CropType.FIRE] == 5
+    assert player.crops[CropType.FIRE] == 8
 
 
 def test_upgraded_turret_attacks_targets_in_extended_radius_and_range() -> None:
@@ -604,8 +755,12 @@ def test_inventory_hud_includes_wave_and_enemy_kill_count(monkeypatch) -> None:
 
     hud.draw_inventory_hud(pygame.Surface((800, 600)), player, 7, 14)
 
+    assert "Coins: 10" not in rendered
+    assert "10" in rendered
+    assert "Fire T1" in rendered
     assert "Current wave: 7" in rendered
     assert "Enemies killed: 14" in rendered
+    assert not any(text.startswith("T1:") for text in rendered)
 
 
 def test_house_roof_includes_the_mounted_turret_standing_area() -> None:
