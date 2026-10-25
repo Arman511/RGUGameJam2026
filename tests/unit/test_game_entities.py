@@ -16,7 +16,6 @@ from elemental_game.game_entities.enemies.waves import (
 )
 from elemental_game.game_entities.house import House
 from elemental_game.game_entities.player.player import Player, PlayerType
-from elemental_game.screen_rendering.game import _draw_quick_action_button
 from elemental_game.game_entities.turrets.turrets import (
     DEFINITION_BY_ELEMENT,
     ELEMENT_RANGE_COLORS,
@@ -29,8 +28,9 @@ from elemental_game.game_entities.turrets.turrets import (
     TurretProjectile,
     TurretSlot,
     TurretSystem,
-    _orient_projectile_image,
+    _projectile_image_angle,
 )
+from elemental_game.screen_rendering.game import _draw_quick_action_button
 from elemental_game.types.crop import CropType
 from elemental_game.types.seed import SeedType
 from elemental_game.types.weather import WeatherTypes
@@ -378,18 +378,8 @@ def test_manual_turret_can_hit_targets_at_unlimited_range() -> None:
 
 
 def test_projectile_sprite_aligns_with_its_direction() -> None:
-    pellet = pygame.Surface((18, 18), pygame.SRCALPHA)
-    pygame.draw.rect(pellet, (255, 255, 255), (7, 3, 4, 12))
-
-    vertical = _orient_projectile_image(pellet, pygame.Vector2(0, -1))
-    horizontal = _orient_projectile_image(pellet, pygame.Vector2(1, 0))
-    vertical_bounds = pygame.mask.from_surface(vertical).get_bounding_rects()[0]
-    horizontal_bounds = pygame.mask.from_surface(horizontal).get_bounding_rects()[0]
-
-    assert vertical_bounds.width == 4
-    assert vertical_bounds.height == 12
-    assert horizontal_bounds.width == 12
-    assert horizontal_bounds.height == 4
+    assert _projectile_image_angle(pygame.Vector2(0, -1)) == 0
+    assert _projectile_image_angle(pygame.Vector2(1, 0)) == -90
 
 
 def test_elemental_turret_projectile_uses_its_element_sprite_and_hits_on_arrival() -> (
