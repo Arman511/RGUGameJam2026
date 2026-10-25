@@ -761,14 +761,18 @@ def main(argv: Sequence[str] | None = None) -> None:
             instruction_label = font.render("Buy plants in the shop!", True, (0, 0, 0))
             screen.blit(
                 instruction_label,
-                instruction_label.get_rect(midtop=(screen.get_width() // 2, config.TEXT_Y)),
+                instruction_label.get_rect(
+                    midtop=(screen.get_width() // 2, config.TEXT_Y)
+                ),
             )
         timer = font.render(
             f"{phase_label}  {max(0, phase_remaining):.0f}s",
             True,
             (0, 0, 0),
         )
-        phase_text_position = (78, config.TEXT_Y) if multiplayer is not None else (78, 5)
+        phase_text_position = (
+            (78, config.TEXT_Y) if multiplayer is not None else (78, 5)
+        )
         screen.blit(
             timer,
             (screen.get_width() - timer.get_width() - 20, phase_text_position[1]),

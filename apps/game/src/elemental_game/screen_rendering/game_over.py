@@ -10,7 +10,7 @@ from elemental_game.api_client.models import RunSubmission
 from elemental_game.audio import play_sfx
 from elemental_game.menus import (
     InputField,
-    _open_registration_page,
+    open_registration_page,
 )
 
 
@@ -191,7 +191,7 @@ class GameOverDialog:
             if self._button_rect(0).collidepoint(event.pos):
                 self._login_and_publish()
             elif self._button_rect(1).collidepoint(event.pos):
-                if not _open_registration_page():
+                if not open_registration_page():
                     self.status_message = "Could not open the registration page."
                 else:
                     self.status_message = "Register in your browser, then sign in here."

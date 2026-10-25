@@ -195,6 +195,7 @@ def test_host_room_expires_if_player_two_does_not_join(client) -> None:
             assert host.receive_json()["type"] == "room_created"
             expired = host.receive_json()
             assert expired["type"] == "room_expired"
+            assert expired["payload"]["message"] == "Room expired. No player joined."
     finally:
         match_manager.join_timeout_seconds = previous_timeout
 

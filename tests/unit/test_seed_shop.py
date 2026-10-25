@@ -333,9 +333,7 @@ def test_farm_plays_sfx_only_after_successful_planting_and_harvesting(
     monkeypatch.setattr(
         pygame.time,
         "delay",
-        lambda milliseconds: events.append(
-            ("delay", milliseconds, farm.grid[0][0])
-        ),
+        lambda milliseconds: events.append(("delay", milliseconds, farm.grid[0][0])),
     )
 
     crop = farm.plant(0, 0, CropType.FIRE)

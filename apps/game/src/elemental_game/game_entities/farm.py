@@ -220,9 +220,7 @@ class Farm:
                 if self.menu.options:
                     self.notice_timer = 0.0
                 if len(self.menu.options) == 1:
-                    self._plant_selection(
-                        player, self.menu.selected_crop(), tile
-                    )
+                    self._plant_selection(player, self.menu.selected_crop(), tile)
                     self.planting = False
                 else:
                     self.planting = len(self.menu.options) > 1

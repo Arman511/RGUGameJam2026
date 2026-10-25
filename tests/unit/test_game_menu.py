@@ -16,7 +16,7 @@ def test_register_page_uses_windows_browser_from_wsl(monkeypatch) -> None:
 
     monkeypatch.setattr(menus.subprocess, "run", fake_run)
 
-    assert menus._open_registration_page()
+    assert menus.open_registration_page()
     assert commands[0][0] == [
         "cmd.exe",
         "/c",
@@ -37,7 +37,7 @@ def test_register_button_opens_registration_page(monkeypatch) -> None:
     app.error_message = ""
     opened_urls: list[str] = []
     monkeypatch.setattr(
-        menus,
+        menus.login,
         "_open_registration_page",
         lambda: (opened_urls.append(menus.REGISTER_URL), True)[1],
     )
@@ -59,7 +59,7 @@ def test_register_button_reports_browser_failure(monkeypatch) -> None:
         pygame.Rect(250, 265, 300, 44), placeholder="Password", max_length=128
     )
     app.error_message = ""
-    monkeypatch.setattr(menus, "_open_registration_page", lambda: False)
+    monkeypatch.setattr(menus.login, "_open_registration_page", lambda: False)
 
     app._handle_login_event(
         pygame.event.Event(pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": (400, 364)})
@@ -190,6 +190,32 @@ def test_hosting_screen_displays_remaining_join_time(monkeypatch) -> None:
         call.args[:3] == ("Time remaining: 2s", 400, 350)
         for call in app._draw_text.call_args_list
     )
+
+
+def test_help_instructions_and_expired_room_message_fit_their_panel() -> None:
+    from pathlib import Path
+
+    pygame.font.init()
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.layout = menus.MenuLayout(800, 600)
+    app.font = pygame.font.Font(
+        str(Path(menus.ASSETS_DIR) / "font" / "pixelfont.ttf"), 28
+    )
+    app._draw_panel = Mock()
+    app._draw_title = Mock()
+    app._draw_text = Mock()
+    app._draw_button = Mock()
+
+    app._draw_help()
+
+    instruction_calls = app._draw_text.call_args_list
+    assert instruction_calls
+    assert all(app.font.size(call.args[0])[0] <= 520 for call in instruction_calls)
+    assert all(
+        call.args[2] + app.font.get_linesize() // 2 < menus.HELP_BACK_BUTTON.top
+        for call in instruction_calls
+    )
+    assert app.font.size("Room expired. No player joined.")[0] <= 520
 
 
 def test_menu_click_target_uses_scaled_window_layout() -> None:
@@ -511,7 +537,7 @@ def test_menu_quit_does_not_draw_a_final_frame(monkeypatch) -> None:
     app._draw = Mock()
     flip = Mock()
 
-    monkeypatch.setattr(menus, "play_background_music", Mock())
+    monkeypatch.setattr(menus.system, "play_background_music", Mock())
     monkeypatch.setattr(pygame.display, "flip", flip)
 
     events = (
