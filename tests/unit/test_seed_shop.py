@@ -4,13 +4,16 @@ from elemental_game.game_entities.farm import CropMenu, Farm
 from elemental_game.game_entities.house import House, HouseState
 from elemental_game.game_entities.player.player import Player
 from elemental_game.game_entities.shop import (
+    FertilizerUpgrade,
     HarvestSizeUpgrade,
     HouseUpgrade,
     PlantRadiusUpgrade,
     SellAllCrops,
     ShopMenu,
 )
+from elemental_game.game_entities.shop.renderer import ShopRenderer
 from elemental_game.game_entities.turrets.turrets import ManualTurret
+from elemental_game.gameplay import GameSession
 from elemental_game.types.player import PlayerType
 from elemental_game.types.seed import SeedType
 
@@ -86,6 +89,158 @@ def test_shop_a_and_d_change_seed_tier() -> None:
         pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_a}), player, make_farm()
     )
     assert shop.tier == 1
+
+
+def test_market_mouse_wheel_moves_selection_up_and_down() -> None:
+    player = make_player()
+    shop = ShopMenu()
+
+    shop.handle_event(
+        pygame.event.Event(pygame.MOUSEWHEEL, {"y": -1}), player, make_farm()
+    )
+    assert shop.selected == 1
+
+    shop.handle_event(
+        pygame.event.Event(pygame.MOUSEWHEEL, {"y": 1}), player, make_farm()
+    )
+    assert shop.selected == 0
+
+
+def test_open_market_receives_mouse_wheel_events() -> None:
+    from elemental_game.game_entities.turrets.turrets import TurretSystem
+
+    shop = ShopMenu()
+    game = GameSession.__new__(GameSession)
+    game.turrets = TurretSystem.__new__(TurretSystem)
+    game.turrets.modal_slot = None
+    game.controlling_house_turret = False
+    game.shop_open = True
+    game.shop = shop
+    game.player = make_player()
+    game.farm = make_farm()
+    game.house = House.__new__(House)
+    game.screen = pygame.Surface((1, 1))
+
+    event = pygame.event.Event(pygame.MOUSEWHEEL, {"y": -1})
+    game.handle_event(event)
+
+    assert shop.selected == 1
+
+
+def test_market_w_and_s_keys_move_selection() -> None:
+    player = make_player()
+    shop = ShopMenu()
+
+    shop.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_s}), player, make_farm()
+    )
+    assert shop.selected == 1
+
+    shop.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_w}), player, make_farm()
+    )
+    assert shop.selected == 0
+
+
+def test_w_and_s_keys_move_quadrant_selection() -> None:
+    player = make_player()
+    shop = ShopMenu()
+    shop.mode = "upgrade"
+    shop.selecting_quadrant = True
+
+    shop.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_s}), player, make_farm()
+    )
+    assert shop.selected == 1
+
+    shop.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_w}), player, make_farm()
+    )
+    assert shop.selected == 0
+
+
+def test_market_mouse_wheel_scrolls_long_upgrade_list(monkeypatch) -> None:
+    player = make_player()
+    shop = ShopMenu()
+    shop.mode = "upgrade"
+    monkeypatch.setattr(
+        shop, "_options", lambda *args: list(range(15)) if len(args) == 2 else []
+    )
+
+    for _ in range(ShopMenu.MAX_VISIBLE_UPGRADES):
+        shop.handle_event(
+            pygame.event.Event(pygame.MOUSEWHEEL, {"y": -1}), player, make_farm()
+        )
+
+    assert shop.selected == ShopMenu.MAX_VISIBLE_UPGRADES
+    assert shop.scroll_offset == 1
+
+    for _ in range(ShopMenu.MAX_VISIBLE_UPGRADES):
+        shop.handle_event(
+            pygame.event.Event(pygame.MOUSEWHEEL, {"y": 1}), player, make_farm()
+        )
+
+    assert shop.selected == 0
+    assert shop.scroll_offset == 0
+
+
+def test_upgrade_help_only_appears_when_a_fertilizer_is_selected(monkeypatch) -> None:
+    player = make_player()
+    farm = make_farm()
+    shop = ShopMenu()
+    shop.mode = "upgrade"
+    options = shop._visible_options(player)
+    fertilizer_index = next(
+        index
+        for index, option in enumerate(options)
+        if isinstance(option, FertilizerUpgrade)
+    )
+    non_fertilizer_index = next(
+        index
+        for index, option in enumerate(options)
+        if not isinstance(option, FertilizerUpgrade)
+    )
+    rendered_text = []
+
+    def capture_text(*args):
+        rendered_text.append(args[2])
+
+    monkeypatch.setattr(ShopRenderer, "_draw_fitted", staticmethod(capture_text))
+    pygame.font.init()
+    surface = pygame.Surface((800, 600))
+    font = pygame.font.Font(None, 20)
+
+    shop.selected = fertilizer_index
+    shop.draw(surface, font, player, farm)
+    assert "W/S or UP/DOWN/SCROLL: Select" in rendered_text
+    assert "ENTER/SPACE/F: Buy" in rendered_text
+    assert "Matching crops: double yield for 60s." in rendered_text
+    assert "Replaces current fertilizer in that quadrant." in rendered_text
+
+    rendered_text.clear()
+    shop.selected = non_fertilizer_index
+    shop.draw(surface, font, player, farm)
+    assert "Matching crops: double yield for 60s." not in rendered_text
+    assert "Replaces current fertilizer in that quadrant." not in rendered_text
+
+
+def test_upgrade_menu_offers_fertilizer_for_every_crop_type() -> None:
+    shop = ShopMenu()
+    options = shop._upgrade_options(make_player())
+
+    fertilizer_types = {
+        option.crop_type for option in options if isinstance(option, FertilizerUpgrade)
+    }
+    fertilizer_indices = [
+        index
+        for index, option in enumerate(options)
+        if isinstance(option, FertilizerUpgrade)
+    ]
+
+    assert fertilizer_types == set(CropType)
+    assert fertilizer_indices == list(
+        range(fertilizer_indices[0], fertilizer_indices[0] + len(fertilizer_indices))
+    )
 
 
 def test_shift_tab_moves_to_previous_shop_section() -> None:
@@ -184,8 +339,10 @@ def test_market_enter_clamps_stale_upgrade_selection() -> None:
         make_farm(),
     )
 
-    assert shop.selecting_quadrant
-    assert shop.pending_fertilizer == CropType.LIGHTNING
+    assert not shop.selecting_quadrant
+    assert shop.pending_fertilizer is None
+    assert shop.selected == len(shop._upgrade_options(player)) - 1
+    assert shop.status_message == "Not enough coins."
 
 
 def test_market_harvest_area_upgrades_use_the_requested_costs_and_maximum() -> None:

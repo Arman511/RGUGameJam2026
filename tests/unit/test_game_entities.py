@@ -16,7 +16,6 @@ from elemental_game.game_entities.enemies.waves import (
 )
 from elemental_game.game_entities.house import House
 from elemental_game.game_entities.player.player import Player, PlayerType
-from elemental_game.screen_rendering.game import _draw_quick_action_button
 from elemental_game.game_entities.turrets.turrets import (
     DEFINITION_BY_ELEMENT,
     ELEMENT_RANGE_COLORS,
@@ -29,7 +28,9 @@ from elemental_game.game_entities.turrets.turrets import (
     TurretProjectile,
     TurretSlot,
     TurretSystem,
+    _projectile_image_angle,
 )
+from elemental_game.screen_rendering.game import _draw_quick_action_button
 from elemental_game.types.crop import CropType
 from elemental_game.types.seed import SeedType
 from elemental_game.types.weather import WeatherTypes
@@ -374,6 +375,11 @@ def test_manual_turret_can_hit_targets_at_unlimited_range() -> None:
     assert turret.projectiles[0].image is turret.projectile_image
     turret.update(10, [enemy], (0, 0), 0, False)
     assert enemy.health < enemy.max_health
+
+
+def test_projectile_sprite_aligns_with_its_direction() -> None:
+    assert _projectile_image_angle(pygame.Vector2(0, -1)) == 0
+    assert _projectile_image_angle(pygame.Vector2(1, 0)) == -90
 
 
 def test_elemental_turret_projectile_uses_its_element_sprite_and_hits_on_arrival() -> (

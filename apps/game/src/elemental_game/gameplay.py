@@ -93,9 +93,10 @@ class GameSession:
         elif self.controlling_house_turret and event.type == pygame.KEYDOWN:
             if event.key in (pygame.K_f, pygame.K_ESCAPE):
                 self.controlling_house_turret = False
-        elif self.shop_open and event.type == pygame.KEYDOWN:
+        elif self.shop_open and event.type in (pygame.KEYDOWN, pygame.MOUSEWHEEL):
             if (
-                event.key in (pygame.K_ESCAPE, pygame.K_m)
+                event.type == pygame.KEYDOWN
+                and event.key in (pygame.K_ESCAPE, pygame.K_m)
                 and not self.shop.selecting_quadrant
             ):
                 self.shop_open = False
