@@ -65,15 +65,12 @@ class MainMenuMixin(MenuContext):
             self.running = False
 
     def _handle_credits_event(self, event: pygame.event.Event) -> None:
-        if (
-            (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE)
-            or (
-                event.type == pygame.MOUSEBUTTONDOWN
-                and event.button == 1
-                and (
-                    self.layout.rect(CREDITS_CLOSE_BUTTON).collidepoint(event.pos)
-                    or not self.layout.rect(CREDITS_MODAL).collidepoint(event.pos)
-                )
+        if (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (
+            event.type == pygame.MOUSEBUTTONDOWN
+            and event.button == 1
+            and (
+                self.layout.rect(CREDITS_CLOSE_BUTTON).collidepoint(event.pos)
+                or not self.layout.rect(CREDITS_MODAL).collidepoint(event.pos)
             )
         ):
             self.state = "menu"
@@ -126,9 +123,7 @@ class MainMenuMixin(MenuContext):
             "moonpetalmedia, starostin,",
             "andriig, jonasblakewood, mondamusic",
             "Sound effects from Mixkit.",
-            "Sprites by the team, except attack.png,",
-            "radar.png and hud.png use emoji images from",
-            "Google and Apple.",
+            "All sprites are by the team.",
         )
         for index, line in enumerate(credits):
             self._draw_text(line, 400, 155 + index * 31)

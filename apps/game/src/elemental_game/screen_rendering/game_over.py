@@ -13,6 +13,8 @@ from elemental_game.menus import (
     open_registration_page,
 )
 
+GAME_OVER_DISPLAY_DELAY_MS = 500
+
 
 class GameOverDialog:
     def __init__(
@@ -33,6 +35,7 @@ class GameOverDialog:
         self.survival_time = survival_time
         self.final_wave = final_wave
         self.enemies_defeated = enemies_defeated
+        self.display_at = pygame.time.get_ticks() + GAME_OVER_DISPLAY_DELAY_MS
         self.username = menus.username or "Guest"
         play_sfx("explosion")
         self.status_message = ""
@@ -87,7 +90,7 @@ class GameOverDialog:
         return True
 
     def handle_event(self, event: pygame.event.Event) -> None:
-        if self.done:
+        if self.done or pygame.time.get_ticks() < self.display_at:
             return
         if self.state == "published":
             if (
@@ -231,6 +234,8 @@ class GameOverDialog:
         self.done = True
 
     def draw(self) -> None:
+        if pygame.time.get_ticks() < self.display_at:
+            return
         overlay = pygame.Surface(self.surface.get_size(), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 205))
         self.surface.blit(overlay, (0, 0))

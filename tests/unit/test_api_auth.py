@@ -465,6 +465,40 @@ def test_registration_page_is_served(client) -> None:
     assert "/static/js/register.js" in response.text
 
 
+@pytest.mark.parametrize(
+    ("path", "title", "description"),
+    [
+        (
+            "/",
+            "Elemental Keep Leaderboard",
+            "Live Elemental Keep player leaderboard.",
+        ),
+        (
+            "/register",
+            "Create an account · Elemental Keep",
+            "Create an Elemental Keep account.",
+        ),
+        (
+            "/download",
+            "Download · Elemental Keep",
+            "Download Elemental Keep and defend your garden from the elements.",
+        ),
+    ],
+)
+def test_public_pages_include_seo_metadata(
+    client, path: str, title: str, description: str
+) -> None:
+    response = client.get(path)
+
+    assert response.status_code == 200
+    assert f"<title>{title}</title>" in response.text
+    assert f'<meta name="description" content="{description}">' in response.text
+    assert f'<meta property="og:title" content="{title}">' in response.text
+    assert f'<meta property="og:description" content="{description}">' in response.text
+    assert '<meta name="twitter:card" content="summary">' in response.text
+    assert f'<link rel="canonical" href="http://testserver{path}">' in response.text
+
+
 def test_leaderboard_static_assets_are_served(client) -> None:
     stylesheet = client.get("/static/css/leaderboard.css")
     script = client.get("/static/js/leaderboard.js")

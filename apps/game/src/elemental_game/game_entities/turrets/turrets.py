@@ -226,6 +226,19 @@ class ManualProjectile:
         return bounds is not None and not bounds.collidepoint(self.position)
 
 
+def _projectile_image_angle(direction: pygame.Vector2) -> float:
+    direction_angle = math.degrees(math.atan2(direction.y, direction.x))
+    return -direction_angle - 90
+
+
+def _orient_projectile_image(
+    image: pygame.Surface, direction: pygame.Vector2
+) -> pygame.Surface:
+    if not direction.length_squared():
+        return image
+    return pygame.transform.rotate(image, _projectile_image_angle(direction))
+
+
 class TurretSystem:
     INTERACTION_RADIUS = 76
     CLOSE_RANGE = 74
@@ -544,9 +557,11 @@ class TurretSystem:
                 ),
             )
         for projectile in self.projectiles:
+            direction = pygame.Vector2(projectile.target.pos) - projectile.position
+            image = _orient_projectile_image(projectile.image, direction)
             surface.blit(
-                projectile.image,
-                projectile.image.get_rect(center=projectile.position),
+                image,
+                image.get_rect(center=projectile.position),
             )
 
     def draw_modal(self, surface, font, player) -> None:
@@ -681,7 +696,7 @@ class ManualTurret:
         ).convert_alpha()
         self.image = pygame.transform.smoothscale(image, (54, 54))
         projectile = pygame.image.load(
-            os.path.join(IMAGES_DIR, "turrets", "standard-pellot.png")
+            os.path.join(IMAGES_DIR, "turrets", "standard-pellet.png")
         ).convert_alpha()
         self.projectile_image = pygame.transform.scale(projectile, (18, 18))
         self.projectiles: list[ManualProjectile] = []
@@ -748,7 +763,8 @@ class ManualTurret:
 
     def draw_projectiles(self, surface) -> None:
         for projectile in self.projectiles:
+            image = _orient_projectile_image(projectile.image, projectile.direction)
             surface.blit(
-                projectile.image,
-                projectile.image.get_rect(center=projectile.position),
+                image,
+                image.get_rect(center=projectile.position),
             )

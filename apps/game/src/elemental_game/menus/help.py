@@ -32,6 +32,7 @@ class HelpMenuMixin(MenuContext):
             "F: interact, plant, or build",
             "G: harvest crops",
             "Shop: M; tabs: TAB / SHIFT+TAB",
+            "Shop selection: W/S, UP/DOWN, or mouse wheel",
             "Shop seed tier: A/D or arrow keys",
             "Turret range display: O",
             "House turret: F at house; A/D aim; SPACE fire",

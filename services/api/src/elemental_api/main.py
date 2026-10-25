@@ -137,7 +137,10 @@ def leaderboard_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request=request,
         name="index.html",
-        context={"page_title": "Elemental Keep Leaderboard"},
+        context={
+            "page_title": "Elemental Keep Leaderboard",
+            "page_description": "Live Elemental Keep player leaderboard.",
+        },
     )
 
 
@@ -146,7 +149,10 @@ def registration_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request=request,
         name="register.html",
-        context={"page_title": "Create an account · Elemental Keep"},
+        context={
+            "page_title": "Create an account · Elemental Keep",
+            "page_description": "Create an Elemental Keep account.",
+        },
     )
 
 
@@ -155,7 +161,12 @@ def download_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request=request,
         name="download.html",
-        context={"page_title": "Download · Elemental Keep"},
+        context={
+            "page_title": "Download · Elemental Keep",
+            "page_description": (
+                "Download Elemental Keep and defend your garden from the elements."
+            ),
+        },
     )
 
 
