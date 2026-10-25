@@ -681,7 +681,7 @@ class ManualTurret:
         ).convert_alpha()
         self.image = pygame.transform.smoothscale(image, (54, 54))
         projectile = pygame.image.load(
-            os.path.join(IMAGES_DIR, "turrets", "standard-pellot.png")
+            os.path.join(IMAGES_DIR, "turrets", "standard-pellet.png")
         ).convert_alpha()
         self.projectile_image = pygame.transform.scale(projectile, (18, 18))
         self.projectiles: list[ManualProjectile] = []
