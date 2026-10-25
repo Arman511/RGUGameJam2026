@@ -10,7 +10,6 @@ from time import perf_counter
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
@@ -19,6 +18,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from elemental_api.auth.routes import router as auth_router
 from elemental_api.database.connection import initialize_database
 from elemental_api.leaderboard.routes import router as leaderboard_router
+from elemental_api.matches import router as matches_router
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -129,6 +129,7 @@ app.mount(
 )
 app.include_router(auth_router)
 app.include_router(leaderboard_router)
+app.include_router(matches_router)
 
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)

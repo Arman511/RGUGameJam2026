@@ -1,6 +1,8 @@
 import argparse
+import atexit
 import math
 import os
+import sys
 from collections.abc import Sequence
 from uuid import uuid4
 
@@ -19,11 +21,29 @@ from elemental_game.game_entities.house import House
 from elemental_game.game_entities.player.player import Player
 from elemental_game.game_entities.shop import ShopMenu
 from elemental_game.game_entities.turrets.turrets import TurretSystem
+from elemental_game.instance_lock import GameInstanceLock
 from elemental_game.menus import MenuSystem
+from elemental_game.multiplayer import MultiplayerError
 from elemental_game.screen_rendering.exit_confirmation import draw_exit_confirmation
 from elemental_game.screen_rendering.game_over import GameOverDialog
 from elemental_game.screen_rendering.hud import draw_inventory_hud
+from elemental_game.screen_rendering.multiplayer_game_over import (
+    MultiplayerGameOverDialog,
+)
+from elemental_game.types.crop import CropType
 from elemental_game.types.player import PlayerType
+from elemental_game.types.weather import WeatherTypes
+
+MULTIPLAYER_COIN_COSTS = {"extra_enemies": 6, "tougher_enemies": 8}
+_game_instance_lock = GameInstanceLock()
+try:
+    if not _game_instance_lock.acquire():
+        print("Elemental Keep is already running.", file=sys.stderr)
+        raise SystemExit(0)
+except OSError as error:
+    print(f"Could not create the game instance lock: {error}", file=sys.stderr)
+    raise SystemExit(1) from error
+atexit.register(_game_instance_lock.release)
 
 # Initialise pygame attributes and use a larger audio buffer to reduce
 # underruns on slower audio backends such as WSL.
@@ -77,9 +97,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         running = menus.run()
 
     if not running:
+        _game_instance_lock.release()
         pygame.quit()
         return
 
+    multiplayer = menus.multiplayer_client if menus.game_mode == "multiplayer" else None
     farm, player = _create_game(screen, menus.store.player_image_number())
     shop = ShopMenu()
     house = House(screen)
@@ -127,9 +149,21 @@ def main(argv: Sequence[str] | None = None) -> None:
     run_elapsed = 0.0
     enemies_defeated = 0
     game_over_dialog = None
+    multiplayer_panel_open = False
+    multiplayer_status = ""
+    pending_extra_enemies = 0
+    pending_health_multiplier = 1.0
+    active_health_multiplier = 1.0
+    pending_elemental_bias: dict[CropType, int] = {}
+    pending_weather: WeatherTypes | None = None
+    selected_attack_element: CropType | None = next(
+        (crop for crop, count in player.crops.items() if count > 0),
+        None,
+    )
+    multiplayer_result_sent = False
 
     while running:
-        if house.health <= 0 and game_over_dialog is None:
+        if house.health <= 0 and game_over_dialog is None and multiplayer is None:
             game_over_dialog = GameOverDialog(
                 screen,
                 font,
@@ -140,6 +174,71 @@ def main(argv: Sequence[str] | None = None) -> None:
                 enemies_defeated=enemies_defeated,
             )
         seconds = clock.tick(60) / 1000  # seconds since last frame
+        if isinstance(game_over_dialog, MultiplayerGameOverDialog):
+            game_over_dialog.update(seconds)
+        if multiplayer is not None:
+            try:
+                for message in multiplayer.poll():
+                    payload = message["payload"]
+                    if message["type"] == "opponent_action":
+                        action = payload["action"]
+                        element_name = payload.get("element")
+                        if action == "extra_enemies":
+                            pending_extra_enemies += 4
+                            multiplayer_status = "Opponent sent extra enemies."
+                        elif action == "tougher_enemies":
+                            pending_health_multiplier += 0.5
+                            multiplayer_status = "Opponent toughened the next wave."
+                        elif (
+                            action == "elemental_chance"
+                            and element_name in CropType.__members__
+                        ):
+                            element = CropType[element_name]
+                            pending_elemental_bias[element] = (
+                                pending_elemental_bias.get(element, 0) + 1
+                            )
+                            multiplayer_status = (
+                                f"Next wave has more {element_name.lower()} enemies."
+                            )
+                        elif (
+                            action == "change_weather"
+                            and element_name in CropType.__members__
+                        ):
+                            pending_weather = (
+                                WeatherTypes.WINDS
+                                if element_name == "AIR"
+                                else WeatherTypes[element_name]
+                            )
+                            multiplayer_status = f"Opponent changed next wave weather to {element_name.lower()}."
+                    elif message["type"] == "match_ended":
+                        if game_over_dialog is None:
+                            game_over_dialog = MultiplayerGameOverDialog(
+                                screen, font, payload["result"]
+                            )
+                    elif message["type"] == "opponent_disconnected":
+                        multiplayer_status = "Opponent disconnected."
+                        if game_over_dialog is None:
+                            game_over_dialog = MultiplayerGameOverDialog(
+                                screen, font, "defeat"
+                            )
+                    elif message["type"] == "error":
+                        multiplayer_status = payload["message"]
+            except MultiplayerError as error:
+                multiplayer_status = str(error)
+                multiplayer.close()
+                multiplayer = None
+                menus.multiplayer_client = None
+        if (
+            multiplayer is not None
+            and house.health <= 0
+            and not multiplayer_result_sent
+        ):
+            try:
+                multiplayer.end_match()
+            except MultiplayerError as error:
+                multiplayer_status = str(error)
+                game_over_dialog = MultiplayerGameOverDialog(screen, font, "defeat")
+            multiplayer_result_sent = True
         tile = farm.tile_at_pixel(*player.pos)  # tile the player is standing on
 
         # Handle keyboard and mouse inputs.
@@ -150,8 +249,17 @@ def main(argv: Sequence[str] | None = None) -> None:
             elif confirm_exit and event.type == pygame.KEYDOWN:
                 if event.key in (pygame.K_y, pygame.K_RETURN):
                     confirm_exit = False
+                    if multiplayer is not None:
+                        multiplayer.close()
+                        multiplayer = None
+                        menus.multiplayer_client = None
                     running = menus.run()
                     if running:
+                        multiplayer = (
+                            menus.multiplayer_client
+                            if menus.game_mode == "multiplayer"
+                            else None
+                        )
                         farm, player = _create_game(
                             screen, menus.store.player_image_number()
                         )
@@ -174,15 +282,32 @@ def main(argv: Sequence[str] | None = None) -> None:
                         farm.weather_crop_type = waves.crop_type
                         shop_open = False
                         hud_visible = False
+                        multiplayer_panel_open = False
+                        multiplayer_status = ""
+                        pending_extra_enemies = 0
+                        pending_health_multiplier = 1.0
+                        active_health_multiplier = 1.0
+                        pending_elemental_bias = {}
+                        pending_weather = None
+                        multiplayer_result_sent = False
                     clock.tick()
                 elif event.key in (pygame.K_n, pygame.K_ESCAPE):
                     confirm_exit = False
             elif game_over_dialog is not None:
                 game_over_dialog.handle_event(event)
                 if game_over_dialog.done:
+                    if multiplayer is not None:
+                        multiplayer.close()
+                        multiplayer = None
+                        menus.multiplayer_client = None
                     game_over_dialog = None
                     running = menus.run()
                     if running:
+                        multiplayer = (
+                            menus.multiplayer_client
+                            if menus.game_mode == "multiplayer"
+                            else None
+                        )
                         farm, player = _create_game(
                             screen, menus.store.player_image_number()
                         )
@@ -204,9 +329,78 @@ def main(argv: Sequence[str] | None = None) -> None:
                         farm.weather_crop_type = waves.crop_type
                         shop_open = False
                         hud_visible = False
+                        multiplayer_panel_open = False
+                        multiplayer_status = ""
+                        pending_extra_enemies = 0
+                        pending_health_multiplier = 1.0
+                        active_health_multiplier = 1.0
+                        pending_elemental_bias = {}
+                        pending_weather = None
+                        multiplayer_result_sent = False
                     clock.tick()
                     if not running:
                         break
+            elif (
+                event.type == pygame.KEYDOWN
+                and event.key == pygame.K_v
+                and multiplayer is not None
+                and game_over_dialog is None
+            ):
+                multiplayer_panel_open = not multiplayer_panel_open
+                available = [crop for crop, count in player.crops.items() if count > 0]
+                if selected_attack_element not in available:
+                    selected_attack_element = available[0] if available else None
+            elif multiplayer_panel_open and event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_ESCAPE, pygame.K_v):
+                    multiplayer_panel_open = False
+                elif event.key in (pygame.K_q, pygame.K_e):
+                    available = [
+                        crop for crop, count in player.crops.items() if count > 0
+                    ]
+                    if available:
+                        current = (
+                            available.index(selected_attack_element)
+                            if selected_attack_element in available
+                            else 0
+                        )
+                        step = -1 if event.key == pygame.K_q else 1
+                        selected_attack_element = available[
+                            (current + step) % len(available)
+                        ]
+                elif event.key in (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4):
+                    action = {
+                        pygame.K_1: "extra_enemies",
+                        pygame.K_2: "tougher_enemies",
+                        pygame.K_3: "elemental_chance",
+                        pygame.K_4: "change_weather",
+                    }[event.key]
+                    element = (
+                        selected_attack_element
+                        if action in {"elemental_chance", "change_weather"}
+                        else None
+                    )
+                    if action in {"elemental_chance", "change_weather"} and (
+                        element is None or player.crops.get(element, 0) <= 0
+                    ):
+                        multiplayer_status = "Harvest an elemental crop first."
+                    elif (
+                        action in MULTIPLAYER_COIN_COSTS
+                        and player.coins < MULTIPLAYER_COIN_COSTS[action]
+                    ):
+                        multiplayer_status = "Not enough coins for that attack."
+                    elif multiplayer is not None:
+                        try:
+                            multiplayer.send_action(
+                                action, element.name if element is not None else None
+                            )
+                        except MultiplayerError as error:
+                            multiplayer_status = str(error)
+                        else:
+                            if action in MULTIPLAYER_COIN_COSTS:
+                                player.deduct_coins(MULTIPLAYER_COIN_COSTS[action])
+                            else:
+                                player.crops[element] -= 1
+                            multiplayer_status = "Attack sent for the next wave."
             elif (
                 event.type == pygame.KEYDOWN
                 and event.key == pygame.K_h
@@ -274,8 +468,25 @@ def main(argv: Sequence[str] | None = None) -> None:
                     planting_phase = False
                     wave_number += 1
                     waves.new_wave()
+                    if pending_weather is not None:
+                        waves.state = pending_weather
                     farm.weather_crop_type = waves.crop_type
-                    wave_sequence = build_wave_sequence(wave_number, waves.state)
+                    active_health_multiplier = pending_health_multiplier
+                    wave_sequence = build_wave_sequence(
+                        wave_number,
+                        waves.state,
+                        extra_enemies=pending_extra_enemies,
+                        elemental_biases=pending_elemental_bias,
+                    )
+                    if multiplayer is not None:
+                        try:
+                            multiplayer.send_wave(wave_number)
+                        except MultiplayerError as error:
+                            multiplayer_status = str(error)
+                    pending_extra_enemies = 0
+                    pending_health_multiplier = 1.0
+                    pending_elemental_bias = {}
+                    pending_weather = None
                     play_background_music(
                         "boss" if wave_number % 3 == 0 else "enemies",
                         volume=menus.preferences["music_volume"],
@@ -300,14 +511,18 @@ def main(argv: Sequence[str] | None = None) -> None:
                         ),
                     )
                     spawn_x = -30 if wave_spawned % 2 == 0 else screen.get_width() + 30
-                    enemies.append(EnemyState.create(key, (spawn_x, spawn_y)))
+                    enemy = EnemyState.create(key, (spawn_x, spawn_y))
+                    if active_health_multiplier > 1:
+                        enemy.max_health = math.ceil(
+                            enemy.max_health * active_health_multiplier
+                        )
+                        enemy.health = enemy.max_health
+                    enemies.append(enemy)
                     wave_spawned += 1
                 if phase_remaining <= 0 and not enemies:
                     planting_phase = True
                     phase_remaining = config.PLANTING_PHASE_DURATION
-                    play_background_music(
-                        volume=menus.preferences["music_volume"]
-                    )
+                    play_background_music(volume=menus.preferences["music_volume"])
 
             turrets.update(seconds, enemies)
             house_turret = house.turret
@@ -359,9 +574,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                     seed_amount = math.ceil(config.ENEMY_SEED_DROP_MULTIPLIER)
                     if seed_amount > 0:
                         seed_type, seed_tier = roll_enemy_seed_drop(enemy)
-                        player.add_seed(
-                            seed_type, seed_tier, seed_amount
-                        )
+                        player.add_seed(seed_type, seed_tier, seed_amount)
                 else:
                     survivors.append(enemy)
             enemies = survivors
@@ -398,6 +611,46 @@ def main(argv: Sequence[str] | None = None) -> None:
         )
         if hud_visible:
             draw_inventory_hud(screen, player, wave_number, enemies_defeated)
+        if multiplayer is not None:
+            room_code = multiplayer.room_code or "------"
+            opponent_text = font.render(
+                f"VS {multiplayer.opponent_name}  |  Room {room_code}  |  V: attacks",
+                True,
+                (255, 255, 255),
+            )
+            screen.blit(opponent_text, (20, 75))
+            if multiplayer_status:
+                status_text = font.render(
+                    multiplayer_status[:75], True, (255, 225, 125)
+                )
+                screen.blit(status_text, (20, 105))
+            if multiplayer_panel_open:
+                panel = pygame.Rect(665, 170, 470, 300)
+                pygame.draw.rect(screen, (35, 40, 50), panel, border_radius=10)
+                pygame.draw.rect(screen, (215, 220, 230), panel, 2, border_radius=10)
+                crop_count = (
+                    player.crops.get(selected_attack_element, 0)
+                    if selected_attack_element is not None
+                    else 0
+                )
+                selected_crop_name = (
+                    selected_attack_element.name.title()
+                    if selected_attack_element is not None
+                    else "none"
+                )
+                attack_lines = (
+                    "VS ATTACKS  (V / ESC to close)",
+                    f"Coins: {player.coins}    Crop: {selected_crop_name} x{crop_count} (Q/E)",
+                    "1  Send 4 extra enemies  -  6 coins",
+                    "2  Toughen next wave     -  8 coins",
+                    "3  Raise elemental odds  -  1 crop",
+                    "4  Change enemy weather  -  1 crop",
+                )
+                for index, line in enumerate(attack_lines):
+                    text = font.render(
+                        line, True, (255, 230, 150) if index == 0 else (245, 245, 245)
+                    )
+                    screen.blit(text, (panel.x + 18, panel.y + 25 + index * 42))
         if shop_open:
             shop.draw(screen, font, player, farm, house)
         if confirm_exit:
@@ -406,6 +659,9 @@ def main(argv: Sequence[str] | None = None) -> None:
             game_over_dialog.draw()
         pygame.display.flip()
 
+    if multiplayer is not None:
+        multiplayer.close()
+    _game_instance_lock.release()
     pygame.quit()
 
 

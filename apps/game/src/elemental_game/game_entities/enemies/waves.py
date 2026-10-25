@@ -27,10 +27,17 @@ ENEMY_KEYS_BY_ELEMENT = {
 
 
 def build_wave_sequence(
-    wave_number: int, weather: WeatherTypes | None = None
+    wave_number: int,
+    weather: WeatherTypes | None = None,
+    *,
+    extra_enemies: int = 0,
+    elemental_bias: CropType | None = None,
+    elemental_biases: dict[CropType, int] | None = None,
 ) -> list[str]:
     if wave_number < 1:
         raise ValueError("wave_number must be positive")
+    if extra_enemies < 0:
+        raise ValueError("extra_enemies cannot be negative")
     if wave_number % 3 == 0:
         regulars = ["runner"] * max(2, wave_number // 2) + ["brute"] * max(
             2, wave_number // 3
@@ -61,6 +68,20 @@ def build_wave_sequence(
         counter_element = OPPOSING_ELEMENTS[crop_type]
         counter_enemy = ENEMY_KEYS_BY_ELEMENT[counter_element]
         wave.extend([counter_enemy] * max(1, len(wave) // 3))
+    bias_counts = dict(elemental_biases or {})
+    if elemental_bias is not None:
+        bias_counts[elemental_bias] = bias_counts.get(elemental_bias, 0) + 1
+    elemental_enemy_count = max(1, (len(wave) + 1) // 2)
+    for element, count in bias_counts.items():
+        if (
+            element not in ENEMY_KEYS_BY_ELEMENT
+            or not isinstance(count, int)
+            or isinstance(count, bool)
+            or count < 0
+        ):
+            raise ValueError("elemental_biases must contain valid elements and counts.")
+        wave.extend([ENEMY_KEYS_BY_ELEMENT[element]] * elemental_enemy_count * count)
+    wave.extend(["swarmer"] * extra_enemies)
     return wave
 
 
@@ -103,9 +124,7 @@ class Waves:
         image_rect = image.get_rect(topleft=(x, y))
         background_rect = image_rect.inflate(12, 12)
         pygame.draw.rect(surface, (28, 34, 46), background_rect, border_radius=8)
-        pygame.draw.rect(
-            surface, (210, 220, 235), background_rect, 1, border_radius=8
-        )
+        pygame.draw.rect(surface, (210, 220, 235), background_rect, 1, border_radius=8)
         surface.blit(image, image_rect)
 
     def new_wave(self):

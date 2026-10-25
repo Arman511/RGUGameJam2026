@@ -1,11 +1,11 @@
 services:
   elemental-api:
-    build:
-      context: .
-      dockerfile: services/api/Dockerfile
+    image: ghcr.io/arman511/rgugamejam2026-api:latest
     restart: unless-stopped
     environment:
       ELEMENTAL_API_DB_PATH: /data/elemental_api.db
+      ELEMENTAL_MATCH_LIMIT: ${ELEMENTAL_MATCH_LIMIT:-100}
+      ELEMENTAL_MATCH_JOIN_TIMEOUT_SECONDS: ${ELEMENTAL_MATCH_JOIN_TIMEOUT_SECONDS:-120}
     volumes:
       - ./.local/elemental_api_data:/data
     networks:

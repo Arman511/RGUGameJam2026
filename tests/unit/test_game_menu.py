@@ -138,8 +138,42 @@ def test_menu_click_target_uses_scaled_window_layout() -> None:
 
     menu_click(app, app.layout.rect(menus.PLAY_BUTTON).center)
 
+    assert app.state == "mode_select"
+    app._handle_mode_select_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            {"button": 1, "pos": app.layout.rect(menus.SINGLE_PLAYER_BUTTON).center},
+        )
+    )
+
+    assert app.game_mode == "single"
     assert app.start_game
     assert not app.running
+
+
+def test_mode_selection_can_open_online_join_menu() -> None:
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.layout = menus.MenuLayout(800, 600)
+    app.state = "mode_select"
+    app.join_code = menus.InputField(
+        menus.JOIN_CODE_RECT, placeholder="Room code", max_length=6
+    )
+
+    app._handle_mode_select_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            {"button": 1, "pos": menus.ONLINE_PLAYER_BUTTON.center},
+        )
+    )
+    app._handle_online_select_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            {"button": 1, "pos": menus.JOIN_MATCH_BUTTON.center},
+        )
+    )
+
+    assert app.state == "join_room"
+    assert app.join_code.value == ""
 
 
 def test_main_menu_help_button_opens_controls_and_escape_returns_to_menu() -> None:
