@@ -63,6 +63,10 @@ class RunSubmittedResponse(BaseModel):
     run_id: str
 
 
+class MatchConfigResponse(BaseModel):
+    join_timeout_seconds: float = Field(gt=0)
+
+
 class LeaderboardEntry(BaseModel):
     run_id: str
     username: str

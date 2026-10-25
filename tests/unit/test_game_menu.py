@@ -129,6 +129,69 @@ def test_menu_layout_scales_and_centers_for_configured_window() -> None:
     assert layout.rect(menus.PLAY_BUTTON).center == layout.point((265, 234))
 
 
+def test_host_fetches_server_timeout_before_creating_room(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.auth = SimpleNamespace(
+        client=SimpleNamespace(
+            get_match_config=Mock(
+                return_value=SimpleNamespace(join_timeout_seconds=45.25)
+            )
+        )
+    )
+    app.username = "alice"
+    app.error_message = ""
+    app.state = "online_select"
+    client = SimpleNamespace(room_code="ABC123")
+    monkeypatch.setattr(menus.MultiplayerClient, "host", lambda _: client)
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 1000)
+
+    app._host_multiplayer_game()
+
+    assert app.multiplayer_client is client
+    assert app.host_join_timeout_ms == 45250
+    assert app.host_join_deadline_ms == 46250
+    assert app.state == "hosting"
+
+
+def test_queued_host_starts_countdown_when_room_is_created(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.multiplayer_client = SimpleNamespace(
+        poll=lambda: [{"type": "room_created", "payload": {"room_code": "ABC123"}}]
+    )
+    app.host_join_timeout_ms = 5000
+    app.host_join_deadline_ms = None
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 2000)
+
+    app._poll_hosting_room()
+
+    assert app.host_join_deadline_ms == 7000
+
+
+def test_hosting_screen_displays_remaining_join_time(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.multiplayer_client = SimpleNamespace(room_code="ABC123", queue_position=None)
+    app.host_join_deadline_ms = 2500
+    app.error_message = ""
+    app._draw_panel = Mock()
+    app._draw_title = Mock()
+    app._draw_text = Mock()
+    app._draw_button = Mock()
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 1000)
+
+    app._draw_hosting()
+
+    assert any(
+        call.args[:3] == ("Time remaining: 2s", 400, 350)
+        for call in app._draw_text.call_args_list
+    )
+
+
 def test_menu_click_target_uses_scaled_window_layout() -> None:
     app = menus.MenuSystem.__new__(menus.MenuSystem)
     app.layout = menus.MenuLayout(1000, 800)

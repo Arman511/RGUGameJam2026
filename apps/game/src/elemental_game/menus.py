@@ -9,6 +9,7 @@ Usage (from main.py):
 
 from __future__ import annotations
 
+import math
 import os
 import platform
 import re
@@ -216,6 +217,8 @@ class MenuSystem:
         self.start_game = False  # set when the player presses Play
         self.game_mode = "single"
         self.multiplayer_client: MultiplayerClient | None = None
+        self.host_join_timeout_ms: int | None = None
+        self.host_join_deadline_ms: int | None = None
         self.error_message = ""
         self.notice_message = ""
         self.leaderboard_rows: list[dict[str, Any]] = []
@@ -469,10 +472,21 @@ class MenuSystem:
 
     def _host_multiplayer_game(self) -> None:
         try:
+            match_config = self.auth.client.get_match_config()
+        except APIError as error:
+            self.error_message = f"Could not read multiplayer settings: {error}"
+            return
+        try:
             self.multiplayer_client = MultiplayerClient.host(self.username or "Guest")
         except MultiplayerError as error:
             self.error_message = str(error)
             return
+        self.host_join_timeout_ms = math.ceil(match_config.join_timeout_seconds * 1000)
+        self.host_join_deadline_ms = (
+            pygame.time.get_ticks() + self.host_join_timeout_ms
+            if self.multiplayer_client.room_code is not None
+            else None
+        )
         self.error_message = ""
         self.state = "hosting"
 
@@ -521,13 +535,20 @@ class MenuSystem:
             return
         for message in messages:
             if message["type"] == "match_started":
+                self.host_join_deadline_ms = None
                 self.game_mode = "multiplayer"
                 self.state = "menu"
                 self.start_game = True
                 self.running = False
+            elif message["type"] == "room_created":
+                if self.host_join_timeout_ms is not None:
+                    self.host_join_deadline_ms = (
+                        pygame.time.get_ticks() + self.host_join_timeout_ms
+                    )
             elif message["type"] == "room_expired":
                 self.multiplayer_client.close()
                 self.multiplayer_client = None
+                self.host_join_deadline_ms = None
                 self.state = "online_select"
                 self.error_message = message["payload"]["message"]
                 return
@@ -541,6 +562,7 @@ class MenuSystem:
             if self.multiplayer_client is not None:
                 self.multiplayer_client.close()
                 self.multiplayer_client = None
+            self.host_join_deadline_ms = None
             self.state = "online_select"
             self.error_message = ""
         elif (
@@ -754,6 +776,17 @@ class MenuSystem:
             self._draw_title("Waiting for player 2", 175)
             self._draw_text(f"Room code: {room_code}", 400, 270)
             self._draw_text("Share the code with your opponent.", 400, 315)
+            if self.host_join_deadline_ms is not None:
+                remaining_ms = max(
+                    0, self.host_join_deadline_ms - pygame.time.get_ticks()
+                )
+                remaining_seconds = (remaining_ms + 999) // 1000
+                self._draw_text(
+                    f"Time remaining: {remaining_seconds}s",
+                    400,
+                    350,
+                    color=MUTED_TEXT,
+                )
         self._draw_button("Cancel", CANCEL_HOST_BUTTON)
         if self.error_message:
             self._draw_text(self.error_message, 400, 370, color=ERROR_TEXT)

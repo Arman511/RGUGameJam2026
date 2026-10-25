@@ -127,6 +127,20 @@ def test_match_manager_has_configurable_capacity_and_join_timeout(monkeypatch) -
     assert DEFAULT_JOIN_TIMEOUT_SECONDS == 120
 
 
+def test_multiplayer_config_returns_server_join_timeout(client) -> None:
+    from elemental_api.matches import match_manager
+
+    previous_timeout = match_manager.join_timeout_seconds
+    try:
+        match_manager.join_timeout_seconds = 45
+        response = client.get("/api/v1/matches/config")
+
+        assert response.status_code == 200
+        assert response.json() == {"join_timeout_seconds": 45}
+    finally:
+        match_manager.join_timeout_seconds = previous_timeout
+
+
 def test_match_queue_promotes_next_host_when_a_room_ends(client) -> None:
     from elemental_api.matches import match_manager
 

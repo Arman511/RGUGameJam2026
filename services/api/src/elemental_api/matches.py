@@ -386,6 +386,11 @@ class MatchManager:
 match_manager = MatchManager()
 
 
+@router.get("/api/v1/matches/config")
+def multiplayer_config() -> dict[str, float]:
+    return {"join_timeout_seconds": match_manager.join_timeout_seconds}
+
+
 @router.websocket("/api/v1/matches")
 async def multiplayer_match(socket: WebSocket) -> None:
     await socket.accept()

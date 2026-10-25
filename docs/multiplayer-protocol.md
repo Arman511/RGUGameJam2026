@@ -1,22 +1,27 @@
-# Multiplayer protocol draft
+# Multiplayer protocol
 
-This document describes the initial versioned protocol for future online matches.
+## Match settings
 
-## Version
-All messages include a `version` integer and a `type` field.
+The game reads the room join timeout from `GET /api/v1/matches/config`:
 
-## Example message schema
 ```json
-{"version": 1, "type": "join", "payload": {"match_id": "abc123"}}
+{"join_timeout_seconds": 120.0}
 ```
 
-## Message types
-- `join`
-- `ready`
-- `action`
-- `state_update`
-- `error`
-- `match_ended`
+The value comes from the webserver's `ELEMENTAL_MATCH_JOIN_TIMEOUT_SECONDS`
+setting (default: 120 seconds). Hosts show a countdown while a room is waiting
+for its second player. The countdown starts when the host receives a room; if
+the host is queued, it starts when the server promotes the host and creates
+their room. If nobody joins before the timeout, the server expires the room and
+closes the host connection.
 
-Server responsibilities include validation, authoritative simulation, match membership checks, and reconnect handling.
-The initial implementation keeps PvP unavailable and documents it as future work.
+## WebSocket
+
+Matches use `/api/v1/matches`. Every message includes `version: 1`, a `type`,
+and a `payload` object. A host sends a `host` handshake; a guest sends a `join`
+handshake with the six-character `room_code`. The server responds with
+`room_created`, `queued`, or `match_started` as appropriate. A room that does
+not receive a second player before the configured timeout sends `room_expired`.
+
+In-match messages relay opponent actions and wave updates. A `match_ended`
+message tells each player whether they won or lost.

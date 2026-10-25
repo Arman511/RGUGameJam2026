@@ -3,16 +3,18 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
-import os
 from typing import Any
 
 import httpx
 from pydantic import BaseModel
+from pydantic import ValidationError as PydanticValidationError
+
 from elemental_game import config
 
 from .models import (
     LeaderboardResponse,
     LocalRunRecord,
+    MatchConfigResponse,
     RunSubmission,
     RunSubmittedResponse,
 )
@@ -109,3 +111,10 @@ class APIClient:
             raise ValueError("limit must be between 1 and 100")
         response = self.get(f"/api/v1/leaderboard?limit={limit}")
         return LeaderboardResponse.model_validate(response)
+
+    def get_match_config(self) -> MatchConfigResponse:
+        response = self.get("/api/v1/matches/config")
+        try:
+            return MatchConfigResponse.model_validate(response)
+        except PydanticValidationError as exc:
+            raise APIError("The game server returned invalid match settings.") from exc
