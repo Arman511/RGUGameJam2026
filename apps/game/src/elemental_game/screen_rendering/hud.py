@@ -7,22 +7,30 @@ from elemental_game.types.crop import CropType
 from elemental_game.types.seed import SeedType
 
 
-def draw_inventory_hud(surface, player):
+def draw_inventory_hud(surface, player, current_wave: int, enemies_killed: int):
     hud_font = pygame.font.Font(
         os.path.join(config.ASSETS_DIR, "font", "pixelfont.ttf"), 16
     )
-    panel = pygame.Surface((460, 220), pygame.SRCALPHA)
+    panel = pygame.Surface((460, 270), pygame.SRCALPHA)
     panel.fill((25, 28, 35, 225))
     pygame.draw.rect(panel, (225, 225, 225), panel.get_rect(), 2)
     panel.blit(
         hud_font.render(f"Coins: {player.coins}", True, (255, 230, 120)),
         (12, 8),
     )
+    panel.blit(
+        hud_font.render(f"Current wave: {current_wave}", True, (255, 255, 255)),
+        (12, 32),
+    )
+    panel.blit(
+        hud_font.render(f"Enemies killed: {enemies_killed}", True, (255, 255, 255)),
+        (230, 32),
+    )
 
     for index, crop_type in enumerate(CropType):
         seeds = player.seeds[SeedType[crop_type.name]]
         crop_count = player.crops.get(crop_type, 0)
-        row_y = 40 + index * 28
+        row_y = 70 + index * 28
         panel.blit(
             hud_font.render(crop_type.name.title(), True, (255, 255, 255)),
             (12, row_y),

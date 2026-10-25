@@ -1,21 +1,13 @@
-"""
-Defines the farm grid: where crops are planted, grown and harvested
-
-Usage:
-
-farm.plant(0, 0, CropType.FIRE)
-farm.update(dt)      # every frame
-"""
+import os
+import random
 
 import pygame
-import random
-from elemental_game.audio import play_sfx
 from elemental_game import config
+from elemental_game.audio import play_sfx
+from elemental_game.config import IMAGES_DIR, TILE_SIZE
 from elemental_game.game_entities.crops.crops import Crop, CropType
 from elemental_game.types.player import PlayerType
 from elemental_game.types.seed import SeedType
-from elemental_game.config import IMAGES_DIR, TILE_SIZE
-import os
 
 
 class Farm:
@@ -59,6 +51,7 @@ class Farm:
         self.planting = False  # True = menu is drawn and taking input
         self.notice_message = ""
         self.notice_timer = 0.0
+        self.weather_crop_type: CropType | None = None
 
         soil_img = pygame.image.load(
             os.path.join(IMAGES_DIR, "settings-and-gameplay", "soil.png")
@@ -264,6 +257,8 @@ class Farm:
         if harvested is None:
             return
         yield_amount = harvested.tier
+        if harvested.crop_type is getattr(self, "weather_crop_type", None):
+            yield_amount *= 2
         if harvested.crop_type.name == player.player_type.name:
             if random.random() < 0.25:
                 yield_amount *= 2

@@ -64,6 +64,35 @@ def test_market_space_key_buys_selected_seed() -> None:
     assert player.seeds[SeedType.FIRE]["tier1"] == 1
 
 
+def test_shop_a_and_d_change_seed_tier() -> None:
+    player = make_player()
+    shop = ShopMenu()
+
+    shop.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_d}), player, make_farm()
+    )
+    assert shop.tier == 2
+    shop.handle_event(
+        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_a}), player, make_farm()
+    )
+    assert shop.tier == 1
+
+
+def test_shift_tab_moves_to_previous_shop_section() -> None:
+    player = make_player()
+    shop = ShopMenu()
+
+    shop.handle_event(
+        pygame.event.Event(
+            pygame.KEYDOWN, {"key": pygame.K_TAB, "mod": pygame.KMOD_SHIFT}
+        ),
+        player,
+        make_farm(),
+    )
+
+    assert shop.mode == "sell"
+
+
 def test_farm_quadrants_unlock_in_order_and_reset_to_top_right() -> None:
     player = make_player()
     player.unlocked_quadrants = {"top_right"}
@@ -300,6 +329,21 @@ def test_matching_element_has_chance_to_double_harvest_yield(monkeypatch) -> Non
     farm = make_farm(crop)
     player.pos = pygame.Vector2(25, 25)
     monkeypatch.setattr("elemental_game.game_entities.farm.random.random", lambda: 0.2)
+
+    farm.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_g}), player)
+
+    assert player.crops[CropType.FIRE] == 4
+
+
+def test_weather_guarantees_double_yield_for_matching_crop(monkeypatch) -> None:
+    player = make_player()
+    player.player_type = PlayerType.WATER
+    crop = Crop(CropType.FIRE, (0, 0), tier=2)
+    crop.growth_timer = crop.GROWTH_TIME
+    farm = make_farm(crop)
+    farm.weather_crop_type = CropType.FIRE
+    player.pos = pygame.Vector2(25, 25)
+    monkeypatch.setattr("elemental_game.game_entities.farm.random.random", lambda: 0.9)
 
     farm.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_g}), player)
 

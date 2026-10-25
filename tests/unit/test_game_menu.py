@@ -78,7 +78,7 @@ def test_guest_can_return_to_sign_in_from_menu() -> None:
     app.error_message = "A previous error"
     app.state = "menu"
 
-    menu_click(app, (400, 457))
+    menu_click(app, menus.SIGN_IN_BUTTON.center)
 
     assert app.state == "login"
     assert app.error_message == ""
@@ -95,7 +95,7 @@ def test_signed_in_player_can_sign_out_from_menu() -> None:
     app.state = "menu"
     app.auth = Auth()
 
-    menu_click(app, (400, 457))
+    menu_click(app, menus.SIGN_IN_BUTTON.center)
 
     assert app.state == "menu"
     assert app.username is None
@@ -112,7 +112,7 @@ def test_sign_out_failure_keeps_signed_in_state() -> None:
     app.state = "menu"
     app.auth = Auth()
 
-    menu_click(app, (400, 457))
+    menu_click(app, menus.SIGN_IN_BUTTON.center)
 
     assert app.state == "menu"
     assert app.username == "alice"
@@ -124,7 +124,7 @@ def test_menu_layout_scales_and_centers_for_configured_window() -> None:
 
     assert layout.scale == 1.25
     assert layout.offset == (0, 25)
-    assert layout.rect(menus.PLAY_BUTTON).center == layout.point((400, 217))
+    assert layout.rect(menus.PLAY_BUTTON).center == layout.point((265, 234))
 
 
 def test_menu_click_target_uses_scaled_window_layout() -> None:
@@ -138,6 +138,22 @@ def test_menu_click_target_uses_scaled_window_layout() -> None:
 
     assert app.start_game
     assert not app.running
+
+
+def test_main_menu_help_button_opens_controls_and_escape_returns_to_menu() -> None:
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.layout = menus.MenuLayout(800, 600)
+    app.state = "menu"
+    app._handle_menu_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            {"button": 1, "pos": app.layout.rect(menus.HELP_BUTTON).center},
+        )
+    )
+
+    assert app.state == "help"
+    app._handle_help_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_ESCAPE}))
+    assert app.state == "menu"
 
 
 def test_local_leaderboard_censors_rude_username_until_clicked() -> None:

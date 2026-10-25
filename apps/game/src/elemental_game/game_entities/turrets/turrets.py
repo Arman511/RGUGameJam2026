@@ -72,7 +72,7 @@ TURRET_DEFS: dict[str, TurretDefinition] = {
         1.1,
         12,
         {"stone": 8, "ember": 3},
-        knockback=0.3,
+        knockback=30.0,
     ),
     "wind_turbine": TurretDefinition(
         "wind_turbine",
@@ -138,6 +138,8 @@ class ProjectileTarget(Protocol):
 
     def apply_slow(self, amount: float) -> None: ...
 
+    def apply_knockback(self, direction, distance: float) -> None: ...
+
 
 @dataclass
 class TurretProjectile:
@@ -162,14 +164,48 @@ class TurretProjectile:
             self.target.take_damage(self.damage, self.element)
             self.target.apply_slow(self.slow)
             if self.knockback and self.direction is not None:
-                self.target.pos = (
-                    pygame.Vector2(self.target.pos)
-                    + self.direction * self.knockback
-                )
+                self.target.apply_knockback(self.direction, self.knockback)
             return True
         if distance:
             self.position += offset * (travel / distance)
         return False
+
+
+@dataclass
+class ManualProjectile:
+    position: pygame.Vector2
+    direction: pygame.Vector2
+    image: pygame.Surface
+    damage: int
+    speed: float = 800.0
+    hit_radius: float = 20.0
+
+    def update(self, dt: float, enemies, bounds: pygame.Rect | None) -> bool:
+        movement = self.direction * (self.speed * dt)
+        start = pygame.Vector2(self.position)
+        self.position += movement
+        movement_length_squared = movement.length_squared()
+        if movement_length_squared:
+            candidates = []
+            for enemy in enemies:
+                if enemy.health <= 0:
+                    continue
+                progress = max(
+                    0.0,
+                    min(
+                        1.0,
+                        (pygame.Vector2(enemy.pos) - start).dot(movement)
+                        / movement_length_squared,
+                    ),
+                )
+                closest = start + movement * progress
+                if closest.distance_to(enemy.pos) <= self.hit_radius:
+                    candidates.append((progress, enemy))
+            if candidates:
+                _, target = min(candidates, key=lambda candidate: candidate[0])
+                target.take_damage(self.damage)
+                return True
+        return bounds is not None and not bounds.collidepoint(self.position)
 
 
 class TurretSystem:
@@ -529,7 +565,7 @@ class ManualTurret:
             os.path.join(IMAGES_DIR, "turrets", "standard-pellot.png")
         ).convert_alpha()
         self.projectile_image = pygame.transform.scale(projectile, (18, 18))
-        self.projectiles: list[TurretProjectile] = []
+        self.projectiles: list[ManualProjectile] = []
         self.angle = -90.0
         self.cooldown = 0.0
         self.damage_level = 0
@@ -538,13 +574,19 @@ class ManualTurret:
         self.status_message = ""
 
     def update(
-        self, dt: float, enemies, origin, rotate_direction: int, firing: bool
+        self,
+        dt: float,
+        enemies,
+        origin,
+        rotate_direction: int,
+        firing: bool,
+        bounds: pygame.Rect | None = None,
     ) -> None:
         self.angle = (self.angle + rotate_direction * 150 * dt) % 360
         self.projectiles = [
             projectile
             for projectile in self.projectiles
-            if not projectile.update(dt)
+            if not projectile.update(dt, enemies, bounds)
         ]
         self.cooldown = max(0.0, self.cooldown - dt)
         if not firing or self.cooldown > 0:
@@ -552,34 +594,16 @@ class ManualTurret:
         direction = pygame.Vector2(
             math.cos(math.radians(self.angle)), math.sin(math.radians(self.angle))
         )
-        candidates = []
-        for enemy in enemies:
-            if enemy.health <= 0:
-                continue
-            offset = pygame.Vector2(enemy.pos) - pygame.Vector2(origin)
-            distance = offset.length()
-            if distance > 0 and offset.normalize().dot(direction) >= math.cos(
-                math.radians(12)
-            ):
-                candidates.append((distance, enemy))
-        if candidates:
-            _, target = min(candidates, key=lambda candidate: candidate[0])
-            direction = pygame.Vector2(
-                math.cos(math.radians(self.angle)),
-                math.sin(math.radians(self.angle)),
+        self.projectiles.append(
+            ManualProjectile(
+                position=pygame.Vector2(origin) - direction * 27,
+                direction=direction,
+                image=self.projectile_image,
+                damage=10 + 5 * self.damage_level,
+                speed=self.PROJECTILE_SPEED,
             )
-            self.projectiles.append(
-                TurretProjectile(
-                    position=pygame.Vector2(origin) + direction * 27,
-                    target=target,
-                    image=self.projectile_image,
-                    damage=10 + 5 * self.damage_level,
-                    element=None,
-                    direction=direction,
-                    speed=self.PROJECTILE_SPEED,
-                )
-            )
-            self.cooldown = max(0.12, self.FIRE_COOLDOWN * (0.82**self.fire_rate_level))
+        )
+        self.cooldown = max(0.12, self.FIRE_COOLDOWN * (0.82**self.fire_rate_level))
 
     def upgrade(self, player) -> bool:
         cost = self.next_upgrade_cost

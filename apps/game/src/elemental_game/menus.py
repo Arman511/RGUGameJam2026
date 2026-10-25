@@ -23,6 +23,7 @@ from elemental_game.api_client.http import APIError, AuthError
 from elemental_game.audio import (
     initialise_audio,
     play_background_music,
+    set_background_music_volume,
 )
 from elemental_game.config import IMAGES_DIR
 from elemental_game.database import LocalLeaderboardStore
@@ -42,12 +43,14 @@ SAVE_SETTINGS_BUTTON = pygame.Rect(330, 540, 140, 44)
 LOGIN_BUTTON = pygame.Rect(205, 340, 120, 48)
 REGISTER_BUTTON = pygame.Rect(340, 340, 120, 48)
 GUEST_BUTTON = pygame.Rect(475, 340, 120, 48)
-PLAY_BUTTON = pygame.Rect(250, 190, 300, 54)
-LEADERBOARD_BUTTON = pygame.Rect(250, 270, 300, 54)
-SETTINGS_BUTTON = pygame.Rect(250, 350, 300, 54)
-SIGN_IN_BUTTON = pygame.Rect(250, 430, 300, 54)
-EXIT_BUTTON = pygame.Rect(250, 510, 300, 54)
+PLAY_BUTTON = pygame.Rect(150, 205, 230, 58)
+LEADERBOARD_BUTTON = pygame.Rect(420, 205, 230, 58)
+SETTINGS_BUTTON = pygame.Rect(150, 295, 230, 58)
+HELP_BUTTON = pygame.Rect(420, 295, 230, 58)
+SIGN_IN_BUTTON = pygame.Rect(150, 385, 230, 58)
+EXIT_BUTTON = pygame.Rect(420, 385, 230, 58)
 LEADERBOARD_BACK_BUTTON = pygame.Rect(330, 520, 140, 44)
+HELP_BACK_BUTTON = pygame.Rect(330, 520, 140, 44)
 CLEAR_CONFIRM_BUTTON = pygame.Rect(250, 340, 140, 48)
 CANCEL_CONFIRM_BUTTON = pygame.Rect(410, 340, 140, 48)
 LEADERBOARD_FILTER_RECT = pygame.Rect(265, 105, 330, 42)
@@ -258,8 +261,8 @@ class MenuSystem:
     def _apply_sound_preferences(self) -> None:
         if pygame.mixer.get_init() is None:
             return
-        pygame.mixer.music.set_volume(self.preferences["music_volume"])
-        for channel_number in range(pygame.mixer.get_num_channels()):
+        set_background_music_volume(self.preferences["music_volume"])
+        for channel_number in range(1, pygame.mixer.get_num_channels()):
             pygame.mixer.Channel(channel_number).set_volume(
                 self.preferences["sfx_volume"]
             )
@@ -278,6 +281,7 @@ class MenuSystem:
         (e.g. Esc in game) and resumes at the main menu."""
         self.running = True
         self.start_game = False
+        play_background_music(volume=self.preferences["music_volume"])
         while self.running:
             self.clock.tick(60)
             for event in pygame.event.get():
@@ -301,6 +305,8 @@ class MenuSystem:
             self._handle_leaderboard_event(event)
         elif self.state == "settings":
             self._handle_settings_event(event)
+        elif self.state == "help":
+            self._handle_help_event(event)
         elif self.state == "confirm_clear":
             self._handle_clear_confirmation_event(event)
 
@@ -365,6 +371,8 @@ class MenuSystem:
         elif self.layout.rect(SETTINGS_BUTTON).collidepoint(event.pos):
             self.notice_message = ""
             self.state = "settings"
+        elif self.layout.rect(HELP_BUTTON).collidepoint(event.pos):
+            self.state = "help"
         elif self.layout.rect(SIGN_IN_BUTTON).collidepoint(event.pos):
             if self.username is None:
                 self.error_message = ""
@@ -380,6 +388,16 @@ class MenuSystem:
         elif self.layout.rect(EXIT_BUTTON).collidepoint(event.pos):
             self.start_game = False
             self.running = False
+
+    def _handle_help_event(self, event: pygame.event.Event) -> None:
+        if (
+            event.type == pygame.KEYDOWN
+            and event.key == pygame.K_ESCAPE
+            or event.type == pygame.MOUSEBUTTONDOWN
+            and event.button == 1
+            and self.layout.rect(HELP_BACK_BUTTON).collidepoint(event.pos)
+        ):
+            self.state = "menu"
 
     def _handle_leaderboard_event(self, event: pygame.event.Event) -> None:
         self.leaderboard_filter.handle_event(event)
@@ -481,6 +499,8 @@ class MenuSystem:
             self._draw_leaderboard()
         elif self.state == "settings":
             self._draw_settings()
+        elif self.state == "help":
+            self._draw_help()
         elif self.state == "confirm_clear":
             self._draw_clear_confirmation()
 
@@ -499,7 +519,7 @@ class MenuSystem:
             )
 
     def _draw_menu(self) -> None:
-        self._draw_panel(pygame.Rect(180, 65, 440, 110))
+        self._draw_panel(pygame.Rect(120, 65, 560, 460))
         self._draw_title("Elemental Keep", 105)
         identity = (
             f"Signed in as {self.username}" if self.username else "Playing as Guest"
@@ -508,6 +528,7 @@ class MenuSystem:
         self._draw_button("Play game", PLAY_BUTTON)
         self._draw_button("Leaderboard", LEADERBOARD_BUTTON)
         self._draw_button("Settings", SETTINGS_BUTTON)
+        self._draw_button("Help / Controls", HELP_BUTTON)
         self._draw_button(
             "Sign out" if self.username else "Sign in",
             SIGN_IN_BUTTON,
@@ -515,6 +536,27 @@ class MenuSystem:
         self._draw_button("Exit", EXIT_BUTTON)
         if self.error_message:
             self._draw_text(self.error_message, 400, 580, color=ERROR_TEXT)
+
+    def _draw_help(self) -> None:
+        self._draw_panel(pygame.Rect(100, 45, 600, 510))
+        self._draw_title("Controls", 75)
+        help_lines = (
+            "Move: WASD or arrow keys",
+            "Interact, plant, or build: F",
+            "Harvest crops: G",
+            "Open the shop: M",
+            "Shop: TAB / SHIFT+TAB changes section",
+            "Shop seed tier: A/D or LEFT/RIGHT",
+            "Elemental turret range: O",
+            "House turret: stand on the house and press F",
+            "Aim house turret: A/D or LEFT/RIGHT",
+            "Fire house turret: SPACE",
+            "Toggle inventory HUD: H",
+            "Pause / back: ESC",
+        )
+        for index, line in enumerate(help_lines):
+            self._draw_text(line, 400, 130 + index * 31)
+        self._draw_button("Back", HELP_BACK_BUTTON)
 
     def _draw_leaderboard(self) -> None:
         self._draw_panel(pygame.Rect(125, 30, 550, 480))

@@ -39,10 +39,13 @@ ENEMY_DEFS: dict[str, EnemyDefinition] = {
     "water": EnemyDefinition(
         "water", "Water Wisp", "enemy_water.png", CropType.WATER, 24, 42, 6, 4
     ),
+    "ice": EnemyDefinition(
+        "ice", "Ice Wisp", "enemy_ice.png", CropType.ICE, 24, 42, 6, 4
+    ),
     "lightning": EnemyDefinition(
         "lightning",
         "Lightning Wisp",
-        "enemy_air.png",
+        "enemy_lightning.png",
         CropType.LIGHTNING,
         22,
         52,
@@ -96,10 +99,21 @@ ENEMY_DEFS: dict[str, EnemyDefinition] = {
     "elite_lightning": EnemyDefinition(
         "elite_lightning",
         "Elite Lightning Wisp",
-        "enemy_air.png",
+        "enemy_lightning.png",
         CropType.LIGHTNING,
         38,
         48,
+        9,
+        8,
+        is_elite=True,
+    ),
+    "elite_ice": EnemyDefinition(
+        "elite_ice",
+        "Elite Ice Wisp",
+        "enemy_ice.png",
+        CropType.ICE,
+        42,
+        38,
         9,
         8,
         is_elite=True,
@@ -141,6 +155,8 @@ class EnemyState:
     attack_cooldown: float = 0.0
     slow_timer: float = 0.0
     resistance: float = 1.0
+    base_speed: float | None = None
+    slow_amount: float = 0.0
 
     @classmethod
     def create(cls, key: str, position) -> EnemyState:
@@ -156,6 +172,7 @@ class EnemyState:
             pos=pygame.Vector2(position),
             distance=1000.0,
             resistance=resistance,
+            base_speed=definition.speed,
         )
 
     @property
@@ -185,9 +202,27 @@ class EnemyState:
         self.health -= max(1, math.ceil(damage * multiplier))
 
     def apply_slow(self, amount: float) -> None:
-        if amount > 0 and self.slow_timer <= 0:
-            self.slow_timer = 1.0
-            self.speed = max(8.0, self.speed * (1.0 - min(0.7, amount)))
+        if amount <= 0:
+            return
+        if self.base_speed is None:
+            self.base_speed = self.speed
+        self.slow_amount = max(self.slow_amount, min(0.7, amount))
+        self.slow_timer = max(self.slow_timer, 1.0)
+        self.speed = max(8.0, self.base_speed * (1.0 - self.slow_amount))
+
+    def apply_knockback(self, direction, distance: float) -> None:
+        vector = pygame.Vector2(direction)
+        if distance > 0 and vector.length_squared() > 0:
+            self.pos += vector.normalize() * distance
+
+    def update_status_effects(self, dt: float) -> None:
+        if self.slow_timer <= 0:
+            return
+        self.slow_timer = max(0.0, self.slow_timer - dt)
+        if self.slow_timer == 0:
+            if self.base_speed is not None:
+                self.speed = self.base_speed
+            self.slow_amount = 0.0
 
     def move(self, dt: float) -> None:
         self.distance = max(0.0, self.distance - self.speed * dt)
@@ -201,10 +236,6 @@ class EnemyState:
         step = min(distance, self.speed * dt)
         self.pos += offset.normalize() * step
         self.distance = max(0.0, self.distance - step)
-        if self.slow_timer > 0:
-            self.slow_timer = max(0.0, self.slow_timer - dt)
-            if self.slow_timer == 0:
-                self.speed = self.definition.speed
         return distance <= step + 1
 
     def draw(self, surface, images) -> None:
@@ -231,8 +262,6 @@ def load_enemy_images() -> dict[str, pygame.Surface]:
         image = pygame.image.load(
             os.path.join(IMAGES_DIR, "enemy", definition.image)
         ).convert_alpha()
-        if definition.element is CropType.LIGHTNING:
-            image.fill((255, 220, 75, 255), special_flags=pygame.BLEND_RGBA_MULT)
         size = 82 if definition.is_boss else 48 if definition.is_elite else 42
         images[key] = pygame.transform.smoothscale(image, (size, size))
     return images

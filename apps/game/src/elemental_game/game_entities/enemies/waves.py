@@ -4,27 +4,48 @@ from typing import ClassVar
 
 import pygame
 from elemental_game.config import IMAGES_DIR, WINDOW_WIDTH
+from elemental_game.game_entities.enemies.enemies import OPPOSING_ELEMENTS
+from elemental_game.types.crop import CropType
 from elemental_game.types.weather import WeatherTypes
 
+WEATHER_CROP_TYPES = {
+    WeatherTypes.FIRE: CropType.FIRE,
+    WeatherTypes.EARTH: CropType.EARTH,
+    WeatherTypes.ICE: CropType.ICE,
+    WeatherTypes.LIGHTNING: CropType.LIGHTNING,
+    WeatherTypes.WATER: CropType.WATER,
+    WeatherTypes.WINDS: CropType.AIR,
+}
+ENEMY_KEYS_BY_ELEMENT = {
+    CropType.FIRE: "fire",
+    CropType.WATER: "water",
+    CropType.LIGHTNING: "lightning",
+    CropType.EARTH: "brute",
+    CropType.ICE: "ice",
+    CropType.AIR: "runner",
+}
 
-def build_wave_sequence(wave_number: int) -> list[str]:
+
+def build_wave_sequence(
+    wave_number: int, weather: WeatherTypes | None = None
+) -> list[str]:
     if wave_number < 1:
         raise ValueError("wave_number must be positive")
-    if wave_number % 5 == 0:
+    if wave_number % 3 == 0:
         regulars = ["runner"] * max(2, wave_number // 2) + ["brute"] * max(
             2, wave_number // 3
         )
         elites = ["elite_fire", "elite_earth"][: max(1, wave_number // 10)]
-        return ["boss", *elites, *regulars]
-    if wave_number == 1:
-        return ["swarmer", "swarmer", "swarmer"]
-    if wave_number == 2:
-        return ["swarmer"] * 4 + ["brute"] * 1
-    swarmers = max(2, 7 - wave_number)
-    runners = 2 + wave_number
-    brutes = 1 + wave_number // 2
-    wave = ["swarmer"] * swarmers + ["runner"] * runners + ["brute"] * brutes
-    if wave_number >= 3:
+        wave = ["boss", *elites, *regulars]
+    elif wave_number == 1:
+        wave = ["swarmer", "swarmer", "swarmer"]
+    elif wave_number == 2:
+        wave = ["swarmer"] * 4 + ["brute"]
+    else:
+        swarmers = max(2, 7 - wave_number)
+        runners = 2 + wave_number
+        brutes = 1 + wave_number // 2
+        wave = ["swarmer"] * swarmers + ["runner"] * runners + ["brute"] * brutes
         elite_types = (
             "elite_fire",
             "elite_water",
@@ -35,6 +56,11 @@ def build_wave_sequence(wave_number: int) -> list[str]:
         wave.extend(
             [elite_types[(wave_number - 3) % len(elite_types)]] * (1 + wave_number // 4)
         )
+    if weather is not None:
+        crop_type = WEATHER_CROP_TYPES[weather]
+        counter_element = OPPOSING_ELEMENTS[crop_type]
+        counter_enemy = ENEMY_KEYS_BY_ELEMENT[counter_element]
+        wave.extend([counter_enemy] * max(1, len(wave) // 3))
     return wave
 
 
@@ -66,10 +92,21 @@ class Waves:
     def get_weather(self):
         return random.choice(list(WeatherTypes))
 
+    @property
+    def crop_type(self) -> CropType:
+        return WEATHER_CROP_TYPES[self.state]
+
     def draw_weather(self, surface):
         y = 60
         x = (WINDOW_WIDTH - self.dimensions[0]) - 40
-        surface.blit(self.weather_images[self.state], (x, y))
+        image = self.weather_images[self.state]
+        image_rect = image.get_rect(topleft=(x, y))
+        background_rect = image_rect.inflate(12, 12)
+        pygame.draw.rect(surface, (28, 34, 46), background_rect, border_radius=8)
+        pygame.draw.rect(
+            surface, (210, 220, 235), background_rect, 1, border_radius=8
+        )
+        surface.blit(image, image_rect)
 
     def new_wave(self):
         self.state = self.get_weather()

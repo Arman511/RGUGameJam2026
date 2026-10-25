@@ -69,16 +69,19 @@ class ShopMenu:
         if self.selecting_quadrant:
             self._handle_quadrant_selection(event, player, farm)
         elif event.key == pygame.K_TAB:
-            self.mode = self.MODES[(self.MODES.index(self.mode) + 1) % len(self.MODES)]
+            step = -1 if getattr(event, "mod", 0) & pygame.KMOD_SHIFT else 1
+            self.mode = self.MODES[
+                (self.MODES.index(self.mode) + step) % len(self.MODES)
+            ]
             self.selected = 0
             self.status_message = ""
         elif event.key == pygame.K_UP:
             self._move_selection(-1, player, house)
         elif event.key == pygame.K_DOWN:
             self._move_selection(1, player, house)
-        elif self.mode == "buy" and event.key == pygame.K_LEFT:
+        elif self.mode == "buy" and event.key in (pygame.K_LEFT, pygame.K_a):
             self.tier = (self.tier - 2) % 3 + 1
-        elif self.mode == "buy" and event.key == pygame.K_RIGHT:
+        elif self.mode == "buy" and event.key in (pygame.K_RIGHT, pygame.K_d):
             self.tier = self.tier % 3 + 1
         elif event.key in self.CONFIRM_KEYS:
             if self.mode == "buy":
@@ -204,7 +207,7 @@ class ShopMenu:
         if self.selecting_quadrant:
             text = "UP/DOWN: Select    ENTER: Buy    ESC: Cancel"
         else:
-            text = "TAB: Next | UP/DOWN: Select | ENTER: Buy"
+            text = "TAB / SHIFT+TAB: Change section | UP/DOWN: Select | ENTER: Buy"
         self._draw_fitted(
             surface,
             font,
@@ -217,7 +220,7 @@ class ShopMenu:
             self._draw_fitted(
                 surface,
                 font,
-                "LEFT/RIGHT: change seed tier",
+                "A/D or LEFT/RIGHT: change seed tier",
                 (220, 220, 220),
                 (panel.x + 20, panel.y + 82),
                 panel.width - 40,

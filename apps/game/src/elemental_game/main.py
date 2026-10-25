@@ -8,6 +8,7 @@ from uuid import uuid4
 import pygame
 
 from elemental_game import config
+from elemental_game.audio import play_background_music
 from elemental_game.game_entities.enemies.enemies import EnemyState, load_enemy_images
 from elemental_game.game_entities.enemies.waves import Waves, build_wave_sequence
 from elemental_game.game_entities.farm import Farm
@@ -22,7 +23,9 @@ from elemental_game.screen_rendering.hud import draw_inventory_hud
 from elemental_game.types.player import PlayerType
 from elemental_game.types.seed import SeedType
 
-# initialise pygame attributes
+# Initialise pygame attributes and use a larger audio buffer to reduce
+# underruns on slower audio backends such as WSL.
+pygame.mixer.pre_init(frequency=48000, size=-16, channels=2, buffer=4096)
 pygame.init()
 pygame.display.set_icon(pygame.image.load(os.path.join(config.ASSETS_DIR, "icon.ico")))
 screen = pygame.display.set_mode((config.WINDOW_WIDTH, config.WINDOW_HEIGHT))
@@ -84,6 +87,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         "enemy": pygame.transform.smoothscale(enemy_images["swarmer"], (48, 48)),
     }
     waves = Waves(house)
+    farm.weather_crop_type = waves.crop_type
     shop_open = False
     hud_visible = False
     confirm_exit = False
@@ -142,6 +146,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                         enemies_defeated = 0
                         game_over_dialog = None
                         waves = Waves(house)
+                        farm.weather_crop_type = waves.crop_type
                         shop_open = False
                         hud_visible = False
                     clock.tick()
@@ -170,6 +175,8 @@ def main(argv: Sequence[str] | None = None) -> None:
                         run_id = uuid4().hex
                         run_elapsed = 0.0
                         enemies_defeated = 0
+                        waves = Waves(house)
+                        farm.weather_crop_type = waves.crop_type
                         shop_open = False
                         hud_visible = False
                     clock.tick()
@@ -235,8 +242,13 @@ def main(argv: Sequence[str] | None = None) -> None:
                 if phase_remaining <= 0:
                     planting_phase = False
                     wave_number += 1
-                    wave_sequence = build_wave_sequence(wave_number)
                     waves.new_wave()
+                    farm.weather_crop_type = waves.crop_type
+                    wave_sequence = build_wave_sequence(wave_number, waves.state)
+                    play_background_music(
+                        "boss" if wave_number % 3 == 0 else "enemies",
+                        volume=menus.preferences["music_volume"],
+                    )
                     wave_spawned = 0
                     wave_elapsed = 0.0
                     phase_remaining = config.ENEMY_WAVE_DURATION
@@ -262,6 +274,9 @@ def main(argv: Sequence[str] | None = None) -> None:
                 if phase_remaining <= 0:
                     planting_phase = True
                     phase_remaining = config.PLANTING_PHASE_DURATION
+                    play_background_music(
+                        volume=menus.preferences["music_volume"]
+                    )
 
             turrets.update(seconds, enemies)
             house_turret = house.turret
@@ -278,11 +293,13 @@ def main(argv: Sequence[str] | None = None) -> None:
                 (house.return_rect().centerx, house.return_rect().y + 24),
                 rotate_direction,
                 controlling_house_turret and keys[pygame.K_SPACE],
+                screen.get_rect(),
             )
 
             for enemy in enemies:
                 if enemy.health <= 0:
                     continue
+                enemy.update_status_effects(seconds)
                 enemy.attack_cooldown = max(0.0, enemy.attack_cooldown - seconds)
                 destination = pygame.Vector2(house.return_rect().center)
                 boss_slot = turrets.nearest_turret(enemy.pos) if enemy.is_boss else None
@@ -341,7 +358,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             (screen.get_width() - timer.get_width() - 20, 5),
         )
         if hud_visible:
-            draw_inventory_hud(screen, player)
+            draw_inventory_hud(screen, player, wave_number, enemies_defeated)
         if shop_open:
             shop.draw(screen, font, player, farm, house)
         if confirm_exit:
