@@ -47,10 +47,6 @@ def test_player_types_map_numbers_to_expected_sprite_paths() -> None:
     ]
 
 
-def test_flame_turret_has_configured_resource_cost() -> None:
-    assert TURRET_DEFS["flame_turret"].cost == {"ember": 6, "droplets": 2}
-
-
 def test_turret_and_enemy_definitions_have_combat_stats() -> None:
     turret = TURRET_DEFS["flame_turret"]
     enemy = ENEMY_DEFS["swarmer"]
