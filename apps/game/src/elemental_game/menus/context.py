@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any
 
 import pygame
 
@@ -13,7 +13,7 @@ from elemental_game.version_check import UpdateInfo
 from .common import InputField, MenuLayout
 
 
-class MenuContext(Protocol):
+class MenuContext:
     auth: AuthClient
     api_base_url: str
     api_base_url_input: InputField
