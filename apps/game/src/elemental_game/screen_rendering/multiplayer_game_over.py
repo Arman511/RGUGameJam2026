@@ -19,7 +19,9 @@ class MultiplayerGameOverDialog:
         self.result = result
         self.done = False
         now = pygame.time.get_ticks()
-        self.display_at = now + GAME_OVER_DISPLAY_DELAY_MS if result == "defeat" else now
+        self.display_at = (
+            now + GAME_OVER_DISPLAY_DELAY_MS if result == "defeat" else now
+        )
         self.keyboard_dismissal_at = now + GAME_OVER_DISPLAY_DELAY_MS
         if result == "defeat":
             play_sfx("explosion")

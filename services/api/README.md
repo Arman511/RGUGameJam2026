@@ -12,6 +12,10 @@ uv run --project services/api uvicorn elemental_api.main:app --reload --host 127
 The API is available at `http://127.0.0.1:8000`; check that it is running at
 `http://127.0.0.1:8000/health`. The interactive API docs are available at
 `/docs` when enabled.
+`/api/v1/version` reads the latest stable release tag from GitHub and caches it
+for five minutes. The game uses this endpoint to offer an update and link
+directly to that GitHub release. If GitHub is temporarily unavailable, the
+endpoint returns HTTP 503 and the game skips the check without blocking startup.
 
 You can also run the API in Docker from the repository root with
 `make local-serve`. This builds the local image, publishes port 8000, and keeps

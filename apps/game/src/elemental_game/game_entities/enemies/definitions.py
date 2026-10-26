@@ -6,6 +6,8 @@ from elemental_game.game_entities.crops.crops import CropType
 
 REGULAR_SEED_TIER_WEIGHTS = (50, 45, 15)
 ELITE_SEED_TIER_WEIGHTS = (30, 40, 30)
+
+
 @dataclass(frozen=True)
 class EnemyDefinition:
     """Describe an enemy type and its combat traits."""
@@ -23,6 +25,8 @@ class EnemyDefinition:
     knockback_resistance: float = 0.0
     boss_house_damage_percent: int | None = None
     boss_turret_damage_percent: int | None = None
+
+
 ENEMY_DEFS: dict[str, EnemyDefinition] = {
     "swarmer": EnemyDefinition(
         "swarmer", "Slime", "enemy_slime.png", None, 10, 56, 4, 2

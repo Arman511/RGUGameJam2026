@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import logging
 import os
+import queue
+import threading
 from typing import Any
 
+import httpx
 import pygame
 
+from elemental_game import __version__
 from elemental_game.api_client import APIClient, AuthClient, CredentialStore
 from elemental_game.audio import (
     handle_background_music_end_event,
@@ -16,6 +21,7 @@ from elemental_game.config import ASSETS_DIR, IMAGES_DIR
 from elemental_game.database import LocalLeaderboardStore
 from elemental_game.networking.client import MultiplayerClient
 from elemental_game.types.player import PlayerType
+from elemental_game.version_check import UpdateInfo, check_for_update
 
 from .common import (
     API_BASE_URL_INPUT,
@@ -28,8 +34,12 @@ from .common import (
     MENU_DESIGN_HEIGHT,
     MENU_DESIGN_WIDTH,
     TEXT,
+    UPDATE_DOWNLOAD_BUTTON,
+    UPDATE_LATER_BUTTON,
+    UPDATE_MODAL,
     InputField,
     MenuLayout,
+    open_external_page,
 )
 from .help import HelpMenuMixin
 from .leaderboard import LeaderboardMenuMixin
@@ -37,6 +47,8 @@ from .login import LoginMenuMixin
 from .main_menu import MainMenuMixin
 from .multiplayer import MultiplayerMenuMixin
 from .settings import SettingsMenuMixin
+
+logger = logging.getLogger(__name__)
 
 
 class MenuSystem(
@@ -65,9 +77,7 @@ class MenuSystem(
         self.store = LocalLeaderboardStore()
         self.credentials = CredentialStore()
         self.api_base_url = self.store.api_base_url()
-        self.auth = AuthClient(
-            APIClient(base_url=self.api_base_url), self.credentials
-        )
+        self.auth = AuthClient(APIClient(base_url=self.api_base_url), self.credentials)
         self.username: str | None = None
         self.state = "login"
         self.running = True
@@ -115,6 +125,10 @@ class MenuSystem(
         )
         self.api_base_url_input.value = self.api_base_url
         self.hints_enabled = self.store.hints_enabled()
+        self.update_info: UpdateInfo | None = None
+        self.update_prompt_open = False
+        self.update_open_error = ""
+        self._update_results: queue.SimpleQueue[UpdateInfo] = queue.SimpleQueue()
         self.player_type = PlayerType(self.store.player_image_number())
         backgrounds_dir = os.path.join(IMAGES_DIR, "backgrounds")
         self.menu_background = pygame.transform.smoothscale(
@@ -135,6 +149,19 @@ class MenuSystem(
         play_background_music(volume=self.preferences["music_volume"])
         self.dragging_slider: str | None = None
         self._check_existing_login()
+        self._start_update_check()
+
+    def _start_update_check(self) -> None:
+        def check() -> None:
+            try:
+                update = check_for_update(self.api_base_url, __version__)
+            except (httpx.HTTPError, TypeError, ValueError) as error:
+                logger.warning("Could not check for game updates: %s", error)
+                return
+            if update is not None:
+                self._update_results.put(update)
+
+        threading.Thread(target=check, name="game-update-check", daemon=True).start()
 
     def _apply_sound_preferences(self) -> None:
         if pygame.mixer.get_init() is None:
@@ -163,6 +190,7 @@ class MenuSystem(
         play_background_music(volume=self.preferences["music_volume"])
         while self.running:
             self.clock.tick(60)
+            self._poll_update_check()
             if self.state == "hosting":
                 self._poll_hosting_room()
             for event in pygame.event.get():
@@ -192,6 +220,9 @@ class MenuSystem(
         return self.start_game
 
     def _handle_event(self, event: pygame.event.Event) -> None:
+        if getattr(self, "update_prompt_open", False):
+            self._handle_update_prompt_event(event)
+            return
         if self.state == "login":
             self._handle_login_event(event)
         elif self.state == "menu":
@@ -239,6 +270,49 @@ class MenuSystem(
             self._draw_join_room()
         elif self.state == "hosting":
             self._draw_hosting()
+        self._draw_update_prompt()
+
+    def _poll_update_check(self) -> None:
+        update_results = getattr(self, "_update_results", None)
+        if update_results is None:
+            return
+        try:
+            update = update_results.get_nowait()
+        except queue.Empty:
+            return
+        self.update_info = update
+        self.update_prompt_open = True
+
+    def _handle_update_prompt_event(self, event: pygame.event.Event) -> None:
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self.update_prompt_open = False
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.layout.rect(UPDATE_LATER_BUTTON).collidepoint(event.pos):
+                self.update_prompt_open = False
+            elif self.layout.rect(UPDATE_DOWNLOAD_BUTTON).collidepoint(event.pos):
+                opened = self.update_info is not None and open_external_page(
+                    self.update_info.release_url
+                )
+                if opened:
+                    self.update_prompt_open = False
+                else:
+                    self.update_open_error = "Could not open the download page."
+
+    def _draw_update_prompt(self) -> None:
+        if not getattr(self, "update_prompt_open", False):
+            return
+
+        overlay = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 175))
+        self.screen.blit(overlay, (0, 0))
+        self._draw_panel(UPDATE_MODAL)
+        self._draw_title("Update available", 235)
+        version = self.update_info.version if self.update_info is not None else ""
+        self._draw_text(f"Version {version} is ready to download.", 400, 280)
+        self._draw_button("Download update", UPDATE_DOWNLOAD_BUTTON)
+        self._draw_button("Later", UPDATE_LATER_BUTTON)
+        if self.update_open_error:
+            self._draw_text(self.update_open_error, 400, 405, color=(255, 130, 130))
 
     def _draw_title(self, label: str, y: int) -> None:
         text = self.title_font.render(label, True, TEXT)

@@ -118,9 +118,11 @@ class ShopRenderer:
                     + (
                         190
                         if menu.mode == "buy" and not menu.selecting_quadrant
-                        else 190
-                        if menu.mode == "sell" and not menu.selecting_quadrant
-                        else 125
+                        else (
+                            190
+                            if menu.mode == "sell" and not menu.selecting_quadrant
+                            else 125
+                        )
                     ),
                 ),
                 panel.width - 40,
@@ -180,18 +182,13 @@ class ShopRenderer:
                     f"{menu.sell_quantity * 3} coins    ({inventory_count})"
                 )
             elif isinstance(option, SellSeed):
-                proceeds = player.seed_sale_proceeds(
-                    option.tier, menu.sell_quantity
-                )
+                proceeds = player.seed_sale_proceeds(option.tier, menu.sell_quantity)
                 label = (
                     f"{option.seed_type.name.title()} T{option.tier} Seed    "
                     f"{menu.sell_quantity}x    {proceeds} coins    ({option.count})"
                 )
             elif isinstance(option, SellAllCrops):
-                label = (
-                    f"Sell All Crops    {option.count}x    "
-                    f"{option.count * 3} coins"
-                )
+                label = f"Sell All Crops    {option.count}x    {option.count * 3} coins"
             else:
                 raise ValueError(f"Unsupported market option: {option!r}")
 
@@ -273,9 +270,7 @@ class ShopRenderer:
         )
         tokens = re.findall(r"\s+|\S+", text)
         coin_matches = [
-            coin_pattern.fullmatch(token)
-            for token in tokens
-            if not token.isspace()
+            coin_pattern.fullmatch(token) for token in tokens if not token.isspace()
         ]
         coin_matches = [match for match in coin_matches if match is not None]
         rendered_text = text
@@ -309,9 +304,7 @@ class ShopRenderer:
             icon = get_coin_icon(icon_size)
             surface.blit(
                 icon,
-                icon.get_rect(
-                    midleft=(cursor_x, y + font.get_linesize() // 2)
-                ),
+                icon.get_rect(midleft=(cursor_x, y + font.get_linesize() // 2)),
             )
             cursor_x += icon.get_width()
             suffix = match.group("suffix")

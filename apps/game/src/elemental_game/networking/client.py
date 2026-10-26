@@ -17,7 +17,6 @@ class MultiplayerError(RuntimeError):
     """Raised when a multiplayer operation cannot be completed."""
 
 
-
 class MultiplayerClient:
     """Manage one room connection and exchange validated match messages."""
 

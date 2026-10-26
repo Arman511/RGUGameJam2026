@@ -104,6 +104,4 @@ def test_foreground_modals_receive_clicks_before_attack_panel(
 
     loop.multiplayer.handle_panel_click.assert_not_called()
     game.handle_mouse_event.assert_called_once_with(click, {})
-    loop.multiplayer.handle_mouse_result.assert_called_once_with(
-        click, "handled", game
-    )
+    loop.multiplayer.handle_mouse_result.assert_called_once_with(click, "handled", game)

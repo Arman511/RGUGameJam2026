@@ -37,7 +37,9 @@ def test_playback_is_skipped_when_mixer_is_unavailable(monkeypatch) -> None:
 def test_background_music_loops_when_mixer_is_available(monkeypatch) -> None:
     monkeypatch.setattr(pygame.mixer, "get_init", lambda: (44100, -16, 2))
     monkeypatch.setattr(pygame.mixer, "set_reserved", Mock())
-    monkeypatch.setattr("elemental_game.audio.random.choice", lambda tracks: "background")
+    monkeypatch.setattr(
+        "elemental_game.audio.random.choice", lambda tracks: "background"
+    )
     sound = Mock()
     construct_sound = Mock(return_value=sound)
     monkeypatch.setattr(pygame.mixer, "Sound", construct_sound)
@@ -81,9 +83,7 @@ def test_background_music_end_event_starts_a_different_playlist_track(
     monkeypatch.setattr(
         "elemental_game.audio._last_normal_background_track", "farm-and-tavern"
     )
-    monkeypatch.setattr(
-        "elemental_game.audio.random.choice", lambda tracks: tracks[0]
-    )
+    monkeypatch.setattr("elemental_game.audio.random.choice", lambda tracks: tracks[0])
 
     event = pygame.event.Event(BACKGROUND_MUSIC_ENDED_EVENT)
     assert handle_background_music_end_event(event, volume=0.5)

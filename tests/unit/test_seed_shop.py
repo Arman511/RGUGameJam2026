@@ -224,16 +224,12 @@ def test_boss_reward_waits_for_manual_turret_exit() -> None:
     )
     handler = GameInputHandler(game)
 
-    handler.handle_event(
-        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_ESCAPE})
-    )
+    handler.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_ESCAPE}))
 
     reward.handle_event.assert_not_called()
     assert not game.controlling_house_turret
 
-    handler.handle_event(
-        pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_SPACE})
-    )
+    handler.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_SPACE}))
 
     reward.handle_event.assert_called_once()
 

@@ -99,11 +99,7 @@ class MultiplayerController:
     def finish_match_if_needed(
         self, game: GameSession, game_over: GameOverScreen
     ) -> GameOverScreen:
-        if (
-            self.client is None
-            or game.house.health > 0
-            or self.result_sent
-        ):
+        if self.client is None or game.house.health > 0 or self.result_sent:
             return game_over
         try:
             self.client.end_match()
@@ -123,9 +119,7 @@ class MultiplayerController:
             self.panel_open = not self.panel_open
             self._keep_available_element_selected(game)
 
-    def handle_panel_click(
-        self, event: pygame.event.Event, game: GameSession
-    ) -> bool:
+    def handle_panel_click(self, event: pygame.event.Event, game: GameSession) -> bool:
         if (
             not self.panel_open
             or self.client is None
@@ -137,9 +131,7 @@ class MultiplayerController:
         self._handle_attack_click(event, game)
         return True
 
-    def handle_key_event(
-        self, event: pygame.event.Event, game: GameSession
-    ) -> bool:
+    def handle_key_event(self, event: pygame.event.Event, game: GameSession) -> bool:
         if (
             event.type == pygame.KEYDOWN
             and event.key == pygame.K_v

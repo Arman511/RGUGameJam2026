@@ -5,6 +5,7 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 from io import StringIO
 
+import httpx
 import pytest
 from elemental_api.main import (
     ALLOWED_ORIGINS,
@@ -137,6 +138,79 @@ def test_pages_link_to_download_page(client) -> None:
     assert 'href="/download">Download</a>' in leaderboard_page.text
     assert registration_page.status_code == 200
     assert 'href="/download">Download</a>' in registration_page.text
+
+
+def test_game_version_endpoint_returns_release_details(client, monkeypatch) -> None:
+    import elemental_api.main as app_module
+
+    def github_response(*args, **kwargs):
+        return httpx.Response(
+            200,
+            json={"tag_name": "v2.1.0"},
+            request=httpx.Request("GET", args[0]),
+        )
+
+    _mock_github_request(monkeypatch, app_module, github_response)
+
+    response = client.get("/api/v1/version")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "version": "v2.1.0",
+        "release_url": (
+            "https://github.com/Arman511/RGUGameJam2026/releases/tag/v2.1.0"
+        ),
+    }
+
+
+def test_game_version_endpoint_reports_github_failure(client, monkeypatch) -> None:
+    import elemental_api.main as app_module
+
+    def raise_connection_error(*args, **kwargs):
+        raise httpx.ConnectError("GitHub unavailable")
+
+    _mock_github_request(monkeypatch, app_module, raise_connection_error)
+
+    response = client.get("/api/v1/version")
+
+    assert response.status_code == 503
+
+
+def test_game_version_endpoint_caches_latest_release(client, monkeypatch) -> None:
+    import elemental_api.main as app_module
+
+    requests = 0
+
+    def fake_github_request(*args, **kwargs):
+        nonlocal requests
+        requests += 1
+        return httpx.Response(
+            200,
+            json={"tag_name": "v2.1.0"},
+            request=httpx.Request("GET", args[0]),
+        )
+
+    _mock_github_request(monkeypatch, app_module, fake_github_request)
+
+    first_response = client.get("/api/v1/version")
+    second_response = client.get("/api/v1/version")
+
+    assert first_response.json() == second_response.json()
+    assert requests == 1
+
+
+def _mock_github_request(monkeypatch, app_module, request_handler) -> None:
+    class MockAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_value, traceback):
+            return None
+
+        async def get(self, *args, **kwargs):
+            return request_handler(*args, **kwargs)
+
+    monkeypatch.setattr(app_module.httpx, "AsyncClient", MockAsyncClient)
 
 
 def test_multiplayer_room_relays_actions_and_match_results(client) -> None:
@@ -466,7 +540,8 @@ def test_migration_preserves_legacy_run_data_without_score(
     database_path = tmp_path / "legacy.db"
     monkeypatch.setenv("ELEMENTAL_API_DB_PATH", str(database_path))
     with sqlite3.connect(database_path) as connection:
-        connection.executescript("""
+        connection.executescript(
+            """
             CREATE TABLE users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL UNIQUE,
@@ -500,7 +575,8 @@ def test_migration_preserves_legacy_run_data_without_score(
             INSERT INTO scores
                 (user_id, run_id, survival_time, final_wave, score, enemies_defeated, submitted_at)
             VALUES (1, 'old-run', 64.2, 5, 1500, 14, '2026-10-24T10:01:00Z');
-            """)
+            """
+        )
 
     import elemental_api.database.connection as connection_module
     from elemental_api.database.models import RunRecord

@@ -5,7 +5,12 @@ from unittest.mock import Mock
 import pygame
 from elemental_game import menus
 from elemental_game.api_client.http import APIError
-from elemental_game.menus.common import CREDITS_BUTTON, HINTS_TOGGLE_BUTTON
+from elemental_game.menus.common import (
+    CREDITS_BUTTON,
+    HINTS_TOGGLE_BUTTON,
+    UPDATE_DOWNLOAD_BUTTON,
+)
+from elemental_game.version_check import UpdateInfo, check_for_update
 
 
 def test_register_page_uses_windows_browser_from_wsl(monkeypatch) -> None:
@@ -25,6 +30,76 @@ def test_register_page_uses_windows_browser_from_wsl(monkeypatch) -> None:
         "",
         "https://elemental-keep.armandev.co.uk/register",
     ]
+
+
+def test_version_check_returns_newer_release(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        "elemental_game.version_check.httpx.get",
+        lambda *args, **kwargs: SimpleNamespace(
+            raise_for_status=lambda: None,
+            json=lambda: {
+                "version": "v2.1.0",
+                "release_url": "https://github.com/Arman511/RGUGameJam2026/releases/tag/v2.1.0",
+            },
+        ),
+    )
+
+    assert check_for_update("https://api.example.com/", "v2.0.2") == UpdateInfo(
+        version="v2.1.0",
+        release_url="https://github.com/Arman511/RGUGameJam2026/releases/tag/v2.1.0",
+    )
+
+
+def test_version_check_ignores_current_or_newer_version(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        "elemental_game.version_check.httpx.get",
+        lambda *args, **kwargs: SimpleNamespace(
+            raise_for_status=lambda: None,
+            json=lambda: {
+                "version": "v2.1.0",
+                "release_url": "https://github.com/Arman511/RGUGameJam2026/releases/tag/v2.1.0",
+            },
+        ),
+    )
+
+    assert check_for_update("https://api.example.com", "v2.1.0") is None
+    assert check_for_update("https://api.example.com", "v2.2.0") is None
+
+
+def test_update_prompt_opens_release_download(monkeypatch) -> None:
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.layout = menus.MenuLayout(800, 600)
+    app.update_info = UpdateInfo(
+        version="v2.1.0",
+        release_url="https://github.com/Arman511/RGUGameJam2026/releases/tag/v2.1.0",
+    )
+    app.update_prompt_open = True
+    app.update_open_error = ""
+    opened_urls: list[str] = []
+    monkeypatch.setattr(
+        menus.system,
+        "open_external_page",
+        lambda url: (opened_urls.append(url), True)[1],
+    )
+
+    app._handle_event(
+        pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN,
+            {
+                "button": 1,
+                "pos": app.layout.rect(UPDATE_DOWNLOAD_BUTTON).center,
+            },
+        )
+    )
+
+    assert opened_urls == [
+        "https://github.com/Arman511/RGUGameJam2026/releases/tag/v2.1.0"
+    ]
+    assert not app.update_prompt_open
 
 
 def test_register_page_uses_the_selected_api_server(monkeypatch) -> None:
@@ -230,7 +305,9 @@ def test_settings_slider_updates_manual_turret_sensitivity() -> None:
     assert app.manual_turret_sensitivity == 1.0
 
 
-def test_settings_save_updates_persisted_api_url_and_turret_sensitivity(tmp_path) -> None:
+def test_settings_save_updates_persisted_api_url_and_turret_sensitivity(
+    tmp_path,
+) -> None:
     from types import SimpleNamespace
     from unittest.mock import Mock
 
@@ -562,9 +639,11 @@ def test_leaderboard_scroll_hint_does_not_overlap_visible_records() -> None:
         for call in app._draw_text.call_args_list
         if call.args[0] == "Scroll to see more runs"
     )
-    hint_top = app.font.render(hint_call.args[0], True, (245, 245, 245)).get_rect(
-        center=(400, hint_call.args[2])
-    ).top
+    hint_top = (
+        app.font.render(hint_call.args[0], True, (245, 245, 245))
+        .get_rect(center=(400, hint_call.args[2]))
+        .top
+    )
 
     assert row_calls
     assert max(call.args[2] + app.font.get_linesize() for call in row_calls) <= hint_top

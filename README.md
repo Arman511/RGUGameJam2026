@@ -13,6 +13,9 @@ Elemental Keep is a 2D top-down farming and tower-defence survival game built as
 Download the latest ready-to-play game build from the
 [GitHub Releases page](https://github.com/Arman511/RGUGameJam2026/releases/latest).
 Choose the download for your operating system, then open the downloaded game.
+The game checks for a newer release when its menu starts and offers a link to
+download it; this check runs in the background and is skipped if the API server
+is unavailable.
 If no build is available for your platform, use the setup instructions below
 to run it from source.
 
