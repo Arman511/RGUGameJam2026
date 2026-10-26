@@ -134,6 +134,8 @@ class EnemyController:
             else:
                 survivors.append(enemy)
         return survivors, defeated
+
+
 def load_enemy_images() -> dict[str, pygame.Surface]:
     images = {}
     for key, definition in ENEMY_DEFS.items():

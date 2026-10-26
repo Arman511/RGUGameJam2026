@@ -21,6 +21,8 @@ class ProjectileTarget(Protocol):
     def apply_slow(self, amount: float) -> None: ...
 
     def apply_knockback(self, direction, distance: float) -> None: ...
+
+
 @dataclass
 class TurretProjectile:
     """Move a turret shot toward its selected enemy."""
@@ -51,6 +53,8 @@ class TurretProjectile:
         if distance:
             self.position += offset * (travel / distance)
         return False
+
+
 @dataclass
 class ManualProjectile:
     """Move a player-fired shot and detect its first enemy hit."""
@@ -88,9 +92,13 @@ class ManualProjectile:
                 target.take_damage(self.damage)
                 return True
         return bounds is not None and not bounds.collidepoint(self.position)
+
+
 def _projectile_image_angle(direction: pygame.Vector2) -> float:
     direction_angle = math.degrees(math.atan2(direction.y, direction.x))
     return -direction_angle - 90
+
+
 def orient_projectile_image(
     image: pygame.Surface, direction: pygame.Vector2
 ) -> pygame.Surface:

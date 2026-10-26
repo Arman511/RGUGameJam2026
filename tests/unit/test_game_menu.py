@@ -305,7 +305,9 @@ def test_settings_slider_updates_manual_turret_sensitivity() -> None:
     assert app.manual_turret_sensitivity == 1.0
 
 
-def test_settings_save_updates_persisted_api_url_and_turret_sensitivity(tmp_path) -> None:
+def test_settings_save_updates_persisted_api_url_and_turret_sensitivity(
+    tmp_path,
+) -> None:
     from types import SimpleNamespace
     from unittest.mock import Mock
 
@@ -637,9 +639,11 @@ def test_leaderboard_scroll_hint_does_not_overlap_visible_records() -> None:
         for call in app._draw_text.call_args_list
         if call.args[0] == "Scroll to see more runs"
     )
-    hint_top = app.font.render(hint_call.args[0], True, (245, 245, 245)).get_rect(
-        center=(400, hint_call.args[2])
-    ).top
+    hint_top = (
+        app.font.render(hint_call.args[0], True, (245, 245, 245))
+        .get_rect(center=(400, hint_call.args[2]))
+        .top
+    )
 
     assert row_calls
     assert max(call.args[2] + app.font.get_linesize() for call in row_calls) <= hint_top

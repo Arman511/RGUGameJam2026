@@ -77,9 +77,7 @@ class MenuSystem(
         self.store = LocalLeaderboardStore()
         self.credentials = CredentialStore()
         self.api_base_url = self.store.api_base_url()
-        self.auth = AuthClient(
-            APIClient(base_url=self.api_base_url), self.credentials
-        )
+        self.auth = AuthClient(APIClient(base_url=self.api_base_url), self.credentials)
         self.username: str | None = None
         self.state = "login"
         self.running = True

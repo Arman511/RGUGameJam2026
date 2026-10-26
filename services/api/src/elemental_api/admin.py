@@ -45,9 +45,7 @@ def list_users(
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> list[UserResponse]:
-    users = db.scalars(
-        select(User).order_by(User.id).offset(offset).limit(limit)
-    ).all()
+    users = db.scalars(select(User).order_by(User.id).offset(offset).limit(limit)).all()
     return [UserResponse.model_validate(user) for user in users]
 
 

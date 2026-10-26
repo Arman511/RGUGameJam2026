@@ -32,6 +32,8 @@ def seed_tier_drop_weights(max_tier: int, *, elite: bool = False) -> tuple[float
         )
         for tier in range(1, max_tier + 1)
     )
+
+
 @dataclass
 class EnemyState:
     """Track one enemy's health, movement, and status effects."""
@@ -161,6 +163,8 @@ class EnemyState:
                 bar.height,
             ),
         )
+
+
 def roll_enemy_seed_drop(
     enemy: EnemyState,
     unlocked_tiers: Mapping[SeedType, int] | None = None,
@@ -188,6 +192,8 @@ def roll_enemy_seed_drop(
     )
     tier = random.choices(tiers, weights=tier_weights, k=1)[0]
     return seed_type, tier
+
+
 def boss_seed_drop(
     enemy: EnemyState,
     player_type: PlayerType,

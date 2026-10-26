@@ -47,14 +47,18 @@ def _draw_quick_action_button(
             else (
                 disabled_background_color
                 if not enabled and disabled_background_color is not None
-                else (67, 86, 69) if enabled else (65, 65, 65)
+                else (67, 86, 69)
+                if enabled
+                else (65, 65, 65)
             )
         )
     )
     border = (
         border_color
         if border_color is not None
-        else (245, 225, 125) if active or (enabled and hovered) else (145, 150, 145)
+        else (245, 225, 125)
+        if active or (enabled and hovered)
+        else (145, 150, 145)
     )
     pygame.draw.rect(surface, background, rect, border_radius=9)
     pygame.draw.rect(surface, border, rect, border_width, border_radius=9)
@@ -404,7 +408,9 @@ class GameScreenRenderer:
                 ),
             )
             balance_text = font.render(str(player.coins), True, text_color)
-            surface.blit(balance_text, (balance_x + coin_icon.get_width() + 4, panel.y + 67))
+            surface.blit(
+                balance_text, (balance_x + coin_icon.get_width() + 4, panel.y + 67)
+            )
 
             crop_label = font.render("Crop:", True, text_color)
             crop_x = panel.x + 235

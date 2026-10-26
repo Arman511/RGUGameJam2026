@@ -107,9 +107,7 @@ class GameLoop:
             and self.multiplayer.handle_panel_click(event, self.game)
         ):
             return
-        result = self.game.handle_mouse_event(
-            event, self.renderer.quick_action_buttons
-        )
+        result = self.game.handle_mouse_event(event, self.renderer.quick_action_buttons)
         self.multiplayer.handle_mouse_result(event, result, self.game)
 
     def _handle_exit_confirmation(self, event: pygame.event.Event) -> None:

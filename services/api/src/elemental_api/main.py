@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
-import threading
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -33,7 +33,7 @@ LATEST_RELEASE_API_URL = (
 )
 VERSION_CACHE_TTL_SECONDS = 300
 _version_cache: tuple[float, dict[str, str]] | None = None
-_version_cache_lock = threading.Lock()
+_version_cache_lock = asyncio.Lock()
 API_DOCS_ENABLED = os.environ.get("ELEMENTAL_API_DISABLE_DOCS") != "1"
 templates = Jinja2Templates(directory=str(PACKAGE_DIR / "template"))
 ALLOWED_ORIGINS = [
@@ -203,9 +203,9 @@ def health() -> dict[str, str]:
 
 
 @app.get("/api/v1/version")
-def game_version() -> dict[str, str]:
+async def game_version() -> dict[str, str]:
     global _version_cache
-    with _version_cache_lock:
+    async with _version_cache_lock:
         if (
             _version_cache is not None
             and monotonic() - _version_cache[0] < VERSION_CACHE_TTL_SECONDS
@@ -213,14 +213,15 @@ def game_version() -> dict[str, str]:
             return _version_cache[1]
 
         try:
-            response = httpx.get(
-                LATEST_RELEASE_API_URL,
-                headers={
-                    "Accept": "application/vnd.github+json",
-                    "User-Agent": "ElementalKeep-update-check",
-                },
-                timeout=3.0,
-            )
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    LATEST_RELEASE_API_URL,
+                    headers={
+                        "Accept": "application/vnd.github+json",
+                        "User-Agent": "ElementalKeep-update-check",
+                    },
+                    timeout=3.0,
+                )
             response.raise_for_status()
             payload = response.json()
         except (httpx.HTTPError, ValueError) as error:

@@ -20,10 +20,7 @@ class GameInputHandler:
         seed_tier_reward: SeedTierReward | None = getattr(
             game, "seed_tier_reward", None
         )
-        if (
-            seed_tier_reward is not None
-            and not game.controlling_house_turret
-        ):
+        if seed_tier_reward is not None and not game.controlling_house_turret:
             seed_type = seed_tier_reward.handle_event(event, game.player, game.screen)
             if seed_type is not None:
                 game.seed_tier_reward = None
@@ -51,7 +48,10 @@ class GameInputHandler:
             if key in (pygame.K_f, pygame.K_ESCAPE):
                 game.controlling_house_turret = False
         elif game.shop_open and event.type in (pygame.KEYDOWN, pygame.MOUSEWHEEL):
-            if key in (pygame.K_ESCAPE, pygame.K_m) and not game.shop.selecting_quadrant:
+            if (
+                key in (pygame.K_ESCAPE, pygame.K_m)
+                and not game.shop.selecting_quadrant
+            ):
                 game.shop_open = False
                 game.shop.clear_status()
             else:
@@ -82,17 +82,17 @@ class GameInputHandler:
         seed_tier_reward: SeedTierReward | None = getattr(
             game, "seed_tier_reward", None
         )
-        if (
-            seed_tier_reward is not None
-            and not game.controlling_house_turret
-        ):
+        if seed_tier_reward is not None and not game.controlling_house_turret:
             seed_type = seed_tier_reward.handle_event(event, game.player, game.screen)
             if seed_type is not None:
                 game.seed_tier_reward = None
             return "handled"
         action = next(
-            (name for name, rect in quick_action_buttons.items()
-             if rect.collidepoint(event.pos)),
+            (
+                name
+                for name, rect in quick_action_buttons.items()
+                if rect.collidepoint(event.pos)
+            ),
             None,
         )
 
@@ -119,7 +119,9 @@ class GameInputHandler:
             game.farm.handle_event(event, game.player)
             return "handled"
         if game.shop_open:
-            game.shop.handle_event(event, game.player, game.farm, game.house, game.screen)
+            game.shop.handle_event(
+                event, game.player, game.farm, game.house, game.screen
+            )
             return "handled"
         if game.turrets.modal_slot is not None:
             game.turrets.handle_event(event, game.player, game.screen)

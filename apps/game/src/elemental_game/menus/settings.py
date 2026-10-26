@@ -139,9 +139,7 @@ class SettingsMenuMixin(MenuContext):
         self._draw_button("On" if self.hints_enabled else "Off", HINTS_TOGGLE_BUTTON)
 
         self._draw_text("Manual turret movement sensitivity", 150, 282, center=False)
-        self._draw_slider(
-            TURRET_SENSITIVITY_SLIDER, self.manual_turret_sensitivity
-        )
+        self._draw_slider(TURRET_SENSITIVITY_SLIDER, self.manual_turret_sensitivity)
         speed = round(30 + self.manual_turret_sensitivity * 240)
         self._draw_text(f"Turn speed: {speed} deg/s", 400, 327)
         self._draw_text("Backend API server URL", 145, 347, center=False)
@@ -165,9 +163,7 @@ class SettingsMenuMixin(MenuContext):
                 center=self.layout.point((389, PLAYER_SELECT_PANEL.centery))
             ),
         )
-        self._draw_text(
-            self.player_type.name.title(), 555, PLAYER_SELECT_PANEL.centery
-        )
+        self._draw_text(self.player_type.name.title(), 555, PLAYER_SELECT_PANEL.centery)
         self._draw_button(">", PLAYER_NEXT_BUTTON)
         self._draw_button("Clear local leaderboard", CLEAR_LEADERBOARD_BUTTON)
         self._draw_button("Save", SAVE_SETTINGS_BUTTON)
@@ -175,11 +171,7 @@ class SettingsMenuMixin(MenuContext):
     def _draw_api_url_input(self) -> None:
         rect = self.layout.rect(API_BASE_URL_INPUT)
         pygame.draw.rect(self.screen, (50, 50, 50), rect)
-        border = (
-            (170, 210, 170)
-            if self.api_base_url_input.focused
-            else (130, 130, 130)
-        )
+        border = (170, 210, 170) if self.api_base_url_input.focused else (130, 130, 130)
         pygame.draw.rect(
             self.screen,
             border,

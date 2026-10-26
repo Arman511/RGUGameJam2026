@@ -24,6 +24,8 @@ class TurretDefinition:
     @property
     def resource_cost(self) -> int:
         return 5
+
+
 @dataclass
 class TurretInstance:
     """Track the upgrades and current health of a built turret."""
@@ -39,6 +41,8 @@ class TurretInstance:
     knockback_level: int = 0
     attack_radius_level: int = 0
     attack_range_level: int = 0
+
+
 TURRET_DEFS: dict[str, TurretDefinition] = {
     "flame_turret": TurretDefinition(
         "flame_turret",
@@ -128,6 +132,8 @@ UPGRADE_NAMES = (
     "Attack range",
     "Destroy turret",
 )
+
+
 @dataclass
 class TurretSlot:
     """Represent one buildable turret position beside the farm."""

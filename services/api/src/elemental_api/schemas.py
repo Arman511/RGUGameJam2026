@@ -38,14 +38,10 @@ class RegisterRequest(BaseModel):
             ),
         )
         missing = [
-            description
-            for satisfied, description in requirements
-            if not satisfied
+            description for satisfied, description in requirements if not satisfied
         ]
         if missing:
-            raise ValueError(
-                "Password must include " + ", ".join(missing) + "."
-            )
+            raise ValueError("Password must include " + ", ".join(missing) + ".")
         return value
 
 

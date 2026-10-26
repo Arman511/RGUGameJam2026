@@ -33,15 +33,11 @@ def test_coin_attack_charges_the_doubled_cost_each_use() -> None:
     costs.set_phase(1, True)
 
     assert (
-        send_multiplayer_attack(
-            "extra_enemies", None, player, multiplayer, costs
-        )
+        send_multiplayer_attack("extra_enemies", None, player, multiplayer, costs)
         == "Attack sent for the next wave."
     )
     assert (
-        send_multiplayer_attack(
-            "extra_enemies", None, player, multiplayer, costs
-        )
+        send_multiplayer_attack("extra_enemies", None, player, multiplayer, costs)
         == "Attack sent for the next wave."
     )
 
