@@ -5,7 +5,7 @@ import math
 import pygame
 
 from elemental_game.api_client.http import APIError
-from elemental_game.multiplayer import MultiplayerClient, MultiplayerError
+from elemental_game.networking.client import MultiplayerClient, MultiplayerError
 
 from .common import (
     CANCEL_HOST_BUTTON,
@@ -40,7 +40,10 @@ class MultiplayerMenuMixin(MenuContext):
             self.error_message = f"Could not read multiplayer settings: {error}"
             return
         try:
-            self.multiplayer_client = MultiplayerClient.host(self.username or "Guest")
+            self.multiplayer_client = MultiplayerClient.host(
+                self.username or "Guest",
+                base_url=self.api_base_url,
+            )
         except MultiplayerError as error:
             self.error_message = str(error)
             return
@@ -72,7 +75,9 @@ class MultiplayerMenuMixin(MenuContext):
             return
         try:
             self.multiplayer_client = MultiplayerClient.join(
-                self.username or "Guest", room_code
+                self.username or "Guest",
+                room_code,
+                base_url=self.api_base_url,
             )
         except MultiplayerError as error:
             self.error_message = str(error)

@@ -60,6 +60,20 @@ Create a new schema change with `uv run alembic revision -m "describe change"`
 and edit the generated revision before deploying it. Never edit a migration
 that has already been applied; add a new revision instead.
 
+New account passwords must be 8-128 characters and include an uppercase
+letter, a lowercase letter, a number, and a symbol. Existing accounts can
+continue logging in with their current password.
+
+The admin API provides `GET /api/v1/admin/users` (paginated with `offset` and
+`limit`) and `DELETE /api/v1/admin/users/{user_id}`. Both require the
+`X-Admin-Token` header. Generate a 256-bit token with `openssl rand -hex 32`
+and set `ELEMENTAL_API_ADMIN_TOKEN` to that value in `.env` or the server
+environment before starting Compose. Leaving it unset or empty disables the
+admin endpoints, which then return HTTP 503. The configured token remains
+unchanged across container restarts until you replace it and recreate the
+container. Deleting a user also removes their submitted scores and
+authentication tokens.
+
 Score submissions use `time_survived` (seconds) and `wave_number`. The game
 client maps its existing local leaderboard fields, `survival_time` and
 `final_wave`, to those API fields. Leaderboards rank runs by survival time,
@@ -67,6 +81,12 @@ enemies defeated, then wave reached, all descending.
 The leaderboard API also supports server-side search by player or run ID,
 sorting, and offset-based pagination so the web page loads only the current
 result page.
+
+Completed `/api/` requests and unhandled request errors are logged with the
+client IP address and `User-Agent` header. Behind a reverse proxy, the IP
+reflects the address Uvicorn accepts as the request client; configure trusted
+proxy forwarding in the deployment if logs should identify the originating
+player rather than the proxy.
 
 Successful logins remove expired and revoked authentication tokens. Database
 indexes support token cleanup, per-user token lookups, and leaderboard ranking.

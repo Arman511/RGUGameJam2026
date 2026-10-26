@@ -22,6 +22,32 @@ class RegisterRequest(BaseModel):
     def trim_username(cls, value: object) -> object:
         return value.strip() if isinstance(value, str) else value
 
+    @field_validator("password")
+    @classmethod
+    def require_password_complexity(cls, value: str) -> str:
+        requirements = (
+            (any(character.isupper() for character in value), "an uppercase letter"),
+            (any(character.islower() for character in value), "a lowercase letter"),
+            (any(character.isdigit() for character in value), "a number"),
+            (
+                any(
+                    not character.isalnum() and not character.isspace()
+                    for character in value
+                ),
+                "a symbol",
+            ),
+        )
+        missing = [
+            description
+            for satisfied, description in requirements
+            if not satisfied
+        ]
+        if missing:
+            raise ValueError(
+                "Password must include " + ", ".join(missing) + "."
+            )
+        return value
+
 
 class LoginRequest(BaseModel):
     username: str = Field(min_length=3, max_length=32)

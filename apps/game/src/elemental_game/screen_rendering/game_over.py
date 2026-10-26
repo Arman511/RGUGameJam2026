@@ -158,12 +158,10 @@ class GameOverDialog:
     def _save_guest_username(self) -> None:
         username = self.username_input.value.strip()
         if not username:
-            self.status_message = "Enter a username to save this run."
+            self.status_message = "Enter a local alias to save this run."
             return
         if self._save_local(username):
-            pygame.key.stop_text_input()
-            self.login_username.value = username
-            self.state = "publish"
+            self._finish()
 
     def _publish_or_sign_in(self) -> None:
         if not self.local_saved and not self._save_local(self.username):
@@ -194,7 +192,13 @@ class GameOverDialog:
             if self._button_rect(0).collidepoint(event.pos):
                 self._login_and_publish()
             elif self._button_rect(1).collidepoint(event.pos):
-                if not open_registration_page():
+                base_url = getattr(self.menus, "api_base_url", None)
+                opened = (
+                    open_registration_page(base_url)
+                    if base_url is not None
+                    else open_registration_page()
+                )
+                if not opened:
                     self.status_message = "Could not open the registration page."
                 else:
                     self.status_message = "Register in your browser, then sign in here."
@@ -249,11 +253,11 @@ class GameOverDialog:
         )
         if self.state == "username":
             self._draw_text(
-                "Choose a local name, or keep the Guest entry.",
+                "Save this run as Guest, or choose a local alias.",
                 self.panel.y + 130,
             )
             self.username_input.draw(self.surface, self.font)
-            self._draw_button("Save with name", self._button_rect(0))
+            self._draw_button("Save with alias", self._button_rect(0))
             self._draw_button("Finish as Guest", self._button_rect(1))
         elif self.state == "login":
             self._draw_text("Sign in to publish this run online.", self.panel.y + 116)

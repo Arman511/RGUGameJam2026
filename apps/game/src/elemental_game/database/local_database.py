@@ -5,6 +5,9 @@ import sqlite3
 import sys
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
+
+from elemental_game.config import ELEMENTAL_KEEP_API_BASE_URL
 
 from .migrations import upgrade_database
 
@@ -122,6 +125,93 @@ class LocalLeaderboardStore:
         preferences = {"music_volume": 0.5, "sfx_volume": 0.5}
         preferences.update({row["setting_key"]: row["setting_value"] for row in rows})
         return preferences
+
+    def manual_turret_sensitivity(self) -> float:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT setting_value
+                FROM game_settings
+                WHERE setting_key = 'manual_turret_sensitivity'
+                """
+            ).fetchone()
+        return 0.5 if row is None else row["setting_value"]
+
+    def save_manual_turret_sensitivity(self, sensitivity: float) -> None:
+        if (
+            isinstance(sensitivity, bool)
+            or not isinstance(sensitivity, (int, float))
+            or not 0.0 <= sensitivity <= 1.0
+        ):
+            raise ValueError("manual turret sensitivity must be between 0.0 and 1.0")
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO game_settings(setting_key, setting_value)
+                VALUES ('manual_turret_sensitivity', ?)
+                ON CONFLICT(setting_key) DO UPDATE SET
+                    setting_value = excluded.setting_value
+                """,
+                (sensitivity,),
+            )
+            connection.commit()
+
+    def api_base_url(self) -> str:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT setting_value
+                FROM game_text_settings
+                WHERE setting_key = 'api_base_url'
+                """
+            ).fetchone()
+        return (
+            self._validate_api_base_url(row["setting_value"])
+            if row is not None
+            else self._validate_api_base_url(ELEMENTAL_KEEP_API_BASE_URL)
+        )
+
+    def save_api_base_url(self, base_url: str) -> None:
+        validated_url = self._validate_api_base_url(base_url)
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO game_text_settings(setting_key, setting_value)
+                VALUES ('api_base_url', ?)
+                ON CONFLICT(setting_key) DO UPDATE SET
+                    setting_value = excluded.setting_value
+                """,
+                (validated_url,),
+            )
+            connection.commit()
+
+    @staticmethod
+    def _validate_api_base_url(base_url: str) -> str:
+        if not isinstance(base_url, str):
+            raise TypeError("API server URL must be text.")
+        value = base_url.strip().rstrip("/")
+        if not value or len(value) > 255:
+            raise ValueError("API server URL must be at most 255 characters.")
+        try:
+            parsed = urlsplit(value)
+            valid_port = parsed.port is None or 1 <= parsed.port <= 65535
+        except ValueError:
+            valid_port = False
+            parsed = urlsplit("")
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path not in {"", "/"}
+            or parsed.query
+            or parsed.fragment
+            or not valid_port
+        ):
+            raise ValueError(
+                "Enter a server URL using http:// or https:// with no path."
+            )
+        return parsed.geturl().rstrip("/")
 
     def save_sound_preferences(self, *, music_volume: float, sfx_volume: float) -> None:
         if not 0.0 <= music_volume <= 1.0 or not 0.0 <= sfx_volume <= 1.0:

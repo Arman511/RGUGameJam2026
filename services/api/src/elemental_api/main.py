@@ -15,6 +15,7 @@ from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from elemental_api.admin import router as admin_router
 from elemental_api.auth.routes import router as auth_router
 from elemental_api.database.connection import initialize_database
 from elemental_api.leaderboard.routes import router as leaderboard_router
@@ -31,6 +32,13 @@ ALLOWED_ORIGINS = [
     "https://localhost",
 ]
 LOCAL_ORIGIN_PATTERN = r"https?://(?:localhost|127\.0\.0\.1)(?::\d+)?"
+
+
+def _request_identity(request: Request) -> tuple[str, str]:
+    client_ip = request.client.host if request.client is not None else "unknown"
+    user_agent = request.headers.get("user-agent", "unknown")
+    user_agent = "".join(char for char in user_agent if char.isprintable())[:256]
+    return client_ip, user_agent or "unknown"
 
 
 class WebSocketOriginMiddleware:
@@ -85,22 +93,30 @@ async def log_api_requests(request: Request, call_next):
     started_at = perf_counter()
     response = await call_next(request)
     elapsed_ms = (perf_counter() - started_at) * 1000
+    client_ip, user_agent = _request_identity(request)
     logger.info(
-        "API request completed method=%s path=%s status=%d duration_ms=%.2f",
+        "API request completed method=%s path=%s status=%d duration_ms=%.2f "
+        "client_ip=%s user_agent=%r",
         request.method,
         request.url.path,
         response.status_code,
         elapsed_ms,
+        client_ip,
+        user_agent,
     )
     return response
 
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    client_ip, user_agent = _request_identity(request)
     logger.error(
-        "Unhandled exception while handling API request method=%s path=%s",
+        "Unhandled exception while handling API request method=%s path=%s "
+        "client_ip=%s user_agent=%r",
         request.method,
         request.url.path,
+        client_ip,
+        user_agent,
         exc_info=(type(exc), exc, exc.__traceback__),
     )
     return JSONResponse(
@@ -114,8 +130,8 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_origin_regex=LOCAL_ORIGIN_PATTERN,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_methods=["DELETE", "GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Admin-Token"],
 )
 app.add_middleware(
     WebSocketOriginMiddleware,
@@ -128,6 +144,7 @@ app.mount(
     name="static",
 )
 app.include_router(auth_router)
+app.include_router(admin_router)
 app.include_router(leaderboard_router)
 app.include_router(matches_router)
 

@@ -50,7 +50,13 @@ class LoginMenuMixin(MenuContext):
             if self.layout.rect(LOGIN_BUTTON).collidepoint(event.pos):
                 self._login()
             elif self.layout.rect(REGISTER_BUTTON).collidepoint(event.pos):
-                if not open_registration_page():
+                base_url = getattr(self, "api_base_url", None)
+                opened = (
+                    open_registration_page(base_url)
+                    if base_url is not None
+                    else open_registration_page()
+                )
+                if not opened:
                     self.error_message = "Could not open the registration page."
             elif self.layout.rect(GUEST_BUTTON).collidepoint(event.pos):
                 self._continue_as_guest()
