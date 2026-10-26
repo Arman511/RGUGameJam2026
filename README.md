@@ -112,7 +112,11 @@ server's online services.
 For deployment with the production Docker Compose configuration, see
 [services/api/README.md](services/api/README.md).
 
-Set the ELEMENTAL_API_ADMIN_TOKEN usig to .env openssl rand -hex 32
+To enable the admin endpoints, run `openssl rand -hex 32` and set
+`ELEMENTAL_API_ADMIN_TOKEN` in `.env` to its output before starting Compose.
+If the variable is unset or empty, the admin endpoints are disabled and return
+HTTP 503.
+
 ## Local database and credentials
 Local leaderboard data is stored in the OS app-data directory, not in the repository. The API database defaults to `./.local/elemental_api.db` when `ELEMENTAL_API_DB_PATH` is not set. Credential storage uses `keyring` when available; otherwise the client falls back to a private per-user file.
 

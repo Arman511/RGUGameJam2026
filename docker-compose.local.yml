@@ -13,3 +13,5 @@ services:
       ELEMENTAL_MATCH_JOIN_TIMEOUT_SECONDS: ${ELEMENTAL_MATCH_JOIN_TIMEOUT_SECONDS:-120}
     volumes:
       - ./.local/elemental_api_data:/data
+    env_file:
+      - .env

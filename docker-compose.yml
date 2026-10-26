@@ -8,14 +8,11 @@ services:
       ELEMENTAL_MATCH_LIMIT: ${ELEMENTAL_MATCH_LIMIT:-100}
       ELEMENTAL_MATCH_JOIN_TIMEOUT_SECONDS: ${ELEMENTAL_MATCH_JOIN_TIMEOUT_SECONDS:-120}
     volumes:
-      - ./.local/elemental_api_data:/data
-    networks:
-      default:
-        aliases:
-          - elemental-keep
+      - elemental_api_data:/data
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
 
-
-networks:
-  default:
-    name: zoraxy_proxy
-    external: true
+volumes:
+  elemental_api_data:
