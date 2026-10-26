@@ -65,7 +65,7 @@ def test_sound_preferences_persist_and_validate(tmp_path: Path) -> None:
         raise AssertionError("out-of-range sound settings must not be saved")
 
 
-def test_manual_turret_sensitivity_defaults_persists_and_validates(
+def test_turret_sensitivity_defaults_persists_and_validates(
     tmp_path: Path,
 ) -> None:
     db = LocalLeaderboardStore(path=tmp_path / "leaderboard.db")
@@ -74,7 +74,7 @@ def test_manual_turret_sensitivity_defaults_persists_and_validates(
     db.save_manual_turret_sensitivity(0.75)
     assert LocalLeaderboardStore(path=db.path).manual_turret_sensitivity() == 0.75
 
-    with pytest.raises(ValueError, match="manual turret sensitivity"):
+    with pytest.raises(ValueError, match="turret sensitivity"):
         db.save_manual_turret_sensitivity(1.1)
 
 

@@ -94,9 +94,8 @@ the API server in the game's Settings menu; that choice is persisted in the
 local game database and applies to account, leaderboard, registration, and
 multiplayer features. Changing servers signs the player out to avoid reusing
 credentials with a different server. The Settings menu also lets you adjust
-manual house-turret movement sensitivity. For a downloaded game build, set the
-environment variable before launching it to choose the initial default.
-
+house-turret sensitivity. For a downloaded game build, set the environment
+variable before launching it to choose the initial default.
 ## Run the API server locally
 
 Install the project dependencies first with `uv sync --all-packages --all-groups`.

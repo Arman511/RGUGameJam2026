@@ -18,6 +18,7 @@ class MenuContext(Protocol):
     api_base_url: str
     api_base_url_input: InputField
     credentials: CredentialStore
+    dragging_slider: str | None
     error_message: str
     font: pygame.font.Font
     game_mode: str
@@ -39,6 +40,7 @@ class MenuContext(Protocol):
     revealed_usernames: set[str]
     running: bool
     screen: pygame.Surface
+    settings_modal: str | None
     start_game: bool
     state: str
     store: LocalLeaderboardStore

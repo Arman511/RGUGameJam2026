@@ -143,7 +143,7 @@ class LocalLeaderboardStore:
             or not isinstance(sensitivity, (int, float))
             or not 0.0 <= sensitivity <= 1.0
         ):
-            raise ValueError("manual turret sensitivity must be between 0.0 and 1.0")
+            raise ValueError("turret sensitivity must be between 0.0 and 1.0")
         with self._connect() as connection:
             connection.execute(
                 """

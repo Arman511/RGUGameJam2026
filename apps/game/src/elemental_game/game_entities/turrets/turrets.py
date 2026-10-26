@@ -466,14 +466,12 @@ class TurretSystem:
         surface.blit(
             font.render(title, True, (255, 230, 120)), (panel.x + 18, panel.y + 14)
         )
-        surface.blit(
-            font.render(
-                "W/S, UP/DOWN, wheel select  SPACE/ENTER confirm  ESC close",
-                True,
-                (225, 225, 225),
-            ),
-            (panel.x + 18, panel.y + 48),
-        )
+        for line, y in (
+            ("W/S or UP/DOWN to move", panel.y + 48),
+            ("Mouse wheel to select", panel.y + 66),
+            ("SPACE/ENTER confirm  ESC close", panel.y + 84),
+        ):
+            surface.blit(font.render(line, True, (225, 225, 225)), (panel.x + 18, y))
         if slot.turret is None:
             options = list(DEFINITION_BY_ELEMENT)
             labels = [
@@ -525,23 +523,22 @@ class TurretSystem:
                     else (255, 255, 255)
                 )
             )
+            row_center_y = panel.y + 120 + index * 38
             if element is not None:
                 icon = get_crop_icon(element, 24)
-                row_center_y = panel.y + 99 + index * 38
                 surface.blit(icon, icon.get_rect(midleft=(panel.x + 20, row_center_y)))
-            else:
-                row_center_y = panel.y + 99 + index * 38
             rendered_label = font.render(label, True, color)
+            max_width = panel.width - (94 if element is not None else 40)
+            while rendered_label.get_width() > max_width:
+                label = label[:-4] + "..."
+                rendered_label = font.render(label, True, color)
             label_rect = rendered_label.get_rect(
                 midleft=(
                     panel.x + (54 if element is not None else 24),
                     row_center_y,
                 )
             )
-            surface.blit(
-                rendered_label,
-                label_rect,
-            )
+            surface.blit(rendered_label, label_rect)
         if self.status_message:
             surface.blit(
                 font.render(self.status_message, True, (255, 200, 130)),

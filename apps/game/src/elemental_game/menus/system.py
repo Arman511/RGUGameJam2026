@@ -116,6 +116,7 @@ class MenuSystem(
         )
         self.preferences = self.store.sound_preferences()
         self.manual_turret_sensitivity = self.store.manual_turret_sensitivity()
+        self.settings_modal: str | None = None
         self.api_base_url_input = InputField(
             self.layout.rect(API_BASE_URL_INPUT),
             placeholder="https://example.com",
@@ -291,8 +292,9 @@ class MenuSystem(
         self._draw_panel(UPDATE_MODAL)
         self._draw_title("Update available", 235)
         version = self.update_info.version if self.update_info is not None else ""
-        self._draw_text(f"Version {version} is ready to download.", 400, 280)
-        self._draw_button("Download update", UPDATE_DOWNLOAD_BUTTON)
+        self._draw_text(f"Version {version}", 400, 270)
+        self._draw_text("is ready to download.", 400, 300)
+        self._draw_button("Update", UPDATE_DOWNLOAD_BUTTON)
         self._draw_button("Later", UPDATE_LATER_BUTTON)
         if self.update_open_error:
             self._draw_text(self.update_open_error, 400, 405, color=(255, 130, 130))
