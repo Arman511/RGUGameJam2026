@@ -6,7 +6,6 @@ Elemental Keep is a 2D top-down farming and tower-defence survival game built as
 - Offline solo gameplay works without any API.
 - Local leaderboard results save to the OS app-data directory.
 - Optional online leaderboards and account features run through the FastAPI service.
-- Game rules live in the pure-Python `game-core` package so rendering and networking stay decoupled.
 
 ## Download the latest release
 
