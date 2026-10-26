@@ -5,6 +5,7 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 from io import StringIO
 
+import httpx
 import pytest
 from elemental_api.main import (
     ALLOWED_ORIGINS,
@@ -137,6 +138,66 @@ def test_pages_link_to_download_page(client) -> None:
     assert 'href="/download">Download</a>' in leaderboard_page.text
     assert registration_page.status_code == 200
     assert 'href="/download">Download</a>' in registration_page.text
+
+
+def test_game_version_endpoint_returns_release_details(client, monkeypatch) -> None:
+    import elemental_api.main as app_module
+
+    monkeypatch.setattr(
+        app_module.httpx,
+        "get",
+        lambda *args, **kwargs: httpx.Response(
+            200,
+            json={"tag_name": "v2.1.0"},
+            request=httpx.Request("GET", args[0]),
+        ),
+    )
+
+    response = client.get("/api/v1/version")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "version": "v2.1.0",
+        "release_url": (
+            "https://github.com/Arman511/RGUGameJam2026/releases/tag/v2.1.0"
+        ),
+    }
+
+
+def test_game_version_endpoint_reports_github_failure(client, monkeypatch) -> None:
+    import elemental_api.main as app_module
+
+    def raise_connection_error(*args, **kwargs):
+        raise httpx.ConnectError("GitHub unavailable")
+
+    monkeypatch.setattr(app_module.httpx, "get", raise_connection_error)
+
+    response = client.get("/api/v1/version")
+
+    assert response.status_code == 503
+
+
+def test_game_version_endpoint_caches_latest_release(client, monkeypatch) -> None:
+    import elemental_api.main as app_module
+
+    requests = 0
+
+    def fake_github_request(*args, **kwargs):
+        nonlocal requests
+        requests += 1
+        return httpx.Response(
+            200,
+            json={"tag_name": "v2.1.0"},
+            request=httpx.Request("GET", args[0]),
+        )
+
+    monkeypatch.setattr(app_module.httpx, "get", fake_github_request)
+
+    first_response = client.get("/api/v1/version")
+    second_response = client.get("/api/v1/version")
+
+    assert first_response.json() == second_response.json()
+    assert requests == 1
 
 
 def test_multiplayer_room_relays_actions_and_match_results(client) -> None:

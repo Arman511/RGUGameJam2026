@@ -11,6 +11,11 @@ game-skip-menu:
 	uv run --project apps/game python -m elemental_game.main --skip-menu
 
 compile-game:
+	@set -eu; \
+	version_file=apps/game/src/elemental_game/VERSION; \
+	trap 'rm -f "$$version_file"' EXIT; \
+	ELEMENTAL_GAME_VERSION="$$(git describe --tags --exact-match HEAD 2>/dev/null || printf '0.0.0+dev')" \
+		uv run --project apps/game python -c 'import os; open("apps/game/src/elemental_game/VERSION", "w").write(os.environ["ELEMENTAL_GAME_VERSION"] + "\n")'; \
 	uv run --project apps/game --with pyinstaller pyinstaller --noconfirm --clean --onefile --windowed --name ElementalKeep --icon apps/game/src/elemental_game/assets/icon.ico --paths apps/game/src --collect-all elemental_game apps/game/src/elemental_game/main.py
 
 api:

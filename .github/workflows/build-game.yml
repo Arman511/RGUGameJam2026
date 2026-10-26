@@ -56,7 +56,11 @@ jobs:
 
       - name: Build executable
         shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
         run: |
+          python -c 'import os; open("apps/game/src/elemental_game/VERSION", "w").write(os.environ["TAG"] + "\n")'
+
           ICON_ARGS=()
 
           if [ "${{ matrix.platform }}" = "windows" ]; then

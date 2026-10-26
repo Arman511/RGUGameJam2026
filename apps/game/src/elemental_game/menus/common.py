@@ -38,6 +38,9 @@ EXIT_BUTTON = pygame.Rect(420, 385, 230, 58)
 CREDITS_BUTTON = pygame.Rect(665, 20, 115, 40)
 CREDITS_MODAL = pygame.Rect(70, 60, 660, 480)
 CREDITS_CLOSE_BUTTON = pygame.Rect(330, 470, 140, 44)
+UPDATE_MODAL = pygame.Rect(100, 190, 600, 220)
+UPDATE_DOWNLOAD_BUTTON = pygame.Rect(165, 335, 210, 48)
+UPDATE_LATER_BUTTON = pygame.Rect(425, 335, 210, 48)
 LEADERBOARD_BACK_BUTTON = pygame.Rect(330, 490, 140, 44)
 HELP_BACK_BUTTON = pygame.Rect(330, 480, 140, 44)
 CLEAR_CONFIRM_BUTTON = pygame.Rect(250, 340, 140, 48)
@@ -91,20 +94,20 @@ class MenuLayout:
         return pygame.Rect(x, y, right - x, bottom - y)
 
 
-def open_registration_page(base_url: str | None = None) -> bool:
-    register_url = (
-        f"{(base_url or config.ELEMENTAL_KEEP_API_BASE_URL).rstrip('/')}/register"
-    )
+def open_external_page(url: str) -> bool:
     is_wsl = (
         bool(os.environ.get("WSL_DISTRO_NAME") or os.environ.get("WSL_INTEROP"))
         or "microsoft" in platform.release().casefold()
     )
     if not is_wsl:
-        return webbrowser.open(register_url)
+        try:
+            return webbrowser.open(url)
+        except (OSError, webbrowser.Error):
+            return False
 
     try:
         subprocess.run(
-            ["cmd.exe", "/c", "start", "", register_url],
+            ["cmd.exe", "/c", "start", "", url],
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -112,6 +115,13 @@ def open_registration_page(base_url: str | None = None) -> bool:
     except (OSError, subprocess.CalledProcessError):
         return False
     return True
+
+
+def open_registration_page(base_url: str | None = None) -> bool:
+    register_url = (
+        f"{(base_url or config.ELEMENTAL_KEEP_API_BASE_URL).rstrip('/')}/register"
+    )
+    return open_external_page(register_url)
 
 
 class InputField:

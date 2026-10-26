@@ -3,12 +3,15 @@ from __future__ import annotations
 import logging
 import os
 import re
+import threading
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from time import perf_counter
+from time import monotonic, perf_counter
+from urllib.parse import quote
 
-from fastapi import FastAPI, Request
+import httpx
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.staticfiles import StaticFiles
@@ -24,6 +27,13 @@ from elemental_api.matches import router as matches_router
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 PACKAGE_DIR = Path(__file__).parent
+GAME_RELEASES_URL = "https://github.com/Arman511/RGUGameJam2026/releases"
+LATEST_RELEASE_API_URL = (
+    "https://api.github.com/repos/Arman511/RGUGameJam2026/releases/latest"
+)
+VERSION_CACHE_TTL_SECONDS = 300
+_version_cache: tuple[float, dict[str, str]] | None = None
+_version_cache_lock = threading.Lock()
 API_DOCS_ENABLED = os.environ.get("ELEMENTAL_API_DISABLE_DOCS") != "1"
 templates = Jinja2Templates(directory=str(PACKAGE_DIR / "template"))
 ALLOWED_ORIGINS = [
@@ -190,3 +200,46 @@ def download_page(request: Request) -> HTMLResponse:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/v1/version")
+def game_version() -> dict[str, str]:
+    global _version_cache
+    with _version_cache_lock:
+        if (
+            _version_cache is not None
+            and monotonic() - _version_cache[0] < VERSION_CACHE_TTL_SECONDS
+        ):
+            return _version_cache[1]
+
+        try:
+            response = httpx.get(
+                LATEST_RELEASE_API_URL,
+                headers={
+                    "Accept": "application/vnd.github+json",
+                    "User-Agent": "ElementalKeep-update-check",
+                },
+                timeout=3.0,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except (httpx.HTTPError, ValueError) as error:
+            logger.warning("Could not fetch the latest game release: %s", error)
+            raise HTTPException(
+                status_code=503,
+                detail="Latest game release information is temporarily unavailable",
+            ) from error
+
+        version = payload.get("tag_name") if isinstance(payload, dict) else None
+        if not isinstance(version, str):
+            raise HTTPException(
+                status_code=502,
+                detail="GitHub returned invalid latest release information",
+            )
+
+        release = {
+            "version": version,
+            "release_url": f"{GAME_RELEASES_URL}/tag/{quote(version, safe='')}",
+        }
+        _version_cache = (monotonic(), release)
+        return release

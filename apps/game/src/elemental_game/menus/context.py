@@ -8,6 +8,7 @@ from elemental_game.api_client import AuthClient, CredentialStore
 from elemental_game.database import LocalLeaderboardStore
 from elemental_game.networking.client import MultiplayerClient
 from elemental_game.types.player import PlayerType
+from elemental_game.version_check import UpdateInfo
 
 from .common import InputField, MenuLayout
 
@@ -44,6 +45,9 @@ class MenuContext(Protocol):
     title_font: pygame.font.Font
     username: str | None
     join_code: InputField
+    update_info: UpdateInfo | None
+    update_prompt_open: bool
+    update_open_error: str
 
     def _apply_sound_preferences(self) -> None: ...
 
@@ -90,3 +94,7 @@ class MenuContext(Protocol):
     def _login(self) -> None: ...
 
     def _update_slider(self, mouse_x: int) -> None: ...
+
+    def _draw_update_prompt(self) -> None: ...
+
+    def _handle_update_prompt_event(self, event: pygame.event.Event) -> None: ...
