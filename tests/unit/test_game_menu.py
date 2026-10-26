@@ -3,7 +3,7 @@ from __future__ import annotations
 from unittest.mock import Mock
 
 import pygame
-from elemental_game import menus
+from elemental_game import __version__, menus
 from elemental_game.api_client.http import APIError
 from elemental_game.menus.common import (
     CREDITS_BUTTON,
@@ -68,6 +68,46 @@ def test_version_check_ignores_current_or_newer_version(monkeypatch) -> None:
 
     assert check_for_update("https://api.example.com", "v2.1.0") is None
     assert check_for_update("https://api.example.com", "v2.2.0") is None
+
+
+def test_update_check_runs_synchronously_and_opens_prompt(monkeypatch) -> None:
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.api_base_url = "https://api.example.com"
+    update = UpdateInfo(
+        version="v2.1.0",
+        release_url="https://github.com/Arman511/RGUGameJam2026/releases/tag/v2.1.0",
+    )
+    checks: list[tuple[str, str]] = []
+
+    def fake_check(base_url: str, current_version: str) -> UpdateInfo:
+        checks.append((base_url, current_version))
+        return update
+
+    monkeypatch.setattr(menus.system, "check_for_update", fake_check)
+
+    app._start_update_check()
+
+    assert checks == [("https://api.example.com", __version__)]
+    assert app.update_info is update
+    assert app.update_prompt_open
+
+
+def test_update_check_import_failure_does_not_abort_menu(monkeypatch, caplog) -> None:
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.api_base_url = "https://api.example.com"
+    app.update_info = None
+    app.update_prompt_open = False
+
+    def fail_check(_base_url: str, _current_version: str) -> None:
+        raise ImportError("An Application Control policy blocked _socket")
+
+    monkeypatch.setattr(menus.system, "check_for_update", fail_check)
+
+    app._start_update_check()
+
+    assert app.update_info is None
+    assert not app.update_prompt_open
+    assert "Could not check for game updates" in caplog.text
 
 
 def test_update_prompt_opens_release_download(monkeypatch) -> None:

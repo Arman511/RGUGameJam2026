@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import logging
 import os
-import queue
-import threading
 from typing import Any
 
 import httpx
@@ -128,7 +126,6 @@ class MenuSystem(
         self.update_info: UpdateInfo | None = None
         self.update_prompt_open = False
         self.update_open_error = ""
-        self._update_results: queue.SimpleQueue[UpdateInfo] = queue.SimpleQueue()
         self.player_type = PlayerType(self.store.player_image_number())
         backgrounds_dir = os.path.join(IMAGES_DIR, "backgrounds")
         self.menu_background = pygame.transform.smoothscale(
@@ -152,16 +149,14 @@ class MenuSystem(
         self._start_update_check()
 
     def _start_update_check(self) -> None:
-        def check() -> None:
-            try:
-                update = check_for_update(self.api_base_url, __version__)
-            except (httpx.HTTPError, TypeError, ValueError) as error:
-                logger.warning("Could not check for game updates: %s", error)
-                return
-            if update is not None:
-                self._update_results.put(update)
-
-        threading.Thread(target=check, name="game-update-check", daemon=True).start()
+        try:
+            update = check_for_update(self.api_base_url, __version__)
+        except (httpx.HTTPError, ImportError, TypeError, ValueError) as error:
+            logger.warning("Could not check for game updates: %s", error)
+            return
+        if update is not None:
+            self.update_info = update
+            self.update_prompt_open = True
 
     def _apply_sound_preferences(self) -> None:
         if pygame.mixer.get_init() is None:
@@ -190,7 +185,6 @@ class MenuSystem(
         play_background_music(volume=self.preferences["music_volume"])
         while self.running:
             self.clock.tick(60)
-            self._poll_update_check()
             if self.state == "hosting":
                 self._poll_hosting_room()
             for event in pygame.event.get():
@@ -271,17 +265,6 @@ class MenuSystem(
         elif self.state == "hosting":
             self._draw_hosting()
         self._draw_update_prompt()
-
-    def _poll_update_check(self) -> None:
-        update_results = getattr(self, "_update_results", None)
-        if update_results is None:
-            return
-        try:
-            update = update_results.get_nowait()
-        except queue.Empty:
-            return
-        self.update_info = update
-        self.update_prompt_open = True
 
     def _handle_update_prompt_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
