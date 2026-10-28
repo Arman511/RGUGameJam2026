@@ -1,7 +1,7 @@
 import shutil
 
-from .api_client import CredentialStore
-from .database.local_database import get_default_data_dir
+from ..api_client import CredentialStore
+from ..database.local_database import get_default_data_dir
 
 
 def validate_uninstall() -> bool:

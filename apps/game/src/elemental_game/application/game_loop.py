@@ -4,7 +4,7 @@ import pygame
 
 from elemental_game.application.multiplayer import MultiplayerController
 from elemental_game.application.session import GameSession
-from elemental_game.audio import handle_background_music_end_event
+from elemental_game.utils.audio import handle_background_music_end_event
 from elemental_game.game_entities.enemies import load_enemy_images
 from elemental_game.menus import MenuSystem
 from elemental_game.screen_rendering.game import GameScreenRenderer
@@ -113,7 +113,19 @@ class GameLoop:
     def _handle_exit_confirmation(self, event: pygame.event.Event) -> None:
         if event.key in (pygame.K_y, pygame.K_RETURN):
             self.game.confirm_exit = False
-            self._return_to_menu()
+            if self.game.completed_waves >= 1:
+                self.multiplayer.close_connection()
+                self.game_over = GameOverDialog(
+                    self.screen,
+                    self.font,
+                    self.menus,
+                    run_id=self.game.run_id,
+                    survival_time=self.game.run_elapsed,
+                    final_wave=self.game.wave_number,
+                    enemies_defeated=self.game.enemies_defeated,
+                )
+            else:
+                self._return_to_menu()
         elif event.key in (pygame.K_n, pygame.K_ESCAPE):
             self.game.confirm_exit = False
 

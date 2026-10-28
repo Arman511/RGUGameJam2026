@@ -2,7 +2,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-from elemental_game.config import ELEMENTAL_KEEP_API_BASE_URL
+from elemental_game.utils.config import ELEMENTAL_KEEP_API_BASE_URL
 from elemental_game.database.local_database import LocalLeaderboardStore
 
 
@@ -145,8 +145,7 @@ def test_run_requires_a_nonempty_username(tmp_path: Path) -> None:
 def test_legacy_local_leaderboard_migrates_without_score(tmp_path: Path) -> None:
     path = tmp_path / "leaderboard.db"
     with sqlite3.connect(path) as connection:
-        connection.execute(
-            """
+        connection.execute("""
             CREATE TABLE leaderboard (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 run_id TEXT NOT NULL UNIQUE,
@@ -156,15 +155,12 @@ def test_legacy_local_leaderboard_migrates_without_score(tmp_path: Path) -> None
                 score INTEGER NOT NULL,
                 enemies_defeated INTEGER NOT NULL
             )
-            """
-        )
-        connection.execute(
-            """
+            """)
+        connection.execute("""
             INSERT INTO leaderboard
                 (run_id, timestamp, survival_time, final_wave, score, enemies_defeated)
             VALUES ('legacy-run', '2026-10-24 10:00:00', 64.2, 5, 1500, 14)
-            """
-        )
+            """)
 
     store = LocalLeaderboardStore(path=path)
 

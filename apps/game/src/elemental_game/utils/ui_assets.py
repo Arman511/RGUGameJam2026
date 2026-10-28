@@ -3,7 +3,7 @@ from functools import cache
 
 import pygame
 
-from elemental_game.config import IMAGES_DIR
+from elemental_game.utils.config import IMAGES_DIR
 
 
 @cache

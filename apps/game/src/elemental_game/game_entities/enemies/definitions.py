@@ -132,14 +132,14 @@ ENEMY_DEFS: dict[str, EnemyDefinition] = {
         "Elemental Colossus",
         "finalboss.png",
         None,
-        270,
-        22,
+        200,
+        20,
         30,
         60,
         is_boss=True,
         knockback_resistance=0.9,
-        boss_house_damage_percent=28,
-        boss_turret_damage_percent=28,
+        boss_house_damage_percent=20,
+        boss_turret_damage_percent=25,
     ),
 }
 OPPOSING_ELEMENTS = {

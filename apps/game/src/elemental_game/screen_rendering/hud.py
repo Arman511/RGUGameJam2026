@@ -2,11 +2,11 @@ import os
 
 import pygame
 
-from elemental_game import config
+from elemental_game.utils import config
 from elemental_game.game_entities.crops.crops import get_crop_icon
 from elemental_game.game_types.crop import CropType
 from elemental_game.game_types.seed import SeedType
-from elemental_game.ui_assets import get_coin_icon
+from elemental_game.utils.ui_assets import get_coin_icon
 
 
 def draw_inventory_hud(surface, player, current_wave: int, enemies_killed: int):

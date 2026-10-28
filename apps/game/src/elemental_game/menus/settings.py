@@ -299,7 +299,7 @@ class SettingsMenuMixin(MenuContext):
                 preview,
                 preview.get_rect(center=self.layout.point((400, 260))),
             )
-            self._draw_text(self.player_type.name.title(), 518, 260)
+            self._draw_text(self.player_type.name.title(), 400, 315)
             self._draw_button(">", pygame.Rect(495, 240, 48, 42))
 
         self._draw_button("Close", pygame.Rect(330, 355, 140, 44))

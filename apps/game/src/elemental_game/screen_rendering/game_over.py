@@ -7,7 +7,7 @@ from pydantic import ValidationError as PydanticValidationError
 
 from elemental_game.api_client.http import APIError
 from elemental_game.api_client.models import RunSubmission
-from elemental_game.audio import play_sfx
+from elemental_game.utils.audio import play_sfx
 from elemental_game.menus import (
     InputField,
     open_registration_page,

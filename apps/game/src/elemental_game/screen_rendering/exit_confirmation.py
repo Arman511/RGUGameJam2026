@@ -24,7 +24,7 @@ def draw_exit_confirmation(surface, confirm_font):
     panel_width = min(500, surface.get_width() - 40)
     padding = 24
     prompt_lines = _wrap_text(
-        "Are you sure you want to leave, progress won't be saved?",
+        "Are you sure you want to leave the game?",
         confirm_font,
         panel_width - padding * 2,
     )

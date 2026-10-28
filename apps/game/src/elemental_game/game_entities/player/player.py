@@ -1,5 +1,5 @@
 import pygame
-from elemental_game import config
+from elemental_game.utils import config
 from elemental_game.game_types.player import PlayerType
 from elemental_game.game_types.seed import SeedType
 
