@@ -3,28 +3,10 @@
 from dataclasses import dataclass
 
 from elemental_game.game_entities.crops.crops import CropType
+from elemental_game.game_types.enemy_defination import EnemyDefinition
 
 REGULAR_SEED_TIER_WEIGHTS = (50, 45, 15)
 ELITE_SEED_TIER_WEIGHTS = (30, 40, 30)
-
-
-@dataclass(frozen=True)
-class EnemyDefinition:
-    """Describe an enemy type and its combat traits."""
-
-    key: str
-    name: str
-    image: str
-    element: CropType | None
-    max_health: int
-    speed: float
-    damage: int
-    reward: int
-    is_boss: bool = False
-    is_elite: bool = False
-    knockback_resistance: float = 0.0
-    boss_house_damage_percent: int | None = None
-    boss_turret_damage_percent: int | None = None
 
 
 ENEMY_DEFS: dict[str, EnemyDefinition] = {
@@ -150,14 +132,14 @@ ENEMY_DEFS: dict[str, EnemyDefinition] = {
         "Elemental Colossus",
         "finalboss.png",
         None,
-        300,
-        25,
+        270,
+        22,
         30,
         60,
         is_boss=True,
         knockback_resistance=0.9,
-        boss_house_damage_percent=20,
-        boss_turret_damage_percent=30,
+        boss_house_damage_percent=28,
+        boss_turret_damage_percent=28,
     ),
 }
 OPPOSING_ELEMENTS = {

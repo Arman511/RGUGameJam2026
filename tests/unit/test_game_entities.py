@@ -213,13 +213,13 @@ def test_bosses_spawn_on_random_sides(monkeypatch) -> None:
     assert [boss.spawn_side for boss in bosses] == ["left", "right"]
 
 
-def test_big_boss_has_triple_health_higher_resistance_and_boss_status() -> None:
+def test_big_boss_has_reduced_health_higher_resistance_and_boss_status() -> None:
     normal_boss = EnemyState.create("boss", (0, 0))
     boss = EnemyState.create("big_boss", (0, 0))
 
     assert normal_boss.max_health == 100
-    assert boss.max_health == 300
-    assert boss.max_health == 3 * ENEMY_DEFS["boss"].max_health
+    assert boss.max_health == 270
+    assert boss.max_health == 2.7 * ENEMY_DEFS["boss"].max_health
     assert boss.resistance == 0.7
     assert EnemyState.create("boss", (0, 0)).resistance == 0.45
     assert boss.is_boss
