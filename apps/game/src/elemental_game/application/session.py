@@ -8,7 +8,7 @@ import pygame
 from elemental_game import config
 from elemental_game.application.input import GameInputHandler
 from elemental_game.audio import play_background_music
-from elemental_game.game_entities.enemies.enemies import EnemyController
+from elemental_game.game_entities.enemies import EnemyController
 from elemental_game.game_entities.enemies.waves import Waves
 from elemental_game.game_entities.farm import Farm
 from elemental_game.game_entities.house import House

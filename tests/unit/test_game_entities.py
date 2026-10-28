@@ -2,9 +2,9 @@ import math
 from unittest.mock import Mock
 
 import pygame
-from elemental_game.game_entities.enemies import enemies as enemies_module
+from elemental_game.game_entities import enemies as enemies_module
 from elemental_game.game_entities.enemies import waves as waves_module
-from elemental_game.game_entities.enemies.enemies import (
+from elemental_game.game_entities.enemies import (
     ELITE_SEED_TIER_WEIGHTS,
     ENEMY_DEFS,
     OPPOSING_ELEMENTS,
