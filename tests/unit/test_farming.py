@@ -4,8 +4,8 @@ import pygame
 import pytest
 from elemental_game.game_entities import farm as farm_module
 from elemental_game.game_entities.farm import Farm
-from elemental_game.types.crop import CropType
-from elemental_game.types.player import PlayerType
+from elemental_game.game_types.crop import CropType
+from elemental_game.game_types.player import PlayerType
 
 
 @pytest.fixture

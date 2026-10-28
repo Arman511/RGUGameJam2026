@@ -53,6 +53,23 @@ def test_registration_rejects_passwords_missing_complexity(password, client) -> 
     assert response.status_code == 422
 
 
+def test_leaderboard_api_accepts_standard_query_params(client) -> None:
+    response = client.get(
+        "/api/v1/leaderboard",
+        params={
+            "limit": 10,
+            "offset": 0,
+            "search": "",
+            "sort": "time_survived",
+            "direction": "desc",
+            "period": "all_time",
+        },
+    )
+
+    assert response.status_code == 200
+    assert isinstance(response.json()["scores"], list)
+
+
 def test_admin_routes_require_a_configured_token(client, monkeypatch) -> None:
     monkeypatch.delenv("ELEMENTAL_API_ADMIN_TOKEN", raising=False)
 

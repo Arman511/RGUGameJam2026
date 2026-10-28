@@ -4,7 +4,7 @@ from elemental_game.multiplayer_attacks import (
     AttackCostTracker,
     send_multiplayer_attack,
 )
-from elemental_game.types.crop import CropType
+from elemental_game.game_types.crop import CropType
 
 
 def test_attack_costs_double_per_action_and_reset_on_each_phase() -> None:

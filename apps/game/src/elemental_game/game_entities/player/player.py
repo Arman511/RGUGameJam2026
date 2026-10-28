@@ -1,7 +1,7 @@
 import pygame
 from elemental_game import config
-from elemental_game.types.player import PlayerType
-from elemental_game.types.seed import SeedType
+from elemental_game.game_types.player import PlayerType
+from elemental_game.game_types.seed import SeedType
 
 
 class Player:

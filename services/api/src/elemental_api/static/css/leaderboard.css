@@ -130,10 +130,14 @@ body {
   white-space: nowrap;
 }
 .podium-time { color: var(--text-muted); font-size: .83rem; font-variant-numeric: tabular-nums; }
-.leaderboard-controls { width: min(100%, 760px); }
+.leaderboard-controls { width: min(100%, 980px); flex-wrap: wrap; }
 .leaderboard-controls .form-control { flex: 1 1 230px; min-width: 130px; }
 .leaderboard-controls .form-select { flex: 0 1 190px; min-width: 150px; }
 .leaderboard-controls #page-size { flex-basis: 140px; min-width: 125px; }
+.leaderboard-controls #period { flex-basis: 160px; }
+.leaderboard-controls .custom-date-range[hidden] { display: none !important; }
+.leaderboard-controls .custom-date-range { flex: 1 1 300px; }
+.leaderboard-controls .custom-date-range .form-control { flex: 1 1 130px; min-width: 130px; }
 .sort-direction { min-width: 44px; font-size: 1.1rem; }
 .leaderboard-frame {
   overflow: hidden;

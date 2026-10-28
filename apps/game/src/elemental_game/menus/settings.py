@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pygame
 
-from elemental_game.types.player import PlayerType
+from elemental_game.game_types.player import PlayerType
 
 from .common import (
     API_BASE_URL_INPUT,

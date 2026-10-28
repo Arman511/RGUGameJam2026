@@ -8,11 +8,10 @@ from elemental_game.game_entities.crops.crops import Crop, get_crop_icon
 from elemental_game.game_entities.farm import Farm
 from elemental_game.game_entities.house import HouseState
 from elemental_game.screen_rendering.exit_confirmation import draw_exit_confirmation
-from elemental_game.screen_rendering.game_over import GameOverDialog
 from elemental_game.screen_rendering.hud import draw_inventory_hud
-from elemental_game.types.crop import CropType
-from elemental_game.types.player import PlayerType
-from elemental_game.types.weather import WeatherTypes
+from elemental_game.game_types.crop import CropType
+from elemental_game.game_types.player import PlayerType
+from elemental_game.game_types.weather import WeatherTypes
 from elemental_game.ui_assets import get_coin_icon
 
 WEATHER_NAMES = {
@@ -47,18 +46,14 @@ def _draw_quick_action_button(
             else (
                 disabled_background_color
                 if not enabled and disabled_background_color is not None
-                else (67, 86, 69)
-                if enabled
-                else (65, 65, 65)
+                else (67, 86, 69) if enabled else (65, 65, 65)
             )
         )
     )
     border = (
         border_color
         if border_color is not None
-        else (245, 225, 125)
-        if active or (enabled and hovered)
-        else (145, 150, 145)
+        else (245, 225, 125) if active or (enabled and hovered) else (145, 150, 145)
     )
     pygame.draw.rect(surface, background, rect, border_radius=9)
     pygame.draw.rect(surface, border, rect, border_width, border_radius=9)

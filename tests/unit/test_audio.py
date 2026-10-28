@@ -10,9 +10,9 @@ from elemental_game.audio import (
 )
 from elemental_game.game_entities import farm as farm_module
 from elemental_game.game_entities.farm import Farm
-from elemental_game.types.crop import CropType
-from elemental_game.types.player import PlayerType
-from elemental_game.types.seed import SeedType
+from elemental_game.game_types.crop import CropType
+from elemental_game.game_types.player import PlayerType
+from elemental_game.game_types.seed import SeedType
 
 
 def test_audio_initialization_failure_is_optional(monkeypatch, capsys) -> None:

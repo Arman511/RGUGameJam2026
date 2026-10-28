@@ -8,7 +8,7 @@ import pygame
 from elemental_game import config
 from elemental_game.application.input import GameInputHandler
 from elemental_game.audio import play_background_music
-from elemental_game.game_entities.enemies.enemies import EnemyController
+from elemental_game.game_entities.enemies import EnemyController
 from elemental_game.game_entities.enemies.waves import Waves
 from elemental_game.game_entities.farm import Farm
 from elemental_game.game_entities.house import House
@@ -16,9 +16,9 @@ from elemental_game.game_entities.player.player import Player
 from elemental_game.game_entities.seed_tier_reward import SeedTierReward
 from elemental_game.game_entities.shop import ShopMenu
 from elemental_game.game_entities.turrets.turrets import TurretSystem
-from elemental_game.types.crop import CropType
-from elemental_game.types.player import PlayerType
-from elemental_game.types.weather import WeatherTypes
+from elemental_game.game_types.crop import CropType
+from elemental_game.game_types.player import PlayerType
+from elemental_game.game_types.weather import WeatherTypes
 
 
 class GameSession:

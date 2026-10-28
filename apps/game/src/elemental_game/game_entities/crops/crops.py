@@ -5,11 +5,10 @@ Usage:
 new_emberbloom = Crop(<name or id>, CropType.FIRE, (0, 0))
 """
 
-from enum import Enum
 from functools import lru_cache
 import os
 from elemental_game.config import IMAGES_DIR
-from elemental_game.types.crop import CropType
+from elemental_game.game_types.crop import CropType
 import pygame
 
 

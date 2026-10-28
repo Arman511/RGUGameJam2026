@@ -78,8 +78,23 @@
             <option value="wave_number">Wave reached</option>
             <option value="enemies_defeated">Enemies defeated</option>
             <option value="username">Player name</option>
-            <option value="submitted_at">Most recent</option>
           </select>
+          <label class="visually-hidden" for="period">Filter by run date</label>
+          <select class="form-select" id="period">
+            <option value="last_hour">Last hour</option>
+            <option value="last_day">Last day</option>
+            <option value="last_week">Last week</option>
+            <option value="last_month">Last month</option>
+            <option value="last_year">Last year</option>
+            <option value="custom">Custom dates</option>
+            <option value="all_time" selected>All time</option>
+          </select>
+          <div class="d-flex gap-2 custom-date-range" id="custom-date-range" hidden>
+            <label class="visually-hidden" for="start-date">Start date</label>
+            <input class="form-control" id="start-date" type="date">
+            <label class="visually-hidden" for="end-date">End date</label>
+            <input class="form-control" id="end-date" type="date">
+          </div>
           <label class="visually-hidden" for="page-size">Scores per page</label>
           <select class="form-select" id="page-size">
             <option value="10">10 per page</option>

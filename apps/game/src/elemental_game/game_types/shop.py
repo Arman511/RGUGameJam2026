@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from elemental_game.types.crop import CropType
-from elemental_game.types.seed import SeedType
+from elemental_game.game_types.crop import CropType
+from elemental_game.game_types.seed import SeedType
 
 
 @dataclass(frozen=True)

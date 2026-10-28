@@ -5,7 +5,7 @@ import pygame
 from elemental_game.application.multiplayer import MultiplayerController
 from elemental_game.application.session import GameSession
 from elemental_game.audio import handle_background_music_end_event
-from elemental_game.game_entities.enemies.enemies import load_enemy_images
+from elemental_game.game_entities.enemies import load_enemy_images
 from elemental_game.menus import MenuSystem
 from elemental_game.screen_rendering.game import GameScreenRenderer
 from elemental_game.screen_rendering.game_over import GameOverDialog

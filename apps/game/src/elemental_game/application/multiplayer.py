@@ -14,8 +14,8 @@ from elemental_game.screen_rendering.game_over import GameOverDialog
 from elemental_game.screen_rendering.multiplayer_game_over import (
     MultiplayerGameOverDialog,
 )
-from elemental_game.types.crop import CropType
-from elemental_game.types.weather import WeatherTypes
+from elemental_game.game_types.crop import CropType
+from elemental_game.game_types.weather import WeatherTypes
 
 GameOverScreen = GameOverDialog | MultiplayerGameOverDialog | None
 

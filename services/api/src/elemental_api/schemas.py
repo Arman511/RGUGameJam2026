@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, date, datetime
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class UserResponse(BaseModel):
@@ -91,6 +92,37 @@ class LeaderboardResponse(BaseModel):
     total: int
     offset: int
     limit: int
+
+
+class LeaderboardFilters(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    period: Literal[
+        "last_hour",
+        "last_day",
+        "last_week",
+        "last_month",
+        "last_year",
+        "custom",
+        "all_time",
+    ] = "all_time"
+    start_date: date | None = None
+    end_date: date | None = None
+
+    @model_validator(mode="after")
+    def validate_custom_dates(self) -> "LeaderboardFilters":
+        if self.period != "custom":
+            if self.start_date is not None or self.end_date is not None:
+                raise ValueError("Custom dates can only be used with the custom period.")
+            return self
+
+        if self.start_date is None or self.end_date is None:
+            raise ValueError("Custom period requires both start_date and end_date.")
+        if self.start_date > self.end_date:
+            raise ValueError("start_date must be on or before end_date.")
+        if self.end_date > datetime.now(UTC).date():
+            raise ValueError("end_date cannot be in the future.")
+        return self
 
 
 class RunSubmittedResponse(BaseModel):

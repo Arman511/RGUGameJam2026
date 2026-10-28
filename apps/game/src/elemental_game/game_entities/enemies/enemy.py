@@ -9,8 +9,8 @@ from dataclasses import dataclass, field
 
 import pygame
 from elemental_game.game_entities.crops.crops import CropType
-from elemental_game.types.player import PlayerType
-from elemental_game.types.seed import SeedType
+from elemental_game.game_types.player import PlayerType
+from elemental_game.game_types.seed import SeedType
 
 from .definitions import (
     ELITE_SEED_TIER_WEIGHTS,
@@ -63,9 +63,7 @@ class EnemyState:
             else (
                 min(0.9, 0.45 + 0.02 * max(0, wave_number // 3 - 1))
                 if definition.is_boss
-                else 0.5
-                if definition.is_elite
-                else 0.0
+                else 0.5 if definition.is_elite else 0.0
             )
         )
         return cls(

@@ -2,9 +2,9 @@ import math
 from unittest.mock import Mock
 
 import pygame
-from elemental_game.game_entities.enemies import enemies as enemies_module
+from elemental_game.game_entities import enemies as enemies_module
 from elemental_game.game_entities.enemies import waves as waves_module
-from elemental_game.game_entities.enemies.enemies import (
+from elemental_game.game_entities.enemies import (
     ELITE_SEED_TIER_WEIGHTS,
     ENEMY_DEFS,
     OPPOSING_ELEMENTS,
@@ -39,9 +39,9 @@ from elemental_game.game_entities.turrets.turrets import (
     _projectile_image_angle,
 )
 from elemental_game.screen_rendering.game import _draw_quick_action_button
-from elemental_game.types.crop import CropType
-from elemental_game.types.seed import SeedType
-from elemental_game.types.weather import WeatherTypes
+from elemental_game.game_types.crop import CropType
+from elemental_game.game_types.seed import SeedType
+from elemental_game.game_types.weather import WeatherTypes
 
 
 def test_player_types_map_numbers_to_expected_sprite_paths() -> None:
@@ -213,13 +213,13 @@ def test_bosses_spawn_on_random_sides(monkeypatch) -> None:
     assert [boss.spawn_side for boss in bosses] == ["left", "right"]
 
 
-def test_big_boss_has_triple_health_higher_resistance_and_boss_status() -> None:
+def test_big_boss_has_reduced_health_higher_resistance_and_boss_status() -> None:
     normal_boss = EnemyState.create("boss", (0, 0))
     boss = EnemyState.create("big_boss", (0, 0))
 
     assert normal_boss.max_health == 100
-    assert boss.max_health == 300
-    assert boss.max_health == 3 * ENEMY_DEFS["boss"].max_health
+    assert boss.max_health == 270
+    assert boss.max_health == 2.7 * ENEMY_DEFS["boss"].max_health
     assert boss.resistance == 0.7
     assert EnemyState.create("boss", (0, 0)).resistance == 0.45
     assert boss.is_boss
@@ -952,7 +952,7 @@ def test_inventory_hud_includes_wave_and_enemy_kill_count(monkeypatch) -> None:
     from types import SimpleNamespace
 
     from elemental_game.screen_rendering import hud
-    from elemental_game.types.seed import SeedType
+    from elemental_game.game_types.seed import SeedType
 
     rendered = []
 

@@ -7,7 +7,7 @@ import pygame
 from elemental_game.api_client import AuthClient, CredentialStore
 from elemental_game.database import LocalLeaderboardStore
 from elemental_game.networking.client import MultiplayerClient
-from elemental_game.types.player import PlayerType
+from elemental_game.game_types.player import PlayerType
 from elemental_game.version_check import UpdateInfo
 
 from .common import InputField, MenuLayout

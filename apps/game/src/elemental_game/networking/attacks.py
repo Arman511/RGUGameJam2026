@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
 from elemental_game.networking.client import MultiplayerClient, MultiplayerError
-from elemental_game.types.crop import CropType
+from elemental_game.game_types.crop import CropType
 
 ATTACK_BASE_COSTS = {
     "extra_enemies": 6,

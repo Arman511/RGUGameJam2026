@@ -7,13 +7,13 @@ from typing import ClassVar
 import pygame
 from elemental_game import config
 from elemental_game.config import IMAGES_DIR, WINDOW_WIDTH
-from elemental_game.game_entities.enemies.enemies import (
+from elemental_game.game_entities.enemies import (
     ENEMY_DEFS,
     OPPOSING_ELEMENTS,
     EnemyState,
 )
-from elemental_game.types.crop import CropType
-from elemental_game.types.weather import WeatherTypes
+from elemental_game.game_types.crop import CropType
+from elemental_game.game_types.weather import WeatherTypes
 
 WEATHER_CROP_TYPES = {
     WeatherTypes.FIRE: CropType.FIRE,
