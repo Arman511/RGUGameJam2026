@@ -43,7 +43,7 @@ def leaderboard(
         "username",
     ] = "time_survived",
     direction: Literal["asc", "desc"] = "desc",
-    filters: Annotated[LeaderboardFilters, Query()] = LeaderboardFilters(),
+    filters: LeaderboardFilters = Depends(),
 ) -> LeaderboardResponse:
     query = select(RunRecord, User.username).join(User, User.id == RunRecord.user_id)
     now = datetime.now(UTC).replace(tzinfo=None)

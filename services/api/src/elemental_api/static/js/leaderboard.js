@@ -77,6 +77,13 @@ function appendUsername(container, username) {
   container.append(button);
 }
 
+function syncCustomDateRange() {
+  const isCustomPeriod = periodSelect.value === "custom";
+  customDateRange.hidden = !isCustomPeriod;
+  startDateInput.toggleAttribute("required", isCustomPeriod);
+  endDateInput.toggleAttribute("required", isCustomPeriod);
+}
+
 function renderPodium(ranked) {
   podiumElement.replaceChildren();
   (offset === 0 ? ranked.slice(0, 3) : []).forEach((score, index) => {
@@ -228,7 +235,7 @@ sortSelect.addEventListener("change", () => {
   refresh();
 });
 periodSelect.addEventListener("change", () => {
-  customDateRange.hidden = periodSelect.value !== "custom";
+  syncCustomDateRange();
   if (periodSelect.value === "custom") {
     const today = new Date();
     const weekAgo = new Date(today);
@@ -239,6 +246,7 @@ periodSelect.addEventListener("change", () => {
   offset = 0;
   refresh();
 });
+syncCustomDateRange();
 [startDateInput, endDateInput].forEach((input) => {
   input.addEventListener("change", () => {
     offset = 0;
