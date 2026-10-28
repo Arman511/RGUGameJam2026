@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from elemental_game.config import ELEMENTAL_KEEP_API_BASE_URL
+from elemental_game.utils.config import ELEMENTAL_KEEP_API_BASE_URL
 
 from .migrations import upgrade_database
 
@@ -115,27 +115,23 @@ class LocalLeaderboardStore:
 
     def sound_preferences(self) -> dict[str, float]:
         with self._connect() as connection:
-            rows = connection.execute(
-                """
+            rows = connection.execute("""
                 SELECT setting_key, setting_value
                 FROM game_settings
                 WHERE setting_key IN ('music_volume', 'sfx_volume')
-                """
-            ).fetchall()
+                """).fetchall()
         preferences = {"music_volume": 0.5, "sfx_volume": 0.5}
         preferences.update({row["setting_key"]: row["setting_value"] for row in rows})
         return preferences
 
     def manual_turret_sensitivity(self) -> float:
         with self._connect() as connection:
-            row = connection.execute(
-                """
+            row = connection.execute("""
                 SELECT setting_value
                 FROM game_settings
                 WHERE setting_key = 'manual_turret_sensitivity'
-                """
-            ).fetchone()
-        return 0.5 if row is None else row["setting_value"]
+                """).fetchone()
+        return 0.25 if row is None else row["setting_value"]
 
     def save_manual_turret_sensitivity(self, sensitivity: float) -> None:
         if (
@@ -158,13 +154,11 @@ class LocalLeaderboardStore:
 
     def api_base_url(self) -> str:
         with self._connect() as connection:
-            row = connection.execute(
-                """
+            row = connection.execute("""
                 SELECT setting_value
                 FROM game_text_settings
                 WHERE setting_key = 'api_base_url'
-                """
-            ).fetchone()
+                """).fetchone()
         return (
             self._validate_api_base_url(row["setting_value"])
             if row is not None
@@ -233,13 +227,11 @@ class LocalLeaderboardStore:
 
     def hints_enabled(self) -> bool:
         with self._connect() as connection:
-            row = connection.execute(
-                """
+            row = connection.execute("""
                 SELECT setting_value
                 FROM game_settings
                 WHERE setting_key = 'hints_enabled'
-                """
-            ).fetchone()
+                """).fetchone()
         return row is None or row["setting_value"] == 1.0
 
     def save_hints_enabled(self, enabled: bool) -> None:
@@ -259,13 +251,11 @@ class LocalLeaderboardStore:
 
     def player_image_number(self) -> int:
         with self._connect() as connection:
-            row = connection.execute(
-                """
+            row = connection.execute("""
                 SELECT player_number
                 FROM player_settings
                 WHERE setting_key = 'player_number'
-                """
-            ).fetchone()
+                """).fetchone()
         if row is None:
             raise RuntimeError("player image setting is missing from the database")
         return int(row["player_number"])

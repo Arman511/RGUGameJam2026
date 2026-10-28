@@ -13,7 +13,7 @@ from elemental_game.game_types.shop import (
     SellSeed,
     TurretSlotUpgrade,
 )
-from elemental_game.ui_assets import get_coin_icon
+from elemental_game.utils.ui_assets import get_coin_icon
 
 
 class ShopRenderer:

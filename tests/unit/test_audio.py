@@ -1,7 +1,7 @@
 from unittest.mock import Mock
 
 import pygame
-from elemental_game.audio import (
+from elemental_game.utils.audio import (
     BACKGROUND_MUSIC_ENDED_EVENT,
     handle_background_music_end_event,
     initialise_audio,

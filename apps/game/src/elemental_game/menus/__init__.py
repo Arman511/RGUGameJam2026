@@ -1,4 +1,4 @@
-from elemental_game.config import ASSETS_DIR, IMAGES_DIR
+from elemental_game.utils.config import ASSETS_DIR, IMAGES_DIR
 
 from .common import (
     API_BASE_URL_INPUT,

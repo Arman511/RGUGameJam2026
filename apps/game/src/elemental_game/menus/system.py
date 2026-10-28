@@ -9,17 +9,17 @@ import pygame
 
 from elemental_game import __version__
 from elemental_game.api_client import APIClient, AuthClient, CredentialStore
-from elemental_game.audio import (
+from elemental_game.utils.audio import (
     handle_background_music_end_event,
     initialise_audio,
     play_background_music,
     set_background_music_volume,
 )
-from elemental_game.config import ASSETS_DIR, IMAGES_DIR
+from elemental_game.utils.config import ASSETS_DIR, IMAGES_DIR
 from elemental_game.database import LocalLeaderboardStore
 from elemental_game.networking.client import MultiplayerClient
 from elemental_game.game_types.player import PlayerType
-from elemental_game.version_check import UpdateInfo, check_for_update
+from elemental_game.utils.version_check import UpdateInfo, check_for_update
 
 from .common import (
     API_BASE_URL_INPUT,

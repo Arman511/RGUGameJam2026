@@ -493,6 +493,43 @@ def test_boss_damage_reduces_turret_health() -> None:
     assert slot.turret.health == 60
 
 
+def test_turret_repair_uses_matching_crop_and_restores_up_to_max_health() -> None:
+    system = TurretSystem.__new__(TurretSystem)
+    turret = TurretInstance("flame_turret", health=90)
+    slot = TurretSlot("right", 0, (0, 0), turret)
+    player = Player.__new__(Player)
+    player.crops = {CropType.FIRE: 1}
+    system.status_message = ""
+    system.modal_selection = UPGRADE_NAMES.index("Repair turret")
+
+    system._confirm_selection(player, slot)
+
+    assert turret.health == TurretInstance.MAX_HEALTH
+    assert player.crops[CropType.FIRE] == 0
+
+    system._confirm_selection(player, slot)
+
+    assert turret.health == TurretInstance.MAX_HEALTH
+    assert player.crops[CropType.FIRE] == 0
+    assert system.status_message == "Turret is already at full health."
+
+
+def test_turret_repair_requires_one_matching_crop() -> None:
+    system = TurretSystem.__new__(TurretSystem)
+    turret = TurretInstance("flame_turret", health=60)
+    slot = TurretSlot("right", 0, (0, 0), turret)
+    player = Player.__new__(Player)
+    player.crops = {CropType.FIRE: 0}
+    system.status_message = ""
+    system.modal_selection = UPGRADE_NAMES.index("Repair turret")
+
+    system._confirm_selection(player, slot)
+
+    assert turret.health == 60
+    assert player.crops[CropType.FIRE] == 0
+    assert system.status_message == "Need 1 fire crops."
+
+
 def test_boss_damage_is_a_percentage_of_house_max_health(monkeypatch) -> None:
     house = Mock()
     house.max_hp = 250
@@ -944,8 +981,9 @@ def test_turret_upgrade_menu_displays_current_upgrade_levels() -> None:
         SimpleNamespace(crops={CropType.FIRE: 8}),
     )
 
-    assert all(f"{name} (x0)" in " ".join(rendered_text) for name in UPGRADE_NAMES[:-1])
+    assert all(f"{name} (x0)" in " ".join(rendered_text) for name in UPGRADE_NAMES[:6])
     assert all("have 8" in text for text in rendered_text if "Fire rate" in text)
+    assert any("Repair turret (+25 health)" in text for text in rendered_text)
 
 
 def test_inventory_hud_includes_wave_and_enemy_kill_count(monkeypatch) -> None:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pygame
 
-from elemental_game.audio import play_sfx
+from elemental_game.utils.audio import play_sfx
 
 GAME_OVER_DISPLAY_DELAY_MS = 500
 

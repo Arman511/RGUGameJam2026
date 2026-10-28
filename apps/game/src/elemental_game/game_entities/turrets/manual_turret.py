@@ -6,7 +6,7 @@ import math
 import os
 
 import pygame
-from elemental_game.config import IMAGES_DIR, UPGRADE_COST_GROWTH_MULTIPLIER
+from elemental_game.utils.config import IMAGES_DIR, UPGRADE_COST_GROWTH_MULTIPLIER
 
 from .projectiles import ManualProjectile, orient_projectile_image
 

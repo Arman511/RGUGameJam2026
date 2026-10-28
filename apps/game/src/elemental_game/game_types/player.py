@@ -1,6 +1,6 @@
 import os
 from enum import IntEnum
-from elemental_game.config import IMAGES_DIR
+from elemental_game.utils.config import IMAGES_DIR
 
 
 class PlayerType(IntEnum):
