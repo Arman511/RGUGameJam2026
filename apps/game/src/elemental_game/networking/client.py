@@ -162,8 +162,8 @@ class MultiplayerClient:
                 messages.append(
                     {
                         "version": PROTOCOL_VERSION,
-                        "type": "opponent_disconnected",
-                        "payload": {},
+                        "type": "match_ended",
+                        "payload": {"result": "defeat"},
                     }
                 )
                 break
@@ -192,6 +192,9 @@ class MultiplayerClient:
 
     def send_wave(self, wave: int) -> None:
         self._send("state_update", {"wave": wave})
+
+    def send_heartbeat(self) -> None:
+        self._send("heartbeat", {})
 
     def end_match(self) -> None:
         if not self.closed:

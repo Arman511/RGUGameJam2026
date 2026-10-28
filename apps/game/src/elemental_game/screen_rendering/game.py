@@ -143,6 +143,32 @@ def _draw_hud_tooltip(
         y += line.get_height() + line_gap
 
 
+def _wrap_text_to_width(
+    font: pygame.font.Font, text: str, max_width: int
+) -> list[str]:
+    lines: list[str] = []
+    line = ""
+    for word in text.split():
+        if line and font.size(f"{line} {word}")[0] <= max_width:
+            line = f"{line} {word}"
+            continue
+        if line:
+            lines.append(line)
+            line = ""
+        while font.size(word)[0] > max_width:
+            split_at = len(word)
+            while split_at > 0 and font.size(word[:split_at])[0] > max_width:
+                split_at -= 1
+            if split_at == 0:
+                break
+            lines.append(word[:split_at])
+            word = word[split_at:]
+        line = word
+    if line:
+        lines.append(line)
+    return lines
+
+
 def multiplayer_attack_panel_rect(surface: pygame.Surface) -> pygame.Rect:
     panel = pygame.Rect(665, 170, 470, 300)
     panel.clamp_ip(surface.get_rect())
@@ -298,30 +324,8 @@ class GameScreenRenderer:
         turrets.draw_modal(surface, font, player)
 
         phase_label = "PLANTING" if planting_phase else f"WAVE {wave_number}"
-        phase_icon_position = (20, 12)
-        if multiplayer is not None:
-            room_code = multiplayer.room_code or "------"
-            opponent_text = font.render(
-                f"VS {multiplayer.opponent_name}  |  Room {room_code}  |  V: attacks",
-                True,
-                (0, 0, 0),
-            )
-            surface.blit(opponent_text, (78, config.TEXT_Y))
-            if multiplayer_status:
-                status_text = font.render(
-                    multiplayer_status[:75], True, (255, 225, 125)
-                )
-                surface.blit(status_text, (78, 34))
-        surface.blit(self.phase_icon_background, (14, 6))
-        phase_icon = (
-            self.phase_icons["planting"][player.player_type]
-            if planting_phase
-            else self.phase_icons["enemy"]
-        )
-        phase_icon_rect = phase_icon.get_rect(topleft=phase_icon_position)
-        surface.blit(phase_icon, phase_icon_rect)
-
         buffer = 48 if multiplayer else 0
+        label_text = ""
         if hints_enabled:
             if controlling_house_turret and not planting_phase:
                 label_text = "Shoot enemies with SPACE!"
@@ -343,6 +347,51 @@ class GameScreenRenderer:
             if house.state == HouseState.BROKEN:
                 label_text = "QUICK! Repair house in the market!"
 
+        phase_icon_position = (20, 12)
+        phase_text_position = (
+            (78, config.TEXT_Y) if multiplayer is not None else (78, 5)
+        )
+        timer = font.render(
+            f"{phase_label}  {max(0, phase_remaining):.0f}s",
+            True,
+            (0, 0, 0),
+        )
+        timer_left = surface.get_width() - timer.get_width() - 20
+        if multiplayer is not None:
+            room_code = multiplayer.room_code or "------"
+            match_label = (
+                f"VS {multiplayer.opponent_name}  |  Room {room_code}  |  V: attacks"
+            )
+            if hints_enabled:
+                match_label = f"{match_label}  |  {label_text}"
+            multiplayer_lines = _wrap_text_to_width(
+                font, match_label, max(1, timer_left - 78 - 12)
+            )
+            for index, line in enumerate(multiplayer_lines):
+                surface.blit(
+                    font.render(line, True, (0, 0, 0)),
+                    (78, config.TEXT_Y + index * font.get_linesize()),
+                )
+            if multiplayer_status:
+                status_text = font.render(
+                    multiplayer_status[:75], True, (255, 225, 125)
+                )
+                status_y = (
+                    config.TEXT_Y
+                    + len(multiplayer_lines) * font.get_linesize()
+                    + 4
+                )
+                surface.blit(status_text, (78, status_y))
+        surface.blit(self.phase_icon_background, (14, 6))
+        phase_icon = (
+            self.phase_icons["planting"][player.player_type]
+            if planting_phase
+            else self.phase_icons["enemy"]
+        )
+        phase_icon_rect = phase_icon.get_rect(topleft=phase_icon_position)
+        surface.blit(phase_icon, phase_icon_rect)
+
+        if hints_enabled and multiplayer is None:
             instruction_label = self.hint_font.render(label_text, True, (0, 0, 0))
             surface.blit(
                 instruction_label,
@@ -350,17 +399,9 @@ class GameScreenRenderer:
                     midtop=(surface.get_width() // 2 + buffer, config.TEXT_Y)
                 ),
             )
-        timer = font.render(
-            f"{phase_label}  {max(0, phase_remaining):.0f}s",
-            True,
-            (0, 0, 0),
-        )
-        phase_text_position = (
-            (78, config.TEXT_Y) if multiplayer is not None else (78, 5)
-        )
         surface.blit(
             timer,
-            (surface.get_width() - timer.get_width() - 20, phase_text_position[1]),
+            (timer_left, phase_text_position[1]),
         )
         weather_icon_rect = waves.weather_images[waves.state].get_rect(
             topright=(surface.get_width() - 28, 72)
