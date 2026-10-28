@@ -4,7 +4,7 @@ import math
 
 import pygame
 
-from elemental_game.config import FONT_PATH
+from elemental_game.utils.config import FONT_PATH
 
 from .common import HELP_BACK_BUTTON, MENU_FRAME_PANEL
 from .context import MenuContext

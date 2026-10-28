@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 import pygame
-from elemental_game import config
-from elemental_game.config import IMAGES_DIR, WINDOW_WIDTH
+from elemental_game.utils import config
+from elemental_game.utils.config import IMAGES_DIR, WINDOW_WIDTH
 from elemental_game.game_entities.enemies import (
     ENEMY_DEFS,
     OPPOSING_ELEMENTS,

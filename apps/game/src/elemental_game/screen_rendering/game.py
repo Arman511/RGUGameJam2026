@@ -3,7 +3,7 @@ from collections.abc import Sequence
 
 import pygame
 
-from elemental_game import config
+from elemental_game.utils import config
 from elemental_game.game_entities.crops.crops import Crop, get_crop_icon
 from elemental_game.game_entities.farm import Farm
 from elemental_game.game_entities.house import HouseState
@@ -12,7 +12,7 @@ from elemental_game.screen_rendering.hud import draw_inventory_hud
 from elemental_game.game_types.crop import CropType
 from elemental_game.game_types.player import PlayerType
 from elemental_game.game_types.weather import WeatherTypes
-from elemental_game.ui_assets import get_coin_icon
+from elemental_game.utils.ui_assets import get_coin_icon
 
 WEATHER_NAMES = {
     WeatherTypes.EARTH: "Meteor Shower",

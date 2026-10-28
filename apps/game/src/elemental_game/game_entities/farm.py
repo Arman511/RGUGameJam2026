@@ -2,9 +2,9 @@ import os
 import random
 
 import pygame
-from elemental_game import config
-from elemental_game.audio import play_sfx
-from elemental_game.config import IMAGES_DIR, TILE_SIZE
+from elemental_game.utils import config
+from elemental_game.utils.audio import play_sfx
+from elemental_game.utils.config import IMAGES_DIR, TILE_SIZE
 from elemental_game.game_entities.crops.crops import Crop, CropType
 from elemental_game.game_types.player import PlayerType
 from elemental_game.game_types.seed import SeedType

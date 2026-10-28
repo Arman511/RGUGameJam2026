@@ -5,9 +5,9 @@ from uuid import uuid4
 
 import pygame
 
-from elemental_game import config
+from elemental_game.utils import config
 from elemental_game.application.input import GameInputHandler
-from elemental_game.audio import play_background_music
+from elemental_game.utils.audio import play_background_music
 from elemental_game.game_entities.enemies import EnemyController
 from elemental_game.game_entities.enemies.waves import Waves
 from elemental_game.game_entities.farm import Farm

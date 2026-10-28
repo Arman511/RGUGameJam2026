@@ -8,9 +8,9 @@ from collections.abc import Sequence
 
 import pygame
 
-from elemental_game import config
+from elemental_game.utils import config
 from elemental_game.application.game_loop import GameLoop
-from elemental_game.instance_lock import GameInstanceLock
+from elemental_game.utils.instance_lock import GameInstanceLock
 from elemental_game.menus import MenuSystem
 
 _game_instance_lock = GameInstanceLock()

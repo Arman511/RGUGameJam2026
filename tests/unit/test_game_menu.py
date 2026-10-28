@@ -10,7 +10,7 @@ from elemental_game.menus.common import (
     HINTS_TOGGLE_BUTTON,
     UPDATE_DOWNLOAD_BUTTON,
 )
-from elemental_game.version_check import UpdateInfo, check_for_update
+from elemental_game.utils.version_check import UpdateInfo, check_for_update
 
 
 def test_register_page_uses_windows_browser_from_wsl(monkeypatch) -> None:
@@ -332,6 +332,29 @@ def test_settings_player_selector_is_aligned_and_separated_from_clear_button() -
     assert menus.PLAYER_PREVIOUS_BUTTON.centery == menus.PLAYER_SELECT_PANEL.centery
     assert menus.PLAYER_NEXT_BUTTON.centery == menus.PLAYER_SELECT_PANEL.centery
     assert menus.CLEAR_LEADERBOARD_BUTTON.top - menus.PLAYER_SELECT_PANEL.bottom >= 10
+
+
+def test_player_type_name_is_centered_above_modal_close_button() -> None:
+    from elemental_game.game_types.player import PlayerType
+
+    app = menus.MenuSystem.__new__(menus.MenuSystem)
+    app.screen = pygame.Surface((800, 600))
+    app.layout = menus.MenuLayout(800, 600)
+    app.settings_modal = "player_type"
+    app.player_type = PlayerType.WATER
+    app.player_previews = {PlayerType.WATER: pygame.Surface((48, 48))}
+    app._draw_panel = Mock()
+    app._draw_title = Mock()
+    app._draw_text = Mock()
+    app._draw_button = Mock()
+
+    app._draw_settings_modal()
+
+    app._draw_text.assert_any_call("Water", 400, 315)
+    assert app._draw_button.call_args_list[-1].args == (
+        "Close",
+        pygame.Rect(330, 355, 140, 44),
+    )
 
 
 def test_settings_slider_updates_manual_turret_sensitivity() -> None:

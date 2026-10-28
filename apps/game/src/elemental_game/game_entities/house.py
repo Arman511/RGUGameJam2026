@@ -4,7 +4,7 @@ from enum import Enum
 from typing import ClassVar
 
 import pygame
-from elemental_game.config import (
+from elemental_game.utils.config import (
     FARM_HEIGHT,
     IMAGES_DIR,
     UPGRADE_COST_GROWTH_MULTIPLIER,

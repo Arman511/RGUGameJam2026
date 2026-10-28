@@ -7,8 +7,8 @@ import os
 import random
 
 import pygame
-from elemental_game import config
-from elemental_game.config import IMAGES_DIR
+from elemental_game.utils import config
+from elemental_game.utils.config import IMAGES_DIR
 from elemental_game.game_entities.turrets.turrets import TURRET_DEFS, TurretInstance
 
 from .definitions import ENEMY_DEFS, TURRET_MATCHUPS
@@ -145,11 +145,7 @@ def load_enemy_images() -> dict[str, pygame.Surface]:
         size = (
             164
             if key == "big_boss"
-            else 82
-            if definition.is_boss
-            else 48
-            if definition.is_elite
-            else 42
+            else 82 if definition.is_boss else 48 if definition.is_elite else 42
         )
         images[key] = pygame.transform.smoothscale(image, (size, size))
     return images

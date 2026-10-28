@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from elemental_game.config import ELEMENTAL_TURRET_RANGE
+from elemental_game.utils.config import ELEMENTAL_TURRET_RANGE
 from elemental_game.game_entities.crops.crops import CropType
 
 

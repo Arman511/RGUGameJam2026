@@ -9,7 +9,7 @@ import httpx
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 
-from elemental_game import config
+from elemental_game.utils import config
 
 from .models import (
     LeaderboardResponse,

@@ -1,4 +1,4 @@
-from elemental_game.instance_lock import GameInstanceLock
+from elemental_game.utils.instance_lock import GameInstanceLock
 
 
 def test_only_one_game_instance_can_hold_the_lock(tmp_path) -> None:

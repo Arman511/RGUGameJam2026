@@ -7,7 +7,7 @@ from urllib.parse import urlsplit, urlunsplit
 from websockets.exceptions import ConnectionClosed
 from websockets.sync.client import ClientConnection, connect
 
-from elemental_game.config import ELEMENTAL_KEEP_API_BASE_URL
+from elemental_game.utils.config import ELEMENTAL_KEEP_API_BASE_URL
 
 PROTOCOL_VERSION = 1
 MATCH_PATH = "/api/v1/matches"

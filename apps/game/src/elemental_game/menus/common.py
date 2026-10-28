@@ -8,7 +8,7 @@ import webbrowser
 
 import pygame
 
-from elemental_game import config
+from elemental_game.utils import config
 
 BUTTON = (65, 85, 65)
 BUTTON_HOVER = (85, 110, 85)
