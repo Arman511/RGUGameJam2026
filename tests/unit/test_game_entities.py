@@ -39,9 +39,9 @@ from elemental_game.game_entities.turrets.turrets import (
     _projectile_image_angle,
 )
 from elemental_game.screen_rendering.game import _draw_quick_action_button
-from elemental_game.types.crop import CropType
-from elemental_game.types.seed import SeedType
-from elemental_game.types.weather import WeatherTypes
+from elemental_game.game_types.crop import CropType
+from elemental_game.game_types.seed import SeedType
+from elemental_game.game_types.weather import WeatherTypes
 
 
 def test_player_types_map_numbers_to_expected_sprite_paths() -> None:
@@ -952,7 +952,7 @@ def test_inventory_hud_includes_wave_and_enemy_kill_count(monkeypatch) -> None:
     from types import SimpleNamespace
 
     from elemental_game.screen_rendering import hud
-    from elemental_game.types.seed import SeedType
+    from elemental_game.game_types.seed import SeedType
 
     rendered = []
 

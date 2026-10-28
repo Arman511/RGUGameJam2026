@@ -1,4 +1,4 @@
-from elemental_game.types.shop import (
+from elemental_game.game_types.shop import (
     FertilizerUpgrade,
     HarvestSizeUpgrade,
     HouseUpgrade,

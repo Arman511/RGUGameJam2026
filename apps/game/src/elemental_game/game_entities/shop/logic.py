@@ -2,9 +2,9 @@ from collections.abc import Sequence
 
 import pygame
 from elemental_game.game_entities.farm import Farm
-from elemental_game.types.crop import CropType
-from elemental_game.types.seed import SeedType
-from elemental_game.types.shop import (
+from elemental_game.game_types.crop import CropType
+from elemental_game.game_types.seed import SeedType
+from elemental_game.game_types.shop import (
     FertilizerUpgrade,
     HarvestSizeUpgrade,
     HouseUpgrade,

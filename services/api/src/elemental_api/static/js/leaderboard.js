@@ -1,6 +1,10 @@
 const REFRESH_INTERVAL = 7000;
 const searchInput = document.querySelector("#search");
 const sortSelect = document.querySelector("#sort");
+const periodSelect = document.querySelector("#period");
+const customDateRange = document.querySelector("#custom-date-range");
+const startDateInput = document.querySelector("#start-date");
+const endDateInput = document.querySelector("#end-date");
 const directionButton = document.querySelector("#direction");
 const rowsElement = document.querySelector("#score-rows");
 const podiumElement = document.querySelector("#podium");
@@ -152,7 +156,18 @@ async function refresh() {
     search: searchInput.value.trim(),
     sort: sortSelect.value,
     direction: descending ? "desc" : "asc",
+    period: periodSelect.value,
   });
+  if (periodSelect.value === "custom") {
+    if (!startDateInput.value || !endDateInput.value) {
+      refreshStatus.textContent = "Choose a date range";
+      footerStatus.textContent = "Select both a start date and an end date.";
+      footerStatus.classList.add("error");
+      return;
+    }
+    parameters.set("start_date", startDateInput.value);
+    parameters.set("end_date", endDateInput.value);
+  }
   try {
     const response = await fetch(`/api/v1/leaderboard?${parameters}`, {
       cache: "no-store",
@@ -211,6 +226,24 @@ searchInput.addEventListener("input", () => {
 sortSelect.addEventListener("change", () => {
   offset = 0;
   refresh();
+});
+periodSelect.addEventListener("change", () => {
+  customDateRange.hidden = periodSelect.value !== "custom";
+  if (periodSelect.value === "custom") {
+    const today = new Date();
+    const weekAgo = new Date(today);
+    weekAgo.setUTCDate(weekAgo.getUTCDate() - 7);
+    if (!startDateInput.value) startDateInput.value = weekAgo.toISOString().slice(0, 10);
+    if (!endDateInput.value) endDateInput.value = today.toISOString().slice(0, 10);
+  }
+  offset = 0;
+  refresh();
+});
+[startDateInput, endDateInput].forEach((input) => {
+  input.addEventListener("change", () => {
+    offset = 0;
+    refresh();
+  });
 });
 directionButton.addEventListener("click", () => {
   descending = !descending;

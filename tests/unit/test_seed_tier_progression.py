@@ -5,7 +5,7 @@ from elemental_game import gameplay as gameplay_module
 from elemental_game.game_entities.enemies.waves import WaveUpdate
 from elemental_game.game_entities.seed_tier_reward import SeedTierReward
 from elemental_game.gameplay import GameSession
-from elemental_game.types.crop import CropType
+from elemental_game.game_types.crop import CropType
 
 
 def make_session(wave_update, *, wave_number: int, wave_sequence: list[str]):

@@ -16,9 +16,9 @@ from elemental_game.game_entities.player.player import Player
 from elemental_game.game_entities.seed_tier_reward import SeedTierReward
 from elemental_game.game_entities.shop import ShopMenu
 from elemental_game.game_entities.turrets.turrets import TurretSystem
-from elemental_game.types.crop import CropType
-from elemental_game.types.player import PlayerType
-from elemental_game.types.weather import WeatherTypes
+from elemental_game.game_types.crop import CropType
+from elemental_game.game_types.player import PlayerType
+from elemental_game.game_types.weather import WeatherTypes
 
 
 class GameSession:

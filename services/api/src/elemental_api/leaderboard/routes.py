@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import calendar
+from datetime import UTC, datetime, time, timedelta
 from typing import Annotated, Literal
 
 from elemental_api.auth.routes import get_current_user
 from elemental_api.database.connection import get_db
 from elemental_api.database.models import RunRecord, User
 from elemental_api.schemas import (
+    LeaderboardFilters,
     LeaderboardResponse,
     RunResponse,
     RunSubmit,
@@ -19,6 +22,14 @@ from sqlalchemy.orm import Session
 router = APIRouter(prefix="/api/v1")
 
 
+def _subtract_months(value: datetime, months: int) -> datetime:
+    month_index = value.month - months
+    year = value.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(value.day, calendar.monthrange(year, month)[1])
+    return value.replace(year=year, month=month, day=day)
+
+
 @router.get("/leaderboard", response_model=LeaderboardResponse)
 def leaderboard(
     db: Annotated[Session, Depends(get_db)],
@@ -30,11 +41,31 @@ def leaderboard(
         "wave_number",
         "enemies_defeated",
         "username",
-        "submitted_at",
     ] = "time_survived",
     direction: Literal["asc", "desc"] = "desc",
+    filters: Annotated[LeaderboardFilters, Query()] = LeaderboardFilters(),
 ) -> LeaderboardResponse:
     query = select(RunRecord, User.username).join(User, User.id == RunRecord.user_id)
+    now = datetime.now(UTC).replace(tzinfo=None)
+    if filters.period == "last_hour":
+        query = query.where(RunRecord.submitted_at >= now - timedelta(hours=1))
+    elif filters.period == "last_day":
+        query = query.where(RunRecord.submitted_at >= now - timedelta(days=1))
+    elif filters.period == "last_week":
+        query = query.where(RunRecord.submitted_at >= now - timedelta(weeks=1))
+    elif filters.period == "last_month":
+        query = query.where(RunRecord.submitted_at >= _subtract_months(now, 1))
+    elif filters.period == "last_year":
+        query = query.where(RunRecord.submitted_at >= _subtract_months(now, 12))
+    elif filters.period == "custom":
+        assert filters.start_date is not None and filters.end_date is not None
+        start = datetime.combine(filters.start_date, time.min)
+        end = datetime.combine(filters.end_date + timedelta(days=1), time.min)
+        query = query.where(
+            RunRecord.submitted_at >= start,
+            RunRecord.submitted_at < end,
+        )
+
     normalized_search = search.strip().lower()
     if normalized_search:
         query = query.where(
@@ -51,7 +82,6 @@ def leaderboard(
         "wave_number": RunRecord.wave_number,
         "enemies_defeated": RunRecord.enemies_defeated,
         "username": User.normalized_username,
-        "submitted_at": RunRecord.submitted_at,
     }[sort]
     order_by = sort_column.asc() if direction == "asc" else sort_column.desc()
     tie_breakers = (

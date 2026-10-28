@@ -18,7 +18,7 @@ from elemental_game.audio import (
 from elemental_game.config import ASSETS_DIR, IMAGES_DIR
 from elemental_game.database import LocalLeaderboardStore
 from elemental_game.networking.client import MultiplayerClient
-from elemental_game.types.player import PlayerType
+from elemental_game.game_types.player import PlayerType
 from elemental_game.version_check import UpdateInfo, check_for_update
 
 from .common import (

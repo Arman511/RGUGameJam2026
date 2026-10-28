@@ -12,8 +12,8 @@ from elemental_game.game_entities.enemies.enemies import (
     OPPOSING_ELEMENTS,
     EnemyState,
 )
-from elemental_game.types.crop import CropType
-from elemental_game.types.weather import WeatherTypes
+from elemental_game.game_types.crop import CropType
+from elemental_game.game_types.weather import WeatherTypes
 
 WEATHER_CROP_TYPES = {
     WeatherTypes.FIRE: CropType.FIRE,

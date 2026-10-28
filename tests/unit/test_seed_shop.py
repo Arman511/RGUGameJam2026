@@ -16,8 +16,8 @@ from elemental_game.game_entities.shop.renderer import ShopRenderer
 from elemental_game.game_entities.turrets.turrets import ManualTurret
 from elemental_game.game_input import GameInputHandler
 from elemental_game.gameplay import GameSession
-from elemental_game.types.player import PlayerType
-from elemental_game.types.seed import SeedType
+from elemental_game.game_types.player import PlayerType
+from elemental_game.game_types.seed import SeedType
 
 
 def make_player():
@@ -235,7 +235,7 @@ def test_boss_reward_waits_for_manual_turret_exit() -> None:
 
 
 def test_boss_reward_modal_draws_element_choices(pygame_display) -> None:
-    from elemental_game.types.seed import SeedType
+    from elemental_game.game_types.seed import SeedType
 
     pygame.font.init()
     player = make_player()

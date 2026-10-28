@@ -83,8 +83,10 @@ client maps its existing local leaderboard fields, `survival_time` and
 `final_wave`, to those API fields. Leaderboards rank runs by survival time,
 enemies defeated, then wave reached, all descending.
 The leaderboard API also supports server-side search by player or run ID,
-sorting, and offset-based pagination so the web page loads only the current
-result page.
+sorting, offset-based pagination, and submission-time filters for the last
+hour, day, week, month, year, a custom inclusive UTC date range, or all time.
+Custom ranges require both `start_date` and `end_date` in `YYYY-MM-DD` format;
+the end date cannot be in the future.
 
 Completed `/api/` requests and unhandled request errors are logged with the
 client IP address and `User-Agent` header. Behind a reverse proxy, the IP
