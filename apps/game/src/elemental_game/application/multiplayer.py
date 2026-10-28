@@ -44,7 +44,6 @@ class MultiplayerController:
             (crop for crop, count in game.player.crops.items() if count > 0),
             None,
         )
-        self._last_heartbeat_ms = 0
         self.costs = AttackCostTracker()
         self.result_sent = False
         self.costs.set_phase(game.wave_number, game.planting_phase)
@@ -56,7 +55,6 @@ class MultiplayerController:
         self.pending_health_multiplier = 1.0
         self.pending_elemental_bias = {}
         self.pending_weather = None
-        self._last_heartbeat_ms = 0
         self.result_sent = False
         self.costs.reset()
         self.costs.set_phase(game.wave_number, game.planting_phase)
@@ -75,15 +73,6 @@ class MultiplayerController:
     def poll(self, game_over: GameOverScreen) -> GameOverScreen:
         if self.client is None:
             return game_over
-        now_ms = pygame.time.get_ticks()
-        if now_ms - self._last_heartbeat_ms >= 5000:
-            self._last_heartbeat_ms = now_ms
-            try:
-                self.client.send_heartbeat()
-            except MultiplayerError as error:
-                self.status = str(error)
-                self.close_connection()
-                return game_over
         try:
             for message in self.client.poll():
                 payload = message["payload"]
@@ -98,7 +87,7 @@ class MultiplayerController:
                     self.status = "Opponent disconnected."
                     if game_over is None:
                         game_over = MultiplayerGameOverDialog(
-                            self.screen, self.font, "victory"
+                            self.screen, self.font, "defeat"
                         )
                 elif message["type"] == "error":
                     self.status = payload["message"]

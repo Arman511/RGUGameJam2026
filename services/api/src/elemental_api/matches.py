@@ -4,7 +4,6 @@ import asyncio
 import logging
 import os
 import secrets
-import time
 from collections import deque
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -35,8 +34,6 @@ class MatchRoom:
     names: dict[str, str] = field(default_factory=dict)
     started: bool = False
     expiry_task: asyncio.Task[None] | None = None
-    heartbeat_task: asyncio.Task[None] | None = None
-    last_seen: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -68,34 +65,20 @@ class MatchManager:
             if join_timeout_seconds is None
             else join_timeout_seconds
         )
-        self.heartbeat_interval_seconds = float(
-            os.environ.get("ELEMENTAL_MATCH_HEARTBEAT_INTERVAL_SECONDS", "5")
-        )
-        self.heartbeat_timeout_seconds = float(
-            os.environ.get("ELEMENTAL_MATCH_HEARTBEAT_TIMEOUT_SECONDS", "15")
-        )
         if self.room_limit < 1:
             raise ValueError("ELEMENTAL_MATCH_LIMIT must be at least 1.")
         if self.join_timeout_seconds <= 0:
             raise ValueError("ELEMENTAL_MATCH_JOIN_TIMEOUT_SECONDS must be positive.")
-        if self.heartbeat_interval_seconds <= 0:
-            raise ValueError("ELEMENTAL_MATCH_HEARTBEAT_INTERVAL_SECONDS must be positive.")
-        if self.heartbeat_timeout_seconds <= 0:
-            raise ValueError("ELEMENTAL_MATCH_HEARTBEAT_TIMEOUT_SECONDS must be positive.")
         self.rooms: dict[str, MatchRoom] = {}
         self.queue: deque[QueuedHost] = deque()
 
     def _create_room(self, socket: WebSocket, name: str) -> MatchRoom:
         code = self._new_code()
         room = MatchRoom(
-            code=code,
-            players={"player1": socket},
-            names={"player1": name},
-            last_seen={"player1": time.monotonic()},
+            code=code, players={"player1": socket}, names={"player1": name}
         )
         self.rooms[code] = room
         room.expiry_task = asyncio.create_task(self._expire_room(room))
-        room.heartbeat_task = asyncio.create_task(self._watch_room(room))
         return room
 
     async def host_or_queue(
@@ -130,13 +113,9 @@ class MatchManager:
         room.players["player2"] = socket
         room.names["player2"] = name
         room.started = True
-        room.last_seen["player2"] = time.monotonic()
         if room.expiry_task is not None:
             room.expiry_task.cancel()
             room.expiry_task = None
-        if room.heartbeat_task is not None:
-            room.heartbeat_task.cancel()
-        room.heartbeat_task = asyncio.create_task(self._watch_room(room))
         for player_id, player_socket in room.players.items():
             opponent_id = "player2" if player_id == "player1" else "player1"
             await player_socket.send_json(
@@ -151,34 +130,6 @@ class MatchManager:
                 }
             )
         return room
-
-    def record_activity(self, room: MatchRoom, player_id: str) -> None:
-        room.last_seen[player_id] = time.monotonic()
-
-    async def _watch_room(self, room: MatchRoom) -> None:
-        try:
-            while True:
-                await asyncio.sleep(self.heartbeat_interval_seconds)
-                if self.rooms.get(room.code) is not room:
-                    return
-                if not room.started:
-                    continue
-                await self._check_room_liveness(room)
-        except asyncio.CancelledError:
-            return
-
-    async def _check_room_liveness(self, room: MatchRoom) -> None:
-        if self.rooms.get(room.code) is not room:
-            return
-        now = time.monotonic()
-        for player_id in list(room.players):
-            last_seen = room.last_seen.get(player_id)
-            if last_seen is None:
-                room.last_seen[player_id] = now
-                continue
-            if now - last_seen > self.heartbeat_timeout_seconds:
-                await self.disconnect(room, player_id)
-                return
 
     async def wait_for_room(
         self, socket: WebSocket, queued_host: QueuedHost
@@ -293,8 +244,6 @@ class MatchManager:
             and room.expiry_task is not asyncio.current_task()
         ):
             room.expiry_task.cancel()
-        if room.heartbeat_task is not None:
-            room.heartbeat_task.cancel()
         await self._promote_queued()
 
     async def handle_message(
@@ -313,18 +262,6 @@ class MatchManager:
         if not isinstance(payload, dict):
             await self._error(
                 room.players[player_id], "Message payload must be an object."
-            )
-            return True
-
-        self.record_activity(room, player_id)
-
-        if message_type == "heartbeat":
-            await room.players[player_id].send_json(
-                {
-                    "version": PROTOCOL_VERSION,
-                    "type": "heartbeat_ack",
-                    "payload": {"player_id": player_id},
-                }
             )
             return True
 
@@ -431,23 +368,18 @@ class MatchManager:
         ):
             room.expiry_task.cancel()
         opponent_id = "player2" if player_id == "player1" else "player1"
-        for result_player, result in (
-            (player_id, "defeat"),
-            (opponent_id, "victory"),
-        ):
-            result_socket = room.players.get(result_player)
-            if result_socket is None:
-                continue
+        opponent = room.players.get(opponent_id)
+        if opponent is not None:
             try:
-                await result_socket.send_json(
+                await opponent.send_json(
                     {
                         "version": PROTOCOL_VERSION,
-                        "type": "match_ended",
-                        "payload": {"result": result},
+                        "type": "opponent_disconnected",
+                        "payload": {},
                     }
                 )
             except RuntimeError as error:
-                logger.info("Could not notify player of disconnect result: %s", error)
+                logger.info("Could not notify opponent of disconnect: %s", error)
         await self._remove_room(room)
 
 

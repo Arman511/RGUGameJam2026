@@ -2,7 +2,6 @@ import asyncio
 import importlib
 import logging
 import sqlite3
-import time
 from datetime import UTC, datetime, timedelta
 from io import StringIO
 
@@ -276,39 +275,6 @@ def test_multiplayer_room_relays_actions_and_match_results(client) -> None:
             )
             assert host.receive_json()["payload"]["result"] == "defeat"
             assert guest.receive_json()["payload"]["result"] == "victory"
-
-
-def test_match_manager_disconnects_stale_players_and_awards_victory() -> None:
-    from elemental_api.matches import MatchManager, MatchRoom
-
-    class FakeSocket:
-        def __init__(self) -> None:
-            self.messages: list[dict[str, object]] = []
-
-        async def send_json(self, message: dict[str, object]) -> None:
-            self.messages.append(message)
-
-    async def run() -> None:
-        manager = MatchManager(room_limit=10, join_timeout_seconds=60)
-        host = FakeSocket()
-        guest = FakeSocket()
-        room = MatchRoom(
-            code="MATCH1",
-            players={"player1": host, "player2": guest},
-            names={"player1": "Alice", "player2": "Bob"},
-            started=True,
-            last_seen={
-                "player1": time.monotonic() - 60,
-                "player2": time.monotonic(),
-            },
-        )
-        manager.rooms[room.code] = room
-        await manager._check_room_liveness(room)
-
-        assert [message["payload"]["result"] for message in host.messages] == ["defeat"]
-        assert [message["payload"]["result"] for message in guest.messages] == ["victory"]
-
-    asyncio.run(run())
 
 
 def test_match_manager_has_configurable_capacity_and_join_timeout(monkeypatch) -> None:
