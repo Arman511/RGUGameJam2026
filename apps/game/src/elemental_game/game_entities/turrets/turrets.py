@@ -21,9 +21,9 @@ from .definitions import (
     TURRET_DEFS,
     UPGRADE_NAMES,
     TurretDefinition,
-    TurretInstance,
-    TurretSlot,
 )
+from elemental_game.game_types.turret_instance import TurretInstance
+from elemental_game.game_types.turret_slot import TurretSlot
 from .manual_turret import ManualTurret
 from .projectiles import (
     ManualProjectile,
@@ -63,6 +63,8 @@ class TurretSystem:
     ATTACK_RADIUS_PER_LEVEL = 20
     ATTACK_RANGE_PER_LEVEL = 40
     UPGRADE_BASE_COST = 7
+    REPAIR_CROP_COST = 1
+    REPAIR_HEALTH = 1.25
     STARTING_SLOT_COUNT = 3
     UNLOCKED_SLOT_Y_OFFSETS = (-56, 16)
 
@@ -183,14 +185,12 @@ class TurretSystem:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if surface is None:
                 return
-            options = (
-                list(DEFINITION_BY_ELEMENT) if slot.turret is None else UPGRADE_NAMES
-            )
-            panel = self._modal_panel_rect(surface)
+            options = self._modal_options(slot)
+            panel = self._modal_panel_rect(surface, len(options))
             for index in range(len(options)):
                 row = pygame.Rect(
                     panel.x + 12,
-                    panel.y + 80 + index * 38,
+                    panel.y + 120 + index * 38 - 19,
                     panel.width - 24,
                     38,
                 )
@@ -201,11 +201,7 @@ class TurretSystem:
             return
         if event.type == pygame.MOUSEWHEEL:
             if event.y:
-                options = (
-                    list(DEFINITION_BY_ELEMENT)
-                    if slot.turret is None
-                    else UPGRADE_NAMES
-                )
+                options = self._modal_options(slot)
                 direction = -1 if event.y > 0 else 1
                 self.modal_selection = (self.modal_selection + direction) % len(options)
             return
@@ -214,7 +210,7 @@ class TurretSystem:
         if event.key == pygame.K_ESCAPE:
             self.close_modal()
             return
-        options = list(DEFINITION_BY_ELEMENT) if slot.turret is None else UPGRADE_NAMES
+        options = self._modal_options(slot)
         if event.key in (pygame.K_UP, pygame.K_DOWN, pygame.K_w, pygame.K_s):
             self.modal_selection = (
                 self.modal_selection
@@ -224,6 +220,13 @@ class TurretSystem:
         if event.key not in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE):
             return
         self._confirm_selection(player, slot)
+        self._confirm_selection(player, slot)
+
+    @staticmethod
+    def _modal_options(slot: TurretSlot) -> list:
+        return (
+            list(DEFINITION_BY_ELEMENT) if slot.turret is None else list(UPGRADE_NAMES)
+        )
 
     def _confirm_selection(self, player, slot) -> None:
         if slot.turret is None:
@@ -245,6 +248,25 @@ class TurretSystem:
             slot.turret = None
             self.modal_selection = 0
             self.status_message = "Turret destroyed."
+            return
+
+        if self.modal_selection == len(UPGRADE_NAMES) - 2:
+            turret = slot.turret
+            if turret.health >= TurretInstance.MAX_HEALTH:
+                self.status_message = "Turret is already at full health."
+                return
+            element = TURRET_DEFS[turret.key].element
+            if player.crops.get(element, 0) < self.REPAIR_CROP_COST:
+                self.status_message = (
+                    f"Need {self.REPAIR_CROP_COST} {element.name.lower()} crops."
+                )
+                return
+            player.crops[element] -= self.REPAIR_CROP_COST
+            turret.health = min(
+                TurretInstance.MAX_HEALTH,
+                turret.health * self.REPAIR_HEALTH,
+            )
+            self.status_message = f"Turret repaired to {turret.health} health."
             return
 
         upgrade_index = self.modal_selection
@@ -455,7 +477,8 @@ class TurretSystem:
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 175))
         surface.blit(overlay, (0, 0))
-        panel = self._modal_panel_rect(surface)
+        options = self._modal_options(slot)
+        panel = self._modal_panel_rect(surface, len(options))
         pygame.draw.rect(surface, (44, 48, 57), panel)
         pygame.draw.rect(surface, (230, 230, 230), panel, 2)
         title = (
@@ -473,7 +496,6 @@ class TurretSystem:
         ):
             surface.blit(font.render(line, True, (225, 225, 225)), (panel.x + 18, y))
         if slot.turret is None:
-            options = list(DEFINITION_BY_ELEMENT)
             labels = [
                 (
                     f"{element.name.title()} - {DEFINITION_BY_ELEMENT[element].resource_cost} "
@@ -504,11 +526,20 @@ class TurretSystem:
             )
             labels = [
                 (f"{name} (x{level}) - {cost} {element}, have {available_crops}")
-                for name, level in zip(UPGRADE_NAMES[:-1], upgrade_levels)
-            ] + ["Destroy turret"]
-            resource_elements = [crop_type] * len(UPGRADE_NAMES[:-1]) + [None]
-            resource_available = [available_crops >= cost] * len(UPGRADE_NAMES[:-1]) + [
-                False
+                for name, level in zip(UPGRADE_NAMES[:6], upgrade_levels)
+            ]
+            labels.extend(
+                (
+                    f"Repair turret by 25% health - "
+                    f"{self.REPAIR_CROP_COST} {element}, have {available_crops}",
+                    "Destroy turret",
+                )
+            )
+            resource_elements = [crop_type] * 7 + [None]
+            resource_available = [available_crops >= cost] * 6 + [
+                available_crops >= self.REPAIR_CROP_COST
+                and turret.health < TurretInstance.MAX_HEALTH,
+                False,
             ]
         for index, label in enumerate(labels):
             element = resource_elements[index]
@@ -544,12 +575,14 @@ class TurretSystem:
             )
 
     @staticmethod
-    def _modal_panel_rect(surface) -> pygame.Rect:
+    def _modal_panel_rect(
+        surface, option_count: int = len(UPGRADE_NAMES)
+    ) -> pygame.Rect:
         panel = pygame.Rect(
             0,
             0,
             min(500, surface.get_width() - 40),
-            min(420, surface.get_height() - 40),
+            min(max(420, 160 + option_count * 38), surface.get_height() - 40),
         )
         panel.center = surface.get_rect().center
         return panel

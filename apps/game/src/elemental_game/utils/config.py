@@ -21,7 +21,9 @@ TURRET_SLOT_UNLOCK_COSTS = (10, 20, 30, 40)
 UPGRADE_COST_GROWTH_MULTIPLIER = 1.25
 ELEMENTAL_TURRET_RANGE = 220.0
 ENEMY_SEED_DROP_MULTIPLIER = 1.0
-ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+ASSETS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets"
+)
 IMAGES_DIR = os.path.join(ASSETS_DIR, "imgs")
 FONT_PATH = os.path.join(ASSETS_DIR, "font", "pixelfont.ttf")
 ELEMENTAL_KEEP_API_BASE_URL = os.environ.get(

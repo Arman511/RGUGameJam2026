@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pygame
 
-AUDIO_DIR = Path(__file__).parent / "assets" / "audio"
-SFX_DIR = Path(__file__).parent / "assets" / "sfx"
+AUDIO_DIR = Path(__file__).parent.parent / "assets" / "audio"
+SFX_DIR = Path(__file__).parent.parent / "assets" / "sfx"
 NORMAL_BACKGROUND_TRACKS = {
     "background": "background.ogg",
     "farm-and-tavern": "farm-and-tavern.ogg",

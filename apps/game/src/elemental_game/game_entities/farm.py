@@ -103,8 +103,8 @@ class Farm:
             and self.quadrant_at(row, col) not in player.unlocked_quadrants
         ):
             return None
-        if play_sound and play_sfx("planting"):
-            pygame.time.delay(round(config.SFX_ACTION_DELAY * 1000))
+        if play_sound:
+            play_sfx("planting")
         crop = Crop(crop_type, (row, col), tier)
         self.grid[row][col] = crop
         return crop
@@ -114,8 +114,8 @@ class Farm:
         crop = self.get_crop(row, col)
         if crop is None or not crop.is_ready():
             return None
-        if play_sound and play_sfx("harvesting"):
-            pygame.time.delay(round(config.SFX_ACTION_DELAY * 1000))
+        if play_sound:
+            play_sfx("harvesting")
         self.grid[row][col] = None
         return crop
 

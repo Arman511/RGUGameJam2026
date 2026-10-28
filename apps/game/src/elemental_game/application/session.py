@@ -70,6 +70,12 @@ class GameSession:
         return self.waves.wave_number
 
     @property
+    def completed_waves(self) -> int:
+        if self.planting_phase:
+            return self.wave_number
+        return max(0, self.wave_number - 1)
+
+    @property
     def game_over(self) -> bool:
         return self.house.health <= 0
 
@@ -120,13 +126,7 @@ class GameSession:
         if update.started_wave is not None:
             if on_wave_started is not None:
                 on_wave_started(update.started_wave)
-            track = (
-                "boss"
-                if any(
-                    enemy_key == "big_boss" for enemy_key in self.waves.wave_sequence
-                )
-                else "enemies"
-            )
+            track = "boss" if self.wave_number % 3 == 0 else "enemies"
             play_background_music(track, volume=music_volume)
         elif update.completed:
             play_background_music(volume=music_volume)

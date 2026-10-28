@@ -3,45 +3,9 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
+from elemental_game.game_types.turret_definition import TurretDefinition
 from elemental_game.utils.config import ELEMENTAL_TURRET_RANGE
 from elemental_game.game_entities.crops.crops import CropType
-
-
-@dataclass(frozen=True)
-class TurretDefinition:
-    """Describe one elemental turret type and its combat stats."""
-
-    key: str
-    name: str
-    element: CropType
-    image: str
-    range: float
-    fire_rate: float
-    damage: int
-    slow: float = 0.0
-    knockback: float = 0.0
-
-    @property
-    def resource_cost(self) -> int:
-        return 5
-
-
-@dataclass
-class TurretInstance:
-    """Track the upgrades and current health of a built turret."""
-
-    MAX_HEALTH: ClassVar[int] = 100
-    key: str
-    health: int = MAX_HEALTH
-    cooldown: float = 0.0
-    level: int = 0
-    fire_rate_level: int = 0
-    damage_level: int = 0
-    slow_level: int = 0
-    knockback_level: int = 0
-    attack_radius_level: int = 0
-    attack_range_level: int = 0
-
 
 TURRET_DEFS: dict[str, TurretDefinition] = {
     "flame_turret": TurretDefinition(
@@ -130,15 +94,6 @@ UPGRADE_NAMES = (
     "Knockback",
     "Attack radius",
     "Attack range",
+    "Repair turret",
     "Destroy turret",
 )
-
-
-@dataclass
-class TurretSlot:
-    """Represent one buildable turret position beside the farm."""
-
-    side: str
-    index: int
-    center: tuple[int, int]
-    turret: TurretInstance | None = None

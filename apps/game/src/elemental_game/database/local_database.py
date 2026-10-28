@@ -131,7 +131,7 @@ class LocalLeaderboardStore:
                 FROM game_settings
                 WHERE setting_key = 'manual_turret_sensitivity'
                 """).fetchone()
-        return 0.5 if row is None else row["setting_value"]
+        return 0.25 if row is None else row["setting_value"]
 
     def save_manual_turret_sensitivity(self, sensitivity: float) -> None:
         if (
