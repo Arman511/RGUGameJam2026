@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from elemental_game.multiplayer_attacks import (
+from elemental_game.networking.attacks import (
     AttackCostTracker,
     send_multiplayer_attack,
 )

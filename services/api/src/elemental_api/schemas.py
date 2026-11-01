@@ -113,7 +113,9 @@ class LeaderboardFilters(BaseModel):
     def validate_custom_dates(self) -> "LeaderboardFilters":
         if self.period != "custom":
             if self.start_date is not None or self.end_date is not None:
-                raise ValueError("Custom dates can only be used with the custom period.")
+                raise ValueError(
+                    "Custom dates can only be used with the custom period."
+                )
             return self
 
         if self.start_date is None or self.end_date is None:

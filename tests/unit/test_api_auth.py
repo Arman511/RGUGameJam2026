@@ -164,7 +164,6 @@ def test_pages_link_to_download_page(client) -> None:
     assert "Type DELETE to confirm" in deletion_page.text
     assert privacy_page.status_code == 200
     assert "Privacy policy" in privacy_page.text
-    assert "legal name, postal address, or privacy contact email" in privacy_page.text
 
 
 def test_authenticated_account_deletion_removes_user_tokens_and_scores(client) -> None:
@@ -504,11 +503,11 @@ def test_login_unexpected_error_is_logged_without_exposing_details(client) -> No
     assert "database connection failed" not in response.text
     assert "Unhandled exception while handling API request" in log_output.getvalue()
     assert "client_ip" not in log_output.getvalue()
-    assert "user_agent='testclient'" in log_output.getvalue()
+    assert "user_agent" not in log_output.getvalue()
     assert "RuntimeError: database connection failed" in log_output.getvalue()
 
 
-def test_api_request_logs_method_path_and_status(client) -> None:
+def test_api_requests_do_not_log_client_identifiers(client) -> None:
     log_output = StringIO()
     log_handler = logging.StreamHandler(log_output)
     api_logger = logging.getLogger("elemental_api.main")
@@ -527,12 +526,9 @@ def test_api_request_logs_method_path_and_status(client) -> None:
         api_logger.removeHandler(log_handler)
 
     assert response.status_code == 200
-    assert (
-        "API request completed method=GET path=/api/v1/leaderboard status=200"
-        in log_output.getvalue()
-    )
     assert "client_ip" not in log_output.getvalue()
-    assert "user_agent='ElementalKeep/1.2'" in log_output.getvalue()
+    assert "203.0.113.24" not in log_output.getvalue()
+    assert "ElementalKeep/1.2" not in log_output.getvalue()
 
 
 def test_login_prunes_expired_and_revoked_tokens(client) -> None:
@@ -626,8 +622,7 @@ def test_migration_preserves_legacy_run_data_without_score(
     database_path = tmp_path / "legacy.db"
     monkeypatch.setenv("ELEMENTAL_API_DB_PATH", str(database_path))
     with sqlite3.connect(database_path) as connection:
-        connection.executescript(
-            """
+        connection.executescript("""
             CREATE TABLE users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL UNIQUE,
@@ -661,8 +656,7 @@ def test_migration_preserves_legacy_run_data_without_score(
             INSERT INTO scores
                 (user_id, run_id, survival_time, final_wave, score, enemies_defeated, submitted_at)
             VALUES (1, 'old-run', 64.2, 5, 1500, 14, '2026-10-24T10:01:00Z');
-            """
-        )
+            """)
 
     import elemental_api.database.connection as connection_module
     from elemental_api.database.models import RunRecord

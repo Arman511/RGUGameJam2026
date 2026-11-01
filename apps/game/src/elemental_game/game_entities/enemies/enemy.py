@@ -63,7 +63,9 @@ class EnemyState:
             else (
                 min(0.9, 0.45 + 0.02 * max(0, wave_number // 3 - 1))
                 if definition.is_boss
-                else 0.5 if definition.is_elite else 0.0
+                else 0.5
+                if definition.is_elite
+                else 0.0
             )
         )
         return cls(

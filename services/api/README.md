@@ -90,9 +90,9 @@ hour, day, week, month, year, a custom inclusive UTC date range, or all time.
 Custom ranges require both `start_date` and `end_date` in `YYYY-MM-DD` format;
 the end date cannot be in the future.
 
-The API logs basic request details to help diagnose problems, but does not include
-the player's IP address. Hosting providers may keep their own connection or
-backup records according to their settings.
+The application logs method and path for unhandled errors. The web server and hosting
+provider may also retain connection records, including the player's IP address, according
+to their settings.
 
 Successful logins remove expired and revoked authentication tokens. Database
 indexes support token cleanup, per-user token lookups, and leaderboard ranking.

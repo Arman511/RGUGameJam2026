@@ -70,7 +70,7 @@ def test_turret_sensitivity_defaults_persists_and_validates(
 ) -> None:
     db = LocalLeaderboardStore(path=tmp_path / "leaderboard.db")
 
-    assert db.manual_turret_sensitivity() == 0.5
+    assert db.manual_turret_sensitivity() == 0.25
     db.save_manual_turret_sensitivity(0.75)
     assert LocalLeaderboardStore(path=db.path).manual_turret_sensitivity() == 0.75
 

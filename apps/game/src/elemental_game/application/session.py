@@ -126,7 +126,7 @@ class GameSession:
         if update.started_wave is not None:
             if on_wave_started is not None:
                 on_wave_started(update.started_wave)
-            track = "boss" if self.wave_number % 3 == 0 else "enemies"
+            track = "boss" if "big_boss" in self.waves.wave_sequence else "enemies"
             play_background_music(track, volume=music_volume)
         elif update.completed:
             play_background_music(volume=music_volume)
