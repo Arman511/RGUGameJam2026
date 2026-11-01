@@ -34,8 +34,10 @@ The API uses SQLAlchemy ORM models and Alembic migrations. On server startup,
 the API applies all pending migrations to the configured database.
 
 The root URL serves the live Jinja2 leaderboard, styled with Bootstrap. The
-`/download` page directs players to the latest game release on GitHub, and the
-`/register` page lets players create an account using the registration API.
+`/download` page directs players to the latest game release on GitHub, the
+`/register` page lets players create an account using the registration API,
+`/privacy` publishes the privacy policy, and `/account/delete` lets a player
+reauthenticate and delete their account and associated records.
 CSS and JavaScript are served from `/static/`; the leaderboard refreshes scores
 every seven seconds and supports searching by player/run ID, sorting by score
 fields, and switching between light and dark themes. CORS allows
@@ -88,11 +90,9 @@ hour, day, week, month, year, a custom inclusive UTC date range, or all time.
 Custom ranges require both `start_date` and `end_date` in `YYYY-MM-DD` format;
 the end date cannot be in the future.
 
-Completed `/api/` requests and unhandled request errors are logged with the
-client IP address and `User-Agent` header. Behind a reverse proxy, the IP
-reflects the address Uvicorn accepts as the request client; configure trusted
-proxy forwarding in the deployment if logs should identify the originating
-player rather than the proxy.
+The API logs basic request details to help diagnose problems, but does not include
+the player's IP address. Hosting providers may keep their own connection or
+backup records according to their settings.
 
 Successful logins remove expired and revoked authentication tokens. Database
 indexes support token cleanup, per-user token lookups, and leaderboard ranking.

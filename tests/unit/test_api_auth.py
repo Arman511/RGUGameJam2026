@@ -143,6 +143,8 @@ def test_pages_link_to_download_page(client) -> None:
     download_page = client.get("/download")
     leaderboard_page = client.get("/")
     registration_page = client.get("/register")
+    deletion_page = client.get("/account/delete")
+    privacy_page = client.get("/privacy")
 
     assert download_page.status_code == 200
     assert "Download the game" in download_page.text
@@ -155,6 +157,73 @@ def test_pages_link_to_download_page(client) -> None:
     assert 'href="/download">Download</a>' in leaderboard_page.text
     assert registration_page.status_code == 200
     assert 'href="/download">Download</a>' in registration_page.text
+    assert 'href="/privacy"' in leaderboard_page.text
+    assert 'href="/account/delete"' in leaderboard_page.text
+    assert deletion_page.status_code == 200
+    assert "Permanently delete my account" in deletion_page.text
+    assert "Type DELETE to confirm" in deletion_page.text
+    assert privacy_page.status_code == 200
+    assert "Privacy policy" in privacy_page.text
+    assert "legal name, postal address, or privacy contact email" in privacy_page.text
+
+
+def test_authenticated_account_deletion_removes_user_tokens_and_scores(client) -> None:
+    from elemental_api.database.connection import get_engine
+    from elemental_api.database.models import AuthToken, RunRecord, User
+
+    for username in ("alice", "bob"):
+        registered = client.post(
+            "/api/v1/auth/register",
+            json={"username": username, "password": "S3cretpass!"},
+        )
+        assert registered.status_code == 200
+
+    alice_headers = []
+    for _ in range(2):
+        login = client.post(
+            "/api/v1/auth/login",
+            json={"username": "alice", "password": "S3cretpass!"},
+        )
+        assert login.status_code == 200
+        alice_headers.append({"Authorization": f"Bearer {login.json()['token']}"})
+
+    bob_login = client.post(
+        "/api/v1/auth/login",
+        json={"username": "bob", "password": "S3cretpass!"},
+    )
+    assert bob_login.status_code == 200
+    bob_headers = {"Authorization": f"Bearer {bob_login.json()['token']}"}
+
+    for username, headers in (("alice", alice_headers[0]), ("bob", bob_headers)):
+        submitted = client.post(
+            "/api/v1/scores",
+            headers=headers,
+            json={
+                "run_id": f"{username}-run",
+                "time_survived": 64.2,
+                "wave_number": 5,
+                "enemies_defeated": 14,
+            },
+        )
+        assert submitted.status_code == 200
+
+    assert client.delete("/api/v1/auth/account").status_code == 401
+    deleted = client.delete("/api/v1/auth/account", headers=alice_headers[0])
+
+    assert deleted.status_code == 200
+    assert deleted.json() == {"message": "Account and associated data deleted"}
+    assert client.get("/api/v1/auth/me", headers=alice_headers[0]).status_code == 401
+    assert client.get("/api/v1/auth/me", headers=alice_headers[1]).status_code == 401
+    assert client.get("/api/v1/auth/me", headers=bob_headers).status_code == 200
+    scores = client.get("/api/v1/leaderboard").json()["scores"]
+    assert [score["username"] for score in scores] == ["bob"]
+
+    with Session(get_engine()) as session:
+        assert session.scalar(select(User).where(User.username == "alice")) is None
+        assert session.scalar(select(User).where(User.username == "bob")) is not None
+        assert len(session.scalars(select(AuthToken)).all()) == 1
+        runs = session.scalars(select(RunRecord)).all()
+        assert [run.run_id for run in runs] == ["bob-run"]
 
 
 def test_game_version_endpoint_returns_release_details(client, monkeypatch) -> None:
@@ -434,7 +503,7 @@ def test_login_unexpected_error_is_logged_without_exposing_details(client) -> No
     assert response.json() == {"detail": "Internal server error"}
     assert "database connection failed" not in response.text
     assert "Unhandled exception while handling API request" in log_output.getvalue()
-    assert "client_ip=testclient" in log_output.getvalue()
+    assert "client_ip" not in log_output.getvalue()
     assert "user_agent='testclient'" in log_output.getvalue()
     assert "RuntimeError: database connection failed" in log_output.getvalue()
 
@@ -462,7 +531,7 @@ def test_api_request_logs_method_path_and_status(client) -> None:
         "API request completed method=GET path=/api/v1/leaderboard status=200"
         in log_output.getvalue()
     )
-    assert "client_ip=203.0.113.24" in log_output.getvalue()
+    assert "client_ip" not in log_output.getvalue()
     assert "user_agent='ElementalKeep/1.2'" in log_output.getvalue()
 
 

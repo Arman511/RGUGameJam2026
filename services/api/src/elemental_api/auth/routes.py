@@ -8,7 +8,7 @@ from typing import Annotated
 from elemental_api.auth.passwords import hash_password, verify_password
 from elemental_api.auth.tokens import generate_token, token_expiry, token_hash
 from elemental_api.database.connection import get_db
-from elemental_api.database.models import AuthToken, User
+from elemental_api.database.models import AuthToken, RunRecord, User
 from elemental_api.schemas import (
     AuthResponse,
     LoginRequest,
@@ -182,3 +182,15 @@ def logout_all(
         token.revoked_at = datetime.now(UTC).replace(tzinfo=None)
     db.commit()
     return MessageResponse(message="logged out all sessions")
+
+
+@router.delete("/account", response_model=MessageResponse)
+def delete_account(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> MessageResponse:
+    db.execute(delete(AuthToken).where(AuthToken.user_id == user.id))
+    db.execute(delete(RunRecord).where(RunRecord.user_id == user.id))
+    db.delete(user)
+    db.commit()
+    return MessageResponse(message="Account and associated data deleted")
