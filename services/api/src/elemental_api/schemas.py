@@ -29,7 +29,7 @@ class RegisterRequest(BaseModel):
         requirements = (
             (any(character.isupper() for character in value), "an uppercase letter"),
             (any(character.islower() for character in value), "a lowercase letter"),
-            (any(character.isdigit() for character in value), "a number"),
+            (any(character.isdecimal() for character in value), "a number"),
             (
                 any(
                     not character.isalnum() and not character.isspace()

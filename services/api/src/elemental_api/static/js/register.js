@@ -32,7 +32,7 @@ function passwordChecks(password) {
     length: password.length >= 8 && password.length <= 128,
     uppercase: /\p{Lu}/u.test(password),
     lowercase: /\p{Ll}/u.test(password),
-    number: /\p{N}/u.test(password),
+    number: /\p{Nd}/u.test(password),
     symbol: /[^\p{L}\p{N}\s]/u.test(password),
   };
 }

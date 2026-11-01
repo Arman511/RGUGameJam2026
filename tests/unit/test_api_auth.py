@@ -42,7 +42,7 @@ def test_registration_succeeds(client) -> None:
 
 @pytest.mark.parametrize(
     "password",
-    ["lowercase1!", "UPPERCASE1!", "NoDigits!!", "NoSymbol123"],
+    ["lowercase1!", "UPPERCASE1!", "NoDigits!!", "NoSymbol123", "NoDigitⅣ!!", "NoDigit²!!"],
 )
 def test_registration_rejects_passwords_missing_complexity(password, client) -> None:
     response = client.post(
