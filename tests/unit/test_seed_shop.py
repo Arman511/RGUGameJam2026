@@ -1,3 +1,6 @@
+# pyright: reportAttributeAccessIssue=false
+from typing import cast
+
 import pygame
 from elemental_game.game_entities.crops.crops import Crop, CropType
 from elemental_game.game_entities.farm import CropMenu, Farm
@@ -222,7 +225,7 @@ def test_boss_reward_waits_for_manual_turret_exit() -> None:
         player=object(),
         screen=pygame.Surface((1, 1)),
     )
-    handler = GameInputHandler(game)
+    handler = GameInputHandler(cast(GameSession, game))
 
     handler.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_ESCAPE}))
 
@@ -439,7 +442,7 @@ def test_buy_shop_controls_have_room_before_seed_list(monkeypatch) -> None:
         ),
     )
     shop = ShopMenu()
-    shop._visible_options = lambda *_args: []
+    shop._visible_options = lambda player, house=None: []  # type: ignore[method-assign]
     surface = pygame.Surface((800, 600))
     panel = ShopRenderer._panel_rect(surface)
 
@@ -1041,8 +1044,8 @@ def test_game_only_advances_crop_growth_during_planting_phase(monkeypatch) -> No
         spawned_enemies=[], started_wave=None, completed=False
     )
     game = GameSession.__new__(GameSession)
-    game.house = SimpleNamespace(health=100)
-    game.player = SimpleNamespace(update=lambda _seconds: None)
+    game.house = cast(House, SimpleNamespace(health=100))
+    game.player = cast(Player, SimpleNamespace(update=lambda _seconds: None))
     game.farm = SimpleNamespace(
         update=lambda _seconds, *, grow_crops: growth_settings.append(grow_crops),
         weather_crop_type=None,

@@ -1,0 +1,5 @@
+{"rule":"UPPERCASE_SENTENCE_START","sentence":"^\\Qprivacy policy\\E$"}
+{"rule":"UPPERCASE_SENTENCE_START","sentence":"^\\Qfor details about your data.\\E$"}
+{"rule":"UPPERCASE_SENTENCE_START","sentence":"^\\Qdelete your account\\E$"}
+{"rule":"UPPERCASE_SENTENCE_START","sentence":"^\\Qat any time.\\E$"}
+{"rule":"UPPERCASE_SENTENCE_START","sentence":"^\\Qproject's GitHub page\\E$"}

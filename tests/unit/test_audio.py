@@ -1,3 +1,4 @@
+# pyright: reportOptionalMemberAccess=false
 from unittest.mock import Mock
 
 import pygame

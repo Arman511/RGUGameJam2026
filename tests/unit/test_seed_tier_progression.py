@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false
 from types import SimpleNamespace
 
 import pygame

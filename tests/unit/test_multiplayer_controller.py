@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false, reportArgumentType=false
 from types import SimpleNamespace
 from unittest.mock import Mock
 
