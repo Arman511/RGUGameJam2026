@@ -1,3 +1,6 @@
+# pyright: reportAttributeAccessIssue=false
+from typing import cast
+
 import pygame
 from elemental_game.game_entities.crops.crops import Crop, CropType
 from elemental_game.game_entities.farm import CropMenu, Farm
@@ -14,8 +17,8 @@ from elemental_game.game_entities.shop import (
 )
 from elemental_game.game_entities.shop.renderer import ShopRenderer
 from elemental_game.game_entities.turrets.turrets import ManualTurret
-from elemental_game.game_input import GameInputHandler
-from elemental_game.gameplay import GameSession
+from elemental_game.application.input import GameInputHandler
+from elemental_game.application.session import GameSession
 from elemental_game.game_types.player import PlayerType
 from elemental_game.game_types.seed import SeedType
 
@@ -222,7 +225,7 @@ def test_boss_reward_waits_for_manual_turret_exit() -> None:
         player=object(),
         screen=pygame.Surface((1, 1)),
     )
-    handler = GameInputHandler(game)
+    handler = GameInputHandler(cast(GameSession, game))
 
     handler.handle_event(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_ESCAPE}))
 
@@ -439,7 +442,7 @@ def test_buy_shop_controls_have_room_before_seed_list(monkeypatch) -> None:
         ),
     )
     shop = ShopMenu()
-    shop._visible_options = lambda *_args: []
+    shop._visible_options = lambda player, house=None: []  # type: ignore[method-assign]
     surface = pygame.Surface((800, 600))
     panel = ShopRenderer._panel_rect(surface)
 
@@ -1005,28 +1008,18 @@ def test_farm_plays_sfx_only_after_successful_planting_and_harvesting(
         "elemental_game.game_entities.farm.play_sfx",
         lambda name: events.append(("sound", name, farm.grid[0][0])) or True,
     )
-    monkeypatch.setattr(
-        pygame.time,
-        "delay",
-        lambda milliseconds: events.append(("delay", milliseconds, farm.grid[0][0])),
-    )
 
     crop = farm.plant(0, 0, CropType.FIRE)
     assert crop is not None
     assert farm.plant(0, 0, CropType.WATER) is None
-    assert events == [
-        ("sound", "planting", None),
-        ("delay", 250, None),
-    ]
+    assert events == [("sound", "planting", None)]
 
     crop.growth_timer = crop.GROWTH_TIME
     assert farm.harvest(0, 0) is crop
     assert farm.harvest(0, 0) is None
     assert events == [
         ("sound", "planting", None),
-        ("delay", 250, None),
         ("sound", "harvesting", crop),
-        ("delay", 250, crop),
     ]
 
 
@@ -1044,15 +1037,15 @@ def test_enemy_phase_pauses_crop_growth_but_counts_down_fertilizer() -> None:
 def test_game_only_advances_crop_growth_during_planting_phase(monkeypatch) -> None:
     from types import SimpleNamespace
 
-    from elemental_game import gameplay as gameplay_module
+    from elemental_game.application import session as gameplay_module
 
     growth_settings = []
     update_result = SimpleNamespace(
         spawned_enemies=[], started_wave=None, completed=False
     )
     game = GameSession.__new__(GameSession)
-    game.house = SimpleNamespace(health=100)
-    game.player = SimpleNamespace(update=lambda _seconds: None)
+    game.house = cast(House, SimpleNamespace(health=100))
+    game.player = cast(Player, SimpleNamespace(update=lambda _seconds: None))
     game.farm = SimpleNamespace(
         update=lambda _seconds, *, grow_crops: growth_settings.append(grow_crops),
         weather_crop_type=None,
@@ -1105,7 +1098,7 @@ def test_player_does_not_move_with_plant_selector_open_during_enemy_phase(
     from types import SimpleNamespace
     from unittest.mock import Mock
 
-    from elemental_game import gameplay as gameplay_module
+    from elemental_game.application import session as gameplay_module
 
     update_result = SimpleNamespace(
         spawned_enemies=[], started_wave=None, completed=False

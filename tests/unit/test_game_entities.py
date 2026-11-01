@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false
 import math
 from unittest.mock import Mock
 
@@ -218,8 +219,8 @@ def test_big_boss_has_reduced_health_higher_resistance_and_boss_status() -> None
     boss = EnemyState.create("big_boss", (0, 0))
 
     assert normal_boss.max_health == 100
-    assert boss.max_health == 270
-    assert boss.max_health == 2.7 * ENEMY_DEFS["boss"].max_health
+    assert boss.max_health == 200
+    assert boss.max_health == 2 * ENEMY_DEFS["boss"].max_health
     assert boss.resistance == 0.7
     assert EnemyState.create("boss", (0, 0)).resistance == 0.45
     assert boss.is_boss
@@ -561,7 +562,7 @@ def test_big_boss_damage_is_a_percentage_of_turret_max_health(monkeypatch) -> No
 
     turrets.damage_slot.assert_called_once_with(
         slot,
-        math.ceil(TurretInstance.MAX_HEALTH * 0.3),
+        math.ceil(TurretInstance.MAX_HEALTH * 0.25),
     )
 
 
@@ -983,7 +984,7 @@ def test_turret_upgrade_menu_displays_current_upgrade_levels() -> None:
 
     assert all(f"{name} (x0)" in " ".join(rendered_text) for name in UPGRADE_NAMES[:6])
     assert all("have 8" in text for text in rendered_text if "Fire rate" in text)
-    assert any("Repair turret (+25 health)" in text for text in rendered_text)
+    assert any("Repair turret by 25% health" in text for text in rendered_text)
 
 
 def test_inventory_hud_includes_wave_and_enemy_kill_count(monkeypatch) -> None:

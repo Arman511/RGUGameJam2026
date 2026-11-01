@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false, reportArgumentType=false
 from __future__ import annotations
 
 from unittest.mock import Mock
@@ -7,7 +8,6 @@ from elemental_game import __version__, menus
 from elemental_game.api_client.http import APIError
 from elemental_game.menus.common import (
     CREDITS_BUTTON,
-    HINTS_TOGGLE_BUTTON,
     UPDATE_DOWNLOAD_BUTTON,
 )
 from elemental_game.utils.version_check import UpdateInfo, check_for_update
@@ -36,7 +36,7 @@ def test_version_check_returns_newer_release(monkeypatch) -> None:
     from types import SimpleNamespace
 
     monkeypatch.setattr(
-        "elemental_game.version_check.httpx.get",
+        "elemental_game.utils.version_check.httpx.get",
         lambda *args, **kwargs: SimpleNamespace(
             raise_for_status=lambda: None,
             json=lambda: {
@@ -56,7 +56,7 @@ def test_version_check_ignores_current_or_newer_version(monkeypatch) -> None:
     from types import SimpleNamespace
 
     monkeypatch.setattr(
-        "elemental_game.version_check.httpx.get",
+        "elemental_game.utils.version_check.httpx.get",
         lambda *args, **kwargs: SimpleNamespace(
             raise_for_status=lambda: None,
             json=lambda: {
@@ -280,32 +280,33 @@ def test_leaderboard_filter_is_horizontally_centered() -> None:
 def test_settings_toggle_gameplay_hints() -> None:
     app = menus.MenuSystem.__new__(menus.MenuSystem)
     app.layout = menus.MenuLayout(800, 600)
-    app.api_base_url_input = menus.InputField(
-        menus.API_BASE_URL_INPUT,
-        placeholder="https://example.com",
-        max_length=255,
-    )
+    app.settings_modal = "hints_enabled"
     app.hints_enabled = True
-    click_event = pygame.event.Event(
-        pygame.MOUSEBUTTONDOWN,
-        {"button": 1, "pos": HINTS_TOGGLE_BUTTON.center},
-    )
 
-    app._handle_settings_event(click_event)
+    def click(rect: pygame.Rect) -> None:
+        app._handle_settings_event(
+            pygame.event.Event(
+                pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": rect.center}
+            )
+        )
+
+    click(pygame.Rect(405, 245, 110, 40))
     assert app.hints_enabled is False
 
-    app._handle_settings_event(click_event)
+    click(pygame.Rect(290, 245, 110, 40))
     assert app.hints_enabled is True
 
 
 def test_settings_api_input_accepts_text_without_triggering_gameplay_actions() -> None:
     app = menus.MenuSystem.__new__(menus.MenuSystem)
     app.layout = menus.MenuLayout(800, 600)
+    modal_input = pygame.Rect(180, 245, 440, 42)
     app.api_base_url_input = menus.InputField(
-        menus.API_BASE_URL_INPUT,
+        modal_input,
         placeholder="https://example.com",
         max_length=255,
     )
+    app.settings_modal = "api_base_url"
     app.dragging_slider = None
     app.hints_enabled = True
     app.api_base_url_input.value = ""
@@ -313,7 +314,7 @@ def test_settings_api_input_accepts_text_without_triggering_gameplay_actions() -
     app._handle_settings_event(
         pygame.event.Event(
             pygame.MOUSEBUTTONDOWN,
-            {"button": 1, "pos": menus.API_BASE_URL_INPUT.center},
+            {"button": 1, "pos": modal_input.center},
         )
     )
     app._handle_settings_event(
@@ -360,10 +361,13 @@ def test_player_type_name_is_centered_above_modal_close_button() -> None:
 def test_settings_slider_updates_manual_turret_sensitivity() -> None:
     app = menus.MenuSystem.__new__(menus.MenuSystem)
     app.layout = menus.MenuLayout(800, 600)
-    app.dragging_slider = "manual_turret_sensitivity"
+    app.settings_modal = "manual_turret_sensitivity"
+    app.dragging_slider = None
     app.manual_turret_sensitivity = 0.5
 
-    app._update_slider(menus.TURRET_SENSITIVITY_SLIDER.right)
+    app._handle_settings_event(
+        pygame.event.Event(pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": (620, 252)})
+    )
 
     assert app.manual_turret_sensitivity == 1.0
 
@@ -404,6 +408,8 @@ def test_settings_save_updates_persisted_api_url_and_turret_sensitivity(
     app.error_message = ""
     app._save_sound_preferences = Mock()
     app.manual_turret_sensitivity = 0.8
+    app.layout = menus.MenuLayout(800, 600)
+    app.settings_modal = None
     app.state = "settings"
 
     app._close_settings()

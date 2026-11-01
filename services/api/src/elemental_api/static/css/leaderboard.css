@@ -199,7 +199,20 @@ body {
   border-radius: 20px;
   background: var(--surface);
 }
+.policy-card {
+  width: min(100%, 820px);
+  padding: clamp(24px, 5vw, 48px);
+  border: 1px solid var(--surface-border);
+  border-radius: 20px;
+  background: var(--surface);
+  line-height: 1.7;
+}
+.policy-card h2 { color: var(--accent); }
+.policy-card li + li { margin-top: .65rem; }
 .auth-card .form-label { font-weight: 650; }
+.password-requirements { padding-left: 1.25rem; }
+.password-requirements li { color: var(--text-muted); }
+.password-requirements li.requirement-met { color: #35bd76; }
 .auth-card .form-control {
   min-height: 46px;
   border-color: var(--surface-border);

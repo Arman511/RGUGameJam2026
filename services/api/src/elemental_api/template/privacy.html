@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+
+<head>
+  {% include "seo.html" %}
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link href="{{ url_for('static', path='css/leaderboard.css') }}" rel="stylesheet">
+  <script src="{{ url_for('static', path='js/theme.js') }}" defer></script>
+</head>
+
+<body>
+  <main class="container-xl page-shell py-4 py-lg-5">
+    <header class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-5">
+      <a class="brand d-flex align-items-center gap-2 text-decoration-none" href="/">
+        <img class="brand-mark" src="{{ url_for('static', path='icon.png') }}" alt="">
+        <span class="fw-bold small letter-spaced">ELEMENTAL KEEP</span>
+      </a>
+      <div class="d-flex align-items-center gap-2">
+        <a class="btn btn-outline-secondary" href="/">Leaderboard</a>
+        <a class="btn btn-outline-secondary" href="/account/delete">Delete account</a>
+        <button class="btn btn-outline-secondary theme-toggle d-inline-flex align-items-center gap-2" id="theme-toggle"
+          type="button" aria-label="Switch to light mode" aria-pressed="false">
+          <span id="theme-icon" aria-hidden="true">☀</span>
+          <span id="theme-label" class="d-none d-sm-inline">Light mode</span>
+        </button>
+      </div>
+    </header>
+
+    <article class="policy-card mx-auto" aria-labelledby="page-heading">
+      <p class="eyebrow mb-3">Your privacy</p>
+      <h1 class="display-5 fw-bold mb-2" id="page-heading">Privacy policy</h1>
+      <p class="auth-description mb-4">Last updated: 1 November 2026</p>
+
+      <p>
+        Elemental Keep is a small game-jam project. This page explains, in plain
+        language, what information the game website uses and what choices you have.
+      </p>
+
+      <h2 class="h4 mt-4">What we save</h2>
+      <ul>
+        <li>
+          When you make an account, we save your username, a protected version of
+          your password, and when the account was created. We do not save your
+          password in readable form.
+        </li>
+        <li>
+          If you send a score to the leaderboard, we save the run ID, score
+          details, and date. Your username and scores are shown publicly on the
+          leaderboard.
+        </li>
+        <li>
+          The application does not intentionally store your IP address or User-Agent in
+          its own records. The web server and hosting provider may keep connection
+          logs, which can include this information.
+        </li>
+        <li>
+          In multiplayer, your chosen player name and game messages are shared
+          with the other player while the match is running. They are held
+          temporarily and are not saved to your account.
+        </li>
+        <li>
+          Your browser saves a few display choices, such as the colour theme and
+          leaderboard settings. These stay in your browser.
+        </li>
+      </ul>
+
+      <h2 class="h4 mt-4">Why we use it</h2>
+      <p>
+        We use account details to let you sign in, scores to run the leaderboard,
+        and short-lived multiplayer details to connect players. Basic request
+        notes help us keep the site working. The website loads some styling from
+        jsDelivr and checks GitHub for game updates; those services may receive
+        ordinary connection information when your browser or the game contacts
+        them.
+      </p>
+
+      <h2 class="h4 mt-4">How long we keep it</h2>
+      <p>
+        Account and score information stays in the website's database until you
+        delete your account. Deleting your account removes your scores and sign-in
+        records from the live database too. Backups or hosting-provider records
+        may take longer to disappear. Multiplayer details are cleared when the
+        match ends, a player leaves, or a waiting room expires.
+      </p>
+
+      <h2 class="h4 mt-4">Your choices</h2>
+      <p>
+        You can <a href="/account/delete">delete your account</a> at any time.
+        This also removes your leaderboard scores. You can also ask to see or
+        correct information about you, or raise a privacy concerns.
+      </p>
+      <p>
+        For privacy questions or requests, use the
+        <a href="https://github.com/Arman511/RGUGameJam2026" target="_blank" rel="noopener noreferrer">project's GitHub
+          page</a>.
+        Please do not put passwords or other private information in a public
+        post. You can also contact your local data protection authority if you
+        have a concern.
+      </p>
+
+      <h2 class="h4 mt-4">Changes</h2>
+      <p class="mb-0">
+        If the way the game uses information changes, we will update this page.
+      </p>
+    </article>
+  </main>
+</body>
+
+</html>

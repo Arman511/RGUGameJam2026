@@ -46,14 +46,18 @@ def _draw_quick_action_button(
             else (
                 disabled_background_color
                 if not enabled and disabled_background_color is not None
-                else (67, 86, 69) if enabled else (65, 65, 65)
+                else (67, 86, 69)
+                if enabled
+                else (65, 65, 65)
             )
         )
     )
     border = (
         border_color
         if border_color is not None
-        else (245, 225, 125) if active or (enabled and hovered) else (145, 150, 145)
+        else (245, 225, 125)
+        if active or (enabled and hovered)
+        else (145, 150, 145)
     )
     pygame.draw.rect(surface, background, rect, border_radius=9)
     pygame.draw.rect(surface, border, rect, border_width, border_radius=9)

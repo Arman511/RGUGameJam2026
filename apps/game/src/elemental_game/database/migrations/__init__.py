@@ -53,7 +53,8 @@ def upgrade_database(database_path: Path) -> None:
                         "ALTER TABLE leaderboard ADD COLUMN username TEXT NOT NULL DEFAULT 'Guest'"
                     )
                     leaderboard_columns = {
-                        column[1] for column in _table_columns(connection, "leaderboard")
+                        column[1]
+                        for column in _table_columns(connection, "leaderboard")
                     }
                 connection.execute("""
                     CREATE TABLE leaderboard_new (

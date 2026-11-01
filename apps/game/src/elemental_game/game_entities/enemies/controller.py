@@ -145,7 +145,11 @@ def load_enemy_images() -> dict[str, pygame.Surface]:
         size = (
             164
             if key == "big_boss"
-            else 82 if definition.is_boss else 48 if definition.is_elite else 42
+            else 82
+            if definition.is_boss
+            else 48
+            if definition.is_elite
+            else 42
         )
         images[key] = pygame.transform.smoothscale(image, (size, size))
     return images

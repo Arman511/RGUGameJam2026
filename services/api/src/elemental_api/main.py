@@ -7,7 +7,7 @@ import re
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from time import monotonic, perf_counter
+from time import monotonic
 from urllib.parse import quote
 
 import httpx
@@ -42,13 +42,6 @@ ALLOWED_ORIGINS = [
     "https://localhost",
 ]
 LOCAL_ORIGIN_PATTERN = r"https?://(?:localhost|127\.0\.0\.1)(?::\d+)?"
-
-
-def _request_identity(request: Request) -> tuple[str, str]:
-    client_ip = request.client.host if request.client is not None else "unknown"
-    user_agent = request.headers.get("user-agent", "unknown")
-    user_agent = "".join(char for char in user_agent if char.isprintable())[:256]
-    return client_ip, user_agent or "unknown"
 
 
 class WebSocketOriginMiddleware:
@@ -95,38 +88,12 @@ app = FastAPI(
 )
 
 
-@app.middleware("http")
-async def log_api_requests(request: Request, call_next):
-    if not request.url.path.startswith("/api/"):
-        return await call_next(request)
-
-    started_at = perf_counter()
-    response = await call_next(request)
-    elapsed_ms = (perf_counter() - started_at) * 1000
-    client_ip, user_agent = _request_identity(request)
-    logger.info(
-        "API request completed method=%s path=%s status=%d duration_ms=%.2f "
-        "client_ip=%s user_agent=%r",
-        request.method,
-        request.url.path,
-        response.status_code,
-        elapsed_ms,
-        client_ip,
-        user_agent,
-    )
-    return response
-
-
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    client_ip, user_agent = _request_identity(request)
     logger.error(
-        "Unhandled exception while handling API request method=%s path=%s "
-        "client_ip=%s user_agent=%r",
+        "Unhandled exception while handling API request method=%s path=%s",
         request.method,
         request.url.path,
-        client_ip,
-        user_agent,
         exc_info=(type(exc), exc, exc.__traceback__),
     )
     return JSONResponse(
@@ -179,6 +146,30 @@ def registration_page(request: Request) -> HTMLResponse:
         context={
             "page_title": "Create an account · Elemental Keep",
             "page_description": "Create an Elemental Keep account.",
+        },
+    )
+
+
+@app.get("/account/delete", response_class=HTMLResponse, include_in_schema=False)
+def account_deletion_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request=request,
+        name="delete_account.html",
+        context={
+            "page_title": "Delete your account · Elemental Keep",
+            "page_description": "Permanently delete your Elemental Keep account and associated data.",
+        },
+    )
+
+
+@app.get("/privacy", response_class=HTMLResponse, include_in_schema=False)
+def privacy_policy_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request=request,
+        name="privacy.html",
+        context={
+            "page_title": "Privacy policy · Elemental Keep",
+            "page_description": "Learn what information Elemental Keep processes and how to exercise your privacy rights.",
         },
     )
 

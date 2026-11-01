@@ -549,7 +549,9 @@ class TurretSystem:
                 else (
                     (130, 220, 140)
                     if element is not None and resource_available[index]
-                    else (220, 145, 145) if element is not None else (255, 255, 255)
+                    else (220, 145, 145)
+                    if element is not None
+                    else (255, 255, 255)
                 )
             )
             row_center_y = panel.y + 120 + index * 38

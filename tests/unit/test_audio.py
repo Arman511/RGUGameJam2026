@@ -1,3 +1,4 @@
+# pyright: reportOptionalMemberAccess=false
 from unittest.mock import Mock
 
 import pygame
@@ -38,17 +39,21 @@ def test_background_music_loops_when_mixer_is_available(monkeypatch) -> None:
     monkeypatch.setattr(pygame.mixer, "get_init", lambda: (44100, -16, 2))
     monkeypatch.setattr(pygame.mixer, "set_reserved", Mock())
     monkeypatch.setattr(
-        "elemental_game.audio.random.choice", lambda tracks: "background"
+        "elemental_game.utils.audio.random.choice", lambda tracks: "background"
     )
     sound = Mock()
     construct_sound = Mock(return_value=sound)
     monkeypatch.setattr(pygame.mixer, "Sound", construct_sound)
     channel = Mock()
     monkeypatch.setattr(pygame.mixer, "Channel", Mock(return_value=channel))
-    monkeypatch.setattr("elemental_game.audio._loaded_music_tracks", {})
-    monkeypatch.setattr("elemental_game.audio._current_background_track", None)
-    monkeypatch.setattr("elemental_game.audio._current_background_channel_index", None)
-    monkeypatch.setattr("elemental_game.audio._last_normal_background_track", None)
+    monkeypatch.setattr("elemental_game.utils.audio._loaded_music_tracks", {})
+    monkeypatch.setattr("elemental_game.utils.audio._current_background_track", None)
+    monkeypatch.setattr(
+        "elemental_game.utils.audio._current_background_channel_index", None
+    )
+    monkeypatch.setattr(
+        "elemental_game.utils.audio._last_normal_background_track", None
+    )
 
     assert play_background_music(volume=0.4)
 
@@ -75,15 +80,19 @@ def test_background_music_end_event_starts_a_different_playlist_track(
     sound = Mock()
     construct_sound = Mock(return_value=sound)
     monkeypatch.setattr(pygame.mixer, "Sound", construct_sound)
-    monkeypatch.setattr("elemental_game.audio._loaded_music_tracks", {})
+    monkeypatch.setattr("elemental_game.utils.audio._loaded_music_tracks", {})
     monkeypatch.setattr(
-        "elemental_game.audio._current_background_track", "farm-and-tavern"
+        "elemental_game.utils.audio._current_background_track", "farm-and-tavern"
     )
-    monkeypatch.setattr("elemental_game.audio._current_background_channel_index", 0)
     monkeypatch.setattr(
-        "elemental_game.audio._last_normal_background_track", "farm-and-tavern"
+        "elemental_game.utils.audio._current_background_channel_index", 0
     )
-    monkeypatch.setattr("elemental_game.audio.random.choice", lambda tracks: tracks[0])
+    monkeypatch.setattr(
+        "elemental_game.utils.audio._last_normal_background_track", "farm-and-tavern"
+    )
+    monkeypatch.setattr(
+        "elemental_game.utils.audio.random.choice", lambda tracks: tracks[0]
+    )
 
     event = pygame.event.Event(BACKGROUND_MUSIC_ENDED_EVENT)
     assert handle_background_music_end_event(event, volume=0.5)
@@ -106,8 +115,12 @@ def test_playing_background_music_again_does_not_restart_track(monkeypatch) -> N
     channel = Mock()
     channel.get_busy.return_value = True
     monkeypatch.setattr(pygame.mixer, "Channel", Mock(return_value=channel))
-    monkeypatch.setattr("elemental_game.audio._current_background_track", "background")
-    monkeypatch.setattr("elemental_game.audio._current_background_channel_index", 0)
+    monkeypatch.setattr(
+        "elemental_game.utils.audio._current_background_track", "background"
+    )
+    monkeypatch.setattr(
+        "elemental_game.utils.audio._current_background_channel_index", 0
+    )
 
     assert play_background_music()
     assert play_background_music(volume=0.5)
@@ -127,9 +140,15 @@ def test_switching_background_music_crossfades_between_channels(monkeypatch) -> 
     monkeypatch.setattr(
         pygame.mixer, "Channel", Mock(side_effect=(old_channel, new_channel))
     )
-    monkeypatch.setattr("elemental_game.audio._loaded_music_tracks", {"enemies": sound})
-    monkeypatch.setattr("elemental_game.audio._current_background_track", "background")
-    monkeypatch.setattr("elemental_game.audio._current_background_channel_index", 0)
+    monkeypatch.setattr(
+        "elemental_game.utils.audio._loaded_music_tracks", {"enemies": sound}
+    )
+    monkeypatch.setattr(
+        "elemental_game.utils.audio._current_background_track", "background"
+    )
+    monkeypatch.setattr(
+        "elemental_game.utils.audio._current_background_channel_index", 0
+    )
 
     assert play_background_music("enemies", volume=0.6)
 

@@ -29,7 +29,7 @@ class RegisterRequest(BaseModel):
         requirements = (
             (any(character.isupper() for character in value), "an uppercase letter"),
             (any(character.islower() for character in value), "a lowercase letter"),
-            (any(character.isdigit() for character in value), "a number"),
+            (any(character.isdecimal() for character in value), "a number"),
             (
                 any(
                     not character.isalnum() and not character.isspace()
@@ -113,7 +113,9 @@ class LeaderboardFilters(BaseModel):
     def validate_custom_dates(self) -> "LeaderboardFilters":
         if self.period != "custom":
             if self.start_date is not None or self.end_date is not None:
-                raise ValueError("Custom dates can only be used with the custom period.")
+                raise ValueError(
+                    "Custom dates can only be used with the custom period."
+                )
             return self
 
         if self.start_date is None or self.end_date is None:

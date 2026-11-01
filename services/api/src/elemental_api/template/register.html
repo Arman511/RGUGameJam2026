@@ -46,17 +46,31 @@
 
         <div class="mb-3">
           <label class="form-label" for="password">Password</label>
-          <input class="form-control" id="password" name="password" type="password" minlength="8" maxlength="128"
-            autocomplete="new-password" required>
-          <div class="form-text">
-            Use 8 to 128 characters, including uppercase and lowercase letters, a number, and a symbol.
+          <div class="input-group">
+            <input class="form-control" id="password" name="password" type="password" minlength="8" maxlength="128"
+              autocomplete="new-password" aria-describedby="password-requirements" required>
+            <button class="btn btn-outline-secondary password-visibility-toggle" type="button" data-password-toggle
+              aria-controls="password" aria-pressed="false">Show</button>
           </div>
+          <ul class="password-requirements form-text mb-0 mt-2" id="password-requirements"
+            aria-label="Password requirements">
+            <li id="requirement-length">8 to 128 characters</li>
+            <li id="requirement-uppercase">An uppercase letter</li>
+            <li id="requirement-lowercase">A lowercase letter</li>
+            <li id="requirement-number">A number</li>
+            <li id="requirement-symbol">A symbol</li>
+          </ul>
         </div>
 
         <div class="mb-4">
           <label class="form-label" for="confirm-password">Confirm password</label>
-          <input class="form-control" id="confirm-password" name="confirm-password" type="password" minlength="8"
-            maxlength="128" autocomplete="new-password" required>
+          <div class="input-group">
+            <input class="form-control" id="confirm-password" name="confirm-password" type="password" minlength="8"
+              maxlength="128" autocomplete="new-password" aria-describedby="password-match" required>
+            <button class="btn btn-outline-secondary password-visibility-toggle" type="button" data-password-toggle
+              aria-controls="confirm-password" aria-pressed="false">Show</button>
+          </div>
+          <div class="form-text" id="password-match" role="status" aria-live="polite"></div>
         </div>
 
         <p class="auth-message mb-3" id="form-message" role="status" aria-live="polite" hidden></p>
@@ -64,6 +78,11 @@
           Create account
         </button>
       </form>
+      <p class="footer-note mt-4 mb-0">
+        Creating an account means your username and scores may appear on the public
+        leaderboard. Read our <a href="/privacy">privacy policy</a> or
+        <a href="/account/delete">delete an existing account</a>.
+      </p>
     </section>
   </main>
 </body>
