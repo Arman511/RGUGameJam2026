@@ -37,7 +37,7 @@ The root URL serves the live Jinja2 leaderboard, styled with Bootstrap. The
 `/download` page directs players to the latest game release on GitHub, the
 `/register` page lets players create an account using the registration API,
 `/privacy` publishes the privacy policy, and `/account/delete` lets a player
-reauthenticate and delete their account and associated records.
+reauthenticate and deletes their account and associated records.
 CSS and JavaScript are served from `/static/`; the leaderboard refreshes scores
 every seven seconds and supports searching by player/run ID, sorting by score
 fields, and switching between light and dark themes. CORS allows
@@ -66,7 +66,7 @@ Create a new schema change with `uv run alembic revision -m "describe change"`
 and edit the generated revision before deploying it. Never edit a migration
 that has already been applied; add a new revision instead.
 
-New account passwords must be 8-128 characters and include an uppercase
+New account passwords must be 8–128 characters and include an uppercase
 letter, a lowercase letter, a number, and a symbol. Existing accounts can
 continue logging in with their current password.
 
@@ -95,4 +95,4 @@ provider may also retain connection records, including the player's IP address, 
 to their settings.
 
 Successful logins remove expired and revoked authentication tokens. Database
-indexes support token cleanup, per-user token lookups, and leaderboard ranking.
+indexes support token clean-up, per-user token lookups, and leaderboard ranking.
